@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: uniroom_db
+    ports:
+      - '5435:5432'
+    environment:
+      POSTGRES_USER: uniroom_user
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: uniroom
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data # Aquí se guardarán los datos reales
+
+  # Opcional: Interfaz gráfica para ver la base de datos en el navegador
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: uniroom_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@uniroom.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres

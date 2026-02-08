@@ -1,0 +1,139 @@
+// 1. Configuración básica
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMS (Opciones fijas del PDF) ---
+
+enum RolUsuario {
+  ESTUDIANTE
+  ARRENDADOR
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  SUSPENDIDO
+}
+
+enum Genero {
+  MASCULINO
+  FEMENINO
+  OTRO
+}
+
+enum EstadoInmueble {
+  DISPONIBLE
+  OCUPADO
+  OCULTO
+}
+
+enum TipoInmueble {
+  CASA
+  DEPA
+  CUARTO
+}
+
+// --- MODELOS (Tablas en Español) ---
+
+// [PDF] Entidad: Usuario
+model Usuario {
+  id_usuario      String        @id @default(uuid()) // "id usuario" (UUID/PK)
+  email           String        @unique              // "email"
+  password_hash   String                             // "password_hash"
+  rol             RolUsuario                         // "rol"
+  estado          EstadoUsuario @default(ACTIVO)     // "estado"
+
+  // Datos personales
+  nombre          String        @db.VarChar(100)     // "Nombre"
+  apellidos       String        @db.VarChar(100)     // "Apellidos"
+  numero_contacto String?       @db.VarChar(20)      // "Numero contacto"
+  genero          Genero?                            // "Genero"
+  edad            Int?                               // "Edad"
+  foto            String?                            // "Foto"
+
+  // [PDF] Entidad: Visibilidad (Integrada aquí por eficiencia)
+  // TRUE = Mostrar datos de contacto (público)
+  // FALSE = Ocultar datos privados (privado)
+  visibilidad     Boolean       @default(false)      // "Estado" de la tabla Visibilidad
+
+  fecha_creacion  DateTime      @default(now())
+
+  // Relaciones
+  inmuebles_propiedad Inmueble[]     @relation("InmueblesArrendador") // Sus casas (si es arrendador)
+  inmuebles_rentados  Inmueble[]     @relation("InmuebleEstudiante")  // Donde vive (si es estudiante)
+  calificaciones      Calificacion[]                                  // Reviews que ha escrito
+}
+
+// [PDF] Entidad: Inmueble
+model Inmueble {
+  id_inmueble     Int             @id @default(autoincrement()) // "id inmueble"
+
+  // Relación con Arrendador (Dueño)
+  id_arrendador   String                                        // "id arrendador" (FK)
+  arrendador      Usuario         @relation("InmueblesArrendador", fields: [id_arrendador], references: [id_usuario])
+
+  precio_mensual  Decimal         @db.Decimal(10, 2)            // "precio_mensual"
+  estado          EstadoInmueble  @default(DISPONIBLE)          // "estado"
+  descripcion     String?         @db.Text                      // "Descripcion"
+
+  // Ubicación
+  direccion_latitud  Decimal?                                   // "Dirección Latitud"
+  direccion_longitud Decimal?                                   // "Direccion logitud"
+
+  tipo_inmueble   TipoInmueble                                  // "Tipo de inmueble"
+
+  // Relación con Estudiante (Inquilino actual)
+  id_estudiante   String?                                       // "Id estudiante" (FK)
+  estudiante      Usuario?        @relation("InmuebleEstudiante", fields: [id_estudiante], references: [id_usuario])
+
+  // Relaciones con otras tablas
+  servicios       Servicios[]                                   // "Servicios"
+  restricciones   Restricciones[]                               // "Restricciones"
+  calificaciones  Calificacion[]
+  imagenes        Imagenes[]
+
+  fecha_creacion  DateTime        @default(now())
+}
+
+// [PDF] Entidad: Servicios
+model Servicios {
+  id_servicios Int        @id @default(autoincrement()) // "Id servicios"
+  nombre       String                                   // "Nombre"
+  inmuebles    Inmueble[] // Relación: Un servicio puede estar en varios inmuebles
+}
+
+// [PDF] Entidad: Restricciones
+model Restricciones {
+  id_restriccion Int        @id @default(autoincrement()) // "Id restricción"
+  nombre         String                                   // "Nombre"
+  inmuebles      Inmueble[] // Relación: Una restricción aplica a varios inmuebles
+}
+
+// [PDF] Entidad: Calificación
+model Calificacion {
+  id_calificacion Int     @id @default(autoincrement()) // "Id calificación"
+  descripcion     String? @db.Text                      // "Descripción"
+  calificacion    Int                                   // "Calificacion" (Puntaje)
+
+  // Relaciones
+  id_estudiante   String                                // "Id estudiante FK"
+  estudiante      Usuario @relation(fields: [id_estudiante], references: [id_usuario])
+
+  id_inmueble     Int                                   // "Id inmueble FK"
+  inmueble        Inmueble @relation(fields: [id_inmueble], references: [id_inmueble])
+}
+
+// [PDF] Entidad: Imágenes
+model Imagenes {
+  id_imagen   Int      @id @default(autoincrement()) // "Id de imagen"
+  imagen      String                                 // "Imagen" (URL)
+
+  // Relación
+  id_inmueble Int                                    // "Id inmueble FK"
+  inmueble    Inmueble @relation(fields: [id_inmueble], references: [id_inmueble])
+}
