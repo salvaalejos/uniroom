@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState } from 'react';
 import {
     StyleSheet,
     Text,
@@ -10,6 +10,9 @@ import {
     ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // Íconos incluidos en Expo
+import Lessor_Renthouse from './lessor_renthouse';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+const Stack = createNativeStackNavigator();
 
 export default function RegisterScreen({ navigation }: any) {
     // Estados para los campos de texto
@@ -28,7 +31,16 @@ export default function RegisterScreen({ navigation }: any) {
             return;
         }
         console.log('Registrando usuario:', { fullName, email, phone, role });
-        // Aquí irá la conexión al backend
+        if (role === "landlord"){
+            return (
+                <Stack.Screen
+                    name="Inmueble"
+                    component={Lessor_Renthouse}
+                    options={{ title: 'Primer Inmueble' }}
+                />
+                 
+            )
+        }
     };
 
     return (
