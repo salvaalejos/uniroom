@@ -1,9 +1,7 @@
 /*
 Aparentemente utilizando image-picker no me deja poner la foto xd, pero ahorita queda xd
-
+ya quedo btw xd
 */
-
-
 import React, {useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -19,7 +17,7 @@ import {
     Pressable,
     Alert
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Íconos incluidos en Expo
+import { Ionicons } from '@expo/vector-icons'; // Íconos incluidos en Expo por default
 
 export default function RegisterScreen({ navigation }: any) {
     // Estados para los campos de texto
@@ -63,7 +61,7 @@ export default function RegisterScreen({ navigation }: any) {
         if (role === "landlord"){
             navigation.navigate("Tu Primer Inmueble")
         } else {
-            navigation.navigate("Student")
+            navigation.navigate("Navigator")
         }
     };
     return (
