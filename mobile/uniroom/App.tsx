@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
+import {View} from 'react-native'
 // Importa tus pantallas
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
@@ -14,7 +14,7 @@ const Stack = createNativeStackNavigator();
 export default function App() {
     return (
         <NavigationContainer>
-            <Stack.Navigator initialRouteName="Login">
+            <Stack.Navigator initialRouteName="Navigator">
                 <Stack.Screen 
                     name="Navigator"
                     component={NavigationMenu}
@@ -36,6 +36,8 @@ export default function App() {
                     options={{ title: 'Tu Primer Inmueble' }}
                 />
             </Stack.Navigator>
+            <View style={{height: 50, backgroundColor: "#DCEEFF"}}>
+            </View>
         </NavigationContainer>
     );
 }

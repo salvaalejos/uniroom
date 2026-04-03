@@ -1,6 +1,6 @@
 import { View, Text, Image, StyleSheet} from "react-native"
 
-const MapScreen = () => {
+const RoutesScreen = () => {
     return (
         <View style={styles.container}>
             <View style={styles.search_bar}>
@@ -12,7 +12,7 @@ const MapScreen = () => {
         </View>
     )
 } 
-export default MapScreen
+export default RoutesScreen
 
 const styles = StyleSheet.create({
     map: {
@@ -22,8 +22,7 @@ const styles = StyleSheet.create({
         borderRadius: 35
     },
     container: {
-        alignItems: "center",
-        backgroundColor: "#AAAEB3"
+        alignItems: "center"
     },
     search_bar: {
         resizeMode: "contain",
