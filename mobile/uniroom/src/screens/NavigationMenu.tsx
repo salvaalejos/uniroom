@@ -21,7 +21,7 @@ const Tabs = [
 
 const TabButton = (props: any) => {
     const {item, onPress} = props
-    //esta pinche función me tiene desesperado desde las 6 o 7 (son las 9) y la encontré en un rincón de GitHub olvidado por Torvalds, pero FUCK YOU CLAUDE  
+    //esta pinche función me tiene desesperado desde las 6 o 7 (son las 9) y la encontré en un rincón de GitHub olvidado por Torvalds, pero FUCK YOU CLAUDE
     const focused = useIsFocused()
     const viewRef = useRef(null)
     const circleRef = useRef(null)
