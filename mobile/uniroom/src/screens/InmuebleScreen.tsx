@@ -3,6 +3,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 
+import { useVideoPlayer, VideoView } from "expo-video"
+
 const { height: SCREEN_HEIGHT} = Dimensions.get('window')
 
 // Datos falsos por ahora sjdhsjd
@@ -17,10 +19,11 @@ const PROPIEDAD = {
     servicios: ["WiFi incluido", "Agua incluida", "Luz incluida", "Lavadora", "Estacionamiento"],
     reglas: ["No mascotas", "No fumar", "No fiestas", "Máx. 2 personas"],
     contacto: "55 1234 5678",
-    imagenes: [
-        require("../default_images/dreamhouse.jpg"),
-        require("../default_images/fachada.jpg"),
-        require("../default_images/otracasa.jpeg"),
+    media: [
+        { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
+        { tipo: "imagen", src: require("../default_images/fachada.jpg") },
+        { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
+        { tipo: "video", src: require("../default_images/twt.mp4") }, // requiere de npx expo install expo-video para cargar videos
     ]
 }
 
@@ -34,11 +37,25 @@ type Props = {
 // ฅ^•ﻌ•^ฅ hola guapuritas
 const InmuebleScreen = ({ visible, onClose }: Props) => {
 
+    const insets = useSafeAreaInsets()
+    // Poner en favoritos
+    const [favorito, setFavorito] = useState(false)
+
+    // Visualiza imagen y video actual
+    const [imagenActual, setImagenActual] = useState(0)
+
+    const player = useVideoPlayer(
+        PROPIEDAD.media[imagenActual].tipo === "video" ? PROPIEDAD.media[imagenActual].src : null
+    )
+
+    // Dar calificacion a la vivienda
+    const [miCalificacion, setMiCalificacion] = useState(0)
+
     // Comentarios preestablecidos ksdhfsjf
     const [comentarios, setComentarios] = useState <{ autor: string, texto: string, fecha: string }[]> ([
-        { autor: "Ana G.", texto: "Muy buen lugar, limpio y tranquilo.", fecha: "12 de enero de 2025" },
-        { autor: "Carlos M.", texto: "Excelente ubicación, el anfitrión muy amable.", fecha: "3 de febrero de 2025" },
-        { autor: "Sofía R.", texto: "Todo como se describe, lo recomiendo.", fecha: "28 de marzo de 2025" },
+        { autor: "Ana G.", texto: "Muy buen lugar, limpio y tranquilo.", fecha: "12 de enero de 2025 a las 3:25 p.m." },
+        { autor: "Carlos M.", texto: "Excelente ubicación, el anfitrión muy amable.", fecha: "3 de febrero de 2025 a las 8:46 a.m." },
+        { autor: "Sofía R.", texto: "Todo como se describe, lo recomiendo.", fecha: "28 de marzo de 2025 a las 2:07 p.m." },
     ])
 
     // Poder agregar comentarios
@@ -61,11 +78,6 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
         setNuevoComentario("")
     }
 
-    const insets = useSafeAreaInsets()
-    const [favorito, setFavorito] = useState(false)
-    const [imagenActual, setImagenActual] = useState(0)
-    const [miCalificacion, setMiCalificacion] = useState(0)
-
     return(
 
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -77,7 +89,15 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                     {/* Galeria */}
                     <View style={styles.galeriaContainer}>
 
-                        <Image source={PROPIEDAD.imagenes[imagenActual]} style={styles.imagenPrincipal}/>
+                        {PROPIEDAD.media[imagenActual].tipo === "imagen" ? (
+                            <Image source={PROPIEDAD.media[imagenActual].src} style={styles.imagenPrincipal}/>
+                        ) : (
+                            <VideoView
+                            player={player}
+                            style={styles.imagenPrincipal}
+                            allowsFullscreen
+                            allowsPictureInPicture/>
+                        )}
 
                         {/* Boton de cerrar */}
                         <TouchableOpacity style={styles.btnCerrar} onPress={onClose}>
@@ -92,9 +112,16 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
 
                         {/* Miniautas */}
                         <View style={styles.miniaturas}>
-                            {PROPIEDAD.imagenes.map((img, i) => (
+                            {PROPIEDAD.media.map((item, i) => (
                                 <TouchableOpacity key={i} onPress={() => setImagenActual(i)}>
-                                    <Image source={img} style={[styles.miniatura, imagenActual === i && styles.miniaturaActiva]}/>
+                                    {item.tipo === "imagen" ? (
+                                        <Image source={item.src} style={[styles.miniatura, imagenActual === i && styles.miniaturaActiva]}/>
+                                    ) : (
+                                        <View style={[styles.miniatura, styles.miniaturaVideo, imagenActual === i && styles.miniaturaActiva]}>
+                                            <MaterialCommunityIcons name="play-circle" size={28} color="#fff"/>
+                                        </View>
+                                    )}
+                                    
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -197,7 +224,8 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                         {/* Comentarios predefinidos */}
                         {comentarios.map((c, i) => (
                             <View key={i} style={styles.comentario}>
-                                <View style={styles.comentarioAvatar}>
+                                <Image source={ANFITRION} style={styles.comentarioAvatar}/>
+                                <View>
                                     <MaterialCommunityIcons name="account" size={20} color="#fff"/>
                                 </View>
 
@@ -286,6 +314,11 @@ const styles = StyleSheet.create({
         height: 50,
         borderRadius: 8,
         opacity: 0.6,
+    },
+    miniaturaVideo: {
+        backgroundColor: "#1a1a2e",
+        justifyContent: "center",
+        alignItems: "center",
     },
     miniaturaActiva: {
         opacity: 1,
@@ -416,8 +449,7 @@ const styles = StyleSheet.create({
     },
     comentario: {
         flexDirection: "row",
-        gap: 10,
-        marginBottom: 14,
+        marginBottom: 20,
         alignItems: "flex-start",
     },
     comentarioAvatar: {
@@ -429,14 +461,14 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     comentarioAutor: {
-        fontSize: 13,
+        fontSize: 15,
         fontWeight: "700",
         color: "#1a1a2e",
     },
     comentarioTexto: {
-        fontSize: 13,
+        fontSize: 15,
         color: "#666",
-        marginTop: 2,
+        marginTop: 5,
     },
     footer: {
         flexDirection: "row",
