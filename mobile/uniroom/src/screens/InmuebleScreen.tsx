@@ -1,10 +1,11 @@
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions } from "react-native"
+import { View, Text, TextInput, Image, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 
 const { height: SCREEN_HEIGHT} = Dimensions.get('window')
 
+// Datos falsos por ahora sjdhsjd
 const PROPIEDAD = {
     titulo: "Departamento Centro Morelia",
     anfitrion: "Stevenson",
@@ -23,15 +24,47 @@ const PROPIEDAD = {
     ]
 }
 
+const ANFITRION = require("../default_images/anfi.jpg")
+
 type Props = {
     visible: boolean
     onClose: () => void
 }
 
+// ฅ^•ﻌ•^ฅ hola guapuritas
 const InmuebleScreen = ({ visible, onClose }: Props) => {
+
+    // Comentarios preestablecidos ksdhfsjf
+    const [comentarios, setComentarios] = useState <{ autor: string, texto: string, fecha: string }[]> ([
+        { autor: "Ana G.", texto: "Muy buen lugar, limpio y tranquilo.", fecha: "12 de enero de 2025" },
+        { autor: "Carlos M.", texto: "Excelente ubicación, el anfitrión muy amable.", fecha: "3 de febrero de 2025" },
+        { autor: "Sofía R.", texto: "Todo como se describe, lo recomiendo.", fecha: "28 de marzo de 2025" },
+    ])
+
+    // Poder agregar comentarios
+    const [nuevoComentario, setNuevoComentario] = useState("")
+
+    const agregarComentario = () => {
+        if (nuevoComentario.trim() === "") return
+        const tiempo = new Date()
+        const fecha = tiempo.toLocaleDateString('es-MX', {
+            minute: 'numeric',
+            hour: 'numeric',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        })
+        setComentarios([
+            { autor: "Tú", texto: nuevoComentario, fecha },
+            ...comentarios,
+        ])
+        setNuevoComentario("")
+    }
+
     const insets = useSafeAreaInsets()
     const [favorito, setFavorito] = useState(false)
     const [imagenActual, setImagenActual] = useState(0)
+    const [miCalificacion, setMiCalificacion] = useState(0)
 
     return(
 
@@ -73,19 +106,35 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
 
                         {/* Titulo y calificaciones jsjs */}
                         <Text style={styles.titulo}>{PROPIEDAD.titulo}</Text>
-                        <View style={styles.calificacionRow}>
-                            <MaterialCommunityIcons name="star" size={18} color="#f39c12"/>
-                            <Text style={styles.calificacion}>{PROPIEDAD.calificacion}</Text>
-                            <Text style={styles.opiniones}>({PROPIEDAD.opiniones} opiniones)</Text>
+                        
+                        <View style={styles.calificacionContainer}>
+                            <View style={styles.calificacionItem}>
+                                <Text style={styles.calificacionNumero}>{PROPIEDAD.calificacion}</Text>
+                                <View style={styles.estrellas}>
+                                    {[1, 2 ,3 ,4 ,5].map((i)=>(
+                                        <TouchableOpacity key={i} onPress={() => setMiCalificacion(i)}>
+                                            <MaterialCommunityIcons
+                                            name={i <= miCalificacion ? "star" : "star-outline"}
+                                            size={25}
+                                            color="#f39c12"/>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
+                            <View style={styles.calificacionItem}>
+                                <Text style={styles.calificacionNumero}>{PROPIEDAD.opiniones}</Text>
+                                <Text style={styles.opinionesLabel}>opiniones</Text>
+                            </View>
+
                         </View>
+
 
                         <View style={styles.divider}/>
 
                         {/* Anfitrion */}
                         <View style={styles.anfitrionRow}>
-                            <View style={styles.avatarPlaceholder}>
-                                <MaterialCommunityIcons name="account" size={28} color="#fff"/>
-                            </View>
+                            <Image source={ANFITRION} style={styles.avatarImagen}/>
                             <View>
                                 <Text style={styles.anfitrionLabel}>Anfitrión</Text>
                                 <Text style={styles.anfitrionNombre}>{PROPIEDAD.anfitrion}</Text>
@@ -131,24 +180,37 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
 
                         <View style={styles.divider}/>
 
-                        {/* Comentarios del lugar */}
-                        <Text style={styles.subtitulo}>Comentarios</Text>
-                        {[
-                            { autor: "Ana G.", texto: "Muy buen lugar, limpio y tranquilo." },
-                            { autor: "Carlos M.", texto: "Excelente ubicación, el anfitrión muy amable." },
-                            { autor: "Sofía R.", texto: "Todo como se describe, lo recomiendo." },
-                        ].map((c, i) => (
+                        {/* Nuevo comentario */}
+                        <View style={styles.inputComentarioContainer}>
+                            <TextInput
+                            style={styles.inputComentario}
+                            placeholder="Escribe tu comentario..."
+                            placeholderTextColor="#aaa"
+                            value={nuevoComentario}
+                            onChangeText={setNuevoComentario}
+                            multiline/>
+                            <TouchableOpacity style={styles.btnEnviar} onPress={agregarComentario}>
+                                <MaterialCommunityIcons name="send" size={20} color="#fff"/>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Comentarios predefinidos */}
+                        {comentarios.map((c, i) => (
                             <View key={i} style={styles.comentario}>
                                 <View style={styles.comentarioAvatar}>
                                     <MaterialCommunityIcons name="account" size={20} color="#fff"/>
                                 </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.comentarioAutor}>{c.autor}</Text>
+
+                                <View style={{flex: 1}}>
+                                    <View style={{ flexDirection: "column", justifyContent: "space-between" }}>
+                                        <Text style={styles.comentarioAutor}>{c.autor}</Text>
+                                        <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
+                                    </View>
                                     <Text style={styles.comentarioTexto}>{c.texto}</Text>
                                 </View>
+
                             </View>
                         ))}
-
                     </View>
 
                 </ScrollView>
@@ -170,6 +232,9 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
         </Modal>
     )
 }
+
+
+// Estilos del modal
 
 export default InmuebleScreen
 
@@ -236,19 +301,28 @@ const styles = StyleSheet.create({
         color: "#1a1a2e",
         marginBottom: 8,
     },
-    calificacionRow: {
+    calificacionContainer: {
         flexDirection: "row",
+        justifyContent: "space-around",
+        alignItems: "center",
+        paddingVertical: 8,
+    },
+    calificacionItem: {
         alignItems: "center",
         gap: 4,
     },
-    calificacion: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "1a1a2e",
+    calificacionNumero: {
+        fontSize: 26,
+        fontWeight: "800",
+        color: "#1a1a2e",
     },
-    opiniones: {
-        fontSize: 13,
-        color: "#888",
+    estrellas: {
+        flexDirection: "row",
+        gap: 2,
+    },
+    opinionesLabel: {
+        fontSize: 14,
+        color: "#1a1a2e",
     },
     divider: {
         height: 1,
@@ -260,13 +334,10 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 12,
     },
-    avatarPlaceholder: {
+    avatarImagen: {
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: "#205EA6",
-        justifyContent: "center",
-        alignItems: "center",
     },
     anfitrionLabel: {
         fontSize: 12,
@@ -320,6 +391,28 @@ const styles = StyleSheet.create({
     },
     tagTextoRegla: {
         color: "#e74c3c",
+    },
+    inputComentarioContainer: {
+        flexDirection: "row",
+        alignItems: "flex-end",
+        gap: 8,
+        marginBottom: 16,
+    },
+    inputComentario: {
+        flex: 1,
+        backgroundColor: "#f5f5f5",
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 14,
+        color: "#1a1a2e",
+        maxHeight: 100,
+    },
+    btnEnviar: {
+        backgroundColor: "#205EA6",
+        borderRadius: 20,
+        padding: 10,
+        justifyContent: "center",
+        alignItems: "center",
     },
     comentario: {
         flexDirection: "row",
