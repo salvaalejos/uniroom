@@ -47,12 +47,12 @@ services:
       POSTGRES_PASSWORD: '12345'
       POSTGRES_DB: uniroom
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - ./postgres-data:/var/lib/postgresql/data_db
 
 ```
 
 ---
-
+(Juan aquí: Se le cambio el nombre de solamente _data_ a _datadb_ porque si no, llega a dar errores, ya que se esta instanciando una base de datos con datos dentro. Esta es una solución temporal, aunque si no tienen problemas con ello, se puede quedar solamente como data_db 🥺😔🫢)
 ## PASO 3: Levantar la Base de Datos
 
 Abran la terminal en la carpeta raíz del proyecto y ejecuten:
