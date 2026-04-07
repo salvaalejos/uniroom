@@ -1,21 +1,41 @@
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "react-native"
+import { View, StyleSheet, TouchableOpacity } from "react-native"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { useEffect, useRef, useState } from "react"
+import { NavigationContainer } from '@react-navigation/native';
 import MapScreen from "./MapScreen"
 import RoutesScreen from './RoutesScreen'
 import HomeScreen from './HomeScreen'
 import NotificationScreen from "./NotificationScreen";
-import Profile from "./Profile"
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useIsFocused } from "@react-navigation/native"
 import * as Animatable from "react-native-animatable"
+import Profile from "./Profile"
+import Settings from "./Settings"
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+const Profile_Menu = () => {
+    return (
+            <Stack.Navigator initialRouteName="Perfil">
+                <Stack.Screen
+                name="Perfil"
+                component={Profile}
+                options={{headerShown: false}}
+                >
+                </Stack.Screen>
+                <Stack.Screen
+                name="Settings"
+                component={Settings}>
+                </Stack.Screen>
+            </Stack.Navigator>
+        )
+}
 
 const Tabs = [
     {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: MapScreen},
     {route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: RoutesScreen},
     {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
     {route : 'Notificaciones', label: 'Notificaciones', activeIcon: 'bell', inActiveIcon: "bell-outline", component: NotificationScreen},
-    {route : 'Perfil', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: Profile}
+    {route : 'Perfil', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: Profile_Menu}
 ]
 
 
@@ -83,6 +103,7 @@ const TabButton = (props: any) => {
     )
 }
 
+const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
 
 export default function NavigationMenu(){
@@ -117,7 +138,7 @@ export default function NavigationMenu(){
                                 />
                             )
                         },
-                        tabBarButton: (props) => <TabButton {...props} item={item} pressed={pressed}/>
+                        tabBarButton: (props) => <TabButton {...props} item={item}/>
                     }}
                 />
             )

@@ -50,10 +50,10 @@ export default function RegisterScreen({ navigation }: any) {
     }
     const handleRegister = () => {
         if (!role) {
-            Alert.alert("CUIDADO", "NOSE QUE ERES")
+            Alert.alert("Antes de continuar...", "Favor de seleccionar un rol")
             return;
         } else if (fullName === "" || email === "" || phone === "" || role === "" || picture === ""){
-            Alert.alert("LOS DATOS", "QUE COMPLETES LOS DATOS")
+            Alert.alert("Antes de continuar...", "Favor de completar los datos restantes")
             return;
         }
         console.log('Registrando usuario:', { fullName, email, phone, role });
