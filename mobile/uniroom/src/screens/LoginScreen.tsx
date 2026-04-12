@@ -98,7 +98,6 @@ export default function LoginScreen({ navigation }: any) {
                     <Text style={styles.userLabel}>Rol</Text>
                     <Text style={styles.userValue}>{authenticatedUser.role}</Text>
                 </View>
-
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
                 </TouchableOpacity>
@@ -108,14 +107,13 @@ export default function LoginScreen({ navigation }: any) {
 
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'android' ? 'padding' : 'height'}
             style={styles.container}
         >
             <View style={styles.headerContainer}>
-                <Text style={styles.title}>UniRoom</Text>
+                <Text style={styles.title}>UniR00M</Text>
                 <Text style={styles.slogan}>Encuentra tu hogar cerca del campus</Text>
             </View>
-
             <View style={styles.formContainer}>
                 <TextInput
                     style={styles.input}
@@ -150,7 +148,6 @@ export default function LoginScreen({ navigation }: any) {
                     <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
                 </TouchableOpacity>
             </View>
-
             <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>¿Eres nuevo aquí? </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Register')}>
@@ -164,7 +161,7 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F7FA',
+        backgroundColor: '#DCEEFF',
         justifyContent: 'space-between',
         padding: 24,
     },
@@ -181,7 +178,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 42,
         fontWeight: 'bold',
-        color: '#2C3E50',
+        color: '#0F2C4F',
         marginBottom: 8,
         textAlign: 'center',
     },
@@ -200,11 +197,11 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#E0E6ED',
+        borderColor: '#DBDBDB',
         fontSize: 16,
     },
     loginButton: {
-        backgroundColor: '#3498DB',
+        backgroundColor: '#205EA6',
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -221,7 +218,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     forgotPasswordText: {
-        color: '#3498DB',
+        color: '#205EA6',
         textAlign: 'center',
         marginTop: 20,
         fontSize: 14,
@@ -230,13 +227,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         marginBottom: 40,
+        padding: 10,
     },
     footerText: {
         color: '#7F8C8D',
         fontSize: 15,
     },
     registerText: {
-        color: '#3498DB',
+        color: '#205EA6',
         fontSize: 15,
         fontWeight: 'bold',
     },
@@ -247,7 +245,7 @@ const styles = StyleSheet.create({
         marginTop: 20,
         marginBottom: 24,
         borderWidth: 1,
-        borderColor: '#E0E6ED',
+        borderColor: '#DBDBDB',
     },
     userLabel: {
         color: '#7F8C8D',
