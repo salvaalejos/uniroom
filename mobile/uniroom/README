@@ -1,0 +1,120 @@
+🚀 GUÍA COMPLETA — INSTALAR Y CONFIGURAR MAPBOX EN UNIROOM
+🧱 1. Clonar el proyecto
+git clone https://github.com/salvaalejos/uniroom.git
+cd uniroom/mobile/uniroom
+📦 2. Instalar dependencias
+npm install
+🗺️ 3. Instalar Mapbox (WEB)
+npm install mapbox-gl
+📱 4. Instalar Mapbox (MOBILE - EXPO)
+npx expo install @rnmapbox/maps
+🌐 5. Instalar Axios (para servicios de rutas)
+npm install axios
+🔐 6. Configurar variables de entorno (OBLIGATORIO)
+
+Crear archivo:
+
+mobile/uniroom/.env
+
+Agregar:
+
+EXPO_PUBLIC_MAPBOX_TOKEN=TU_TOKEN_DE_MAPBOX
+🚫 7. Evitar subir el token a GitHub
+
+En .gitignore agregar:
+
+.env
+
+Si ya existía en el repo:
+
+git rm --cached .env
+🔄 8. Limpiar cache de Expo
+npx expo start --clear
+📱 9. CONFIGURAR MAPBOX PARA ANDROID (IMPORTANTE)
+
+Mapbox en móvil NO funciona en Expo Go, necesitas build.
+
+⚙️ Configurar EAS
+npm install -g eas-cli
+eas login
+eas build:configure
+
+Cuando pregunte:
+
+👉 Generate a new Android Keystore?
+✔️ Respuesta: yes
+
+🔑 10. Agregar token a EAS (MUY IMPORTANTE)
+eas env:create
+
+Configura:
+
+Name: EXPO_PUBLIC_MAPBOX_TOKEN
+Value: tu token
+Environment: production
+🏗️ 11. Hacer build de Android
+eas build -p android --clear-cache
+📲 12. Instalar APK en celular
+
+Cuando termine el build:
+
+Descargar APK desde el link
+Instalar en tu dispositivo
+💻 13. Ejecutar en WEB
+npx expo start
+
+Luego presiona:
+
+w
+🧠 CONFIGURACIÓN EN CÓDIGO
+✅ Web (MapWebScreen.tsx)
+mapboxgl.accessToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN as string
+✅ Mobile (MapMobileScreen.tsx)
+import Mapbox from '@rnmapbox/maps'
+
+Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN!)
+🚨 ERRORES COMUNES Y SOLUCIÓN
+❌ Error:
+@rnmapbox/maps native code not available
+
+✔️ Solución:
+
+NO usar Expo Go
+Usar eas build
+❌ Error:
+Push blocked (secrets)
+
+✔️ Solución:
+
+git rm --cached .env
+git commit -m "remove env"
+git push --force
+❌ Error:
+Cannot find module 'axios'
+
+✔️ Solución:
+
+npm install axios
+❌ Error:
+Cannot find module mapbox-gl
+
+✔️ Solución:
+
+npm install mapbox-gl
+🧼 14. REGLAS PARA EL EQUIPO
+
+✅ SIEMPRE usar .env
+❌ NUNCA subir tokens
+✅ Usar EXPO_PUBLIC_
+❌ NO usar Expo Go para mapas móviles
+
+🔥 RESUMEN RÁPIDO (COMANDOS CLAVE)
+npm install
+npm install mapbox-gl
+npm install axios
+npx expo install @rnmapbox/maps
+npx expo start --clear
+
+eas build:configure
+eas env:create
+eas build -p android
