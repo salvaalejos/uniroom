@@ -12,8 +12,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  SafeAreaView,
-  Platform,
 } from "react-native";
 import { getRouteWithTraffic } from "../services/MapboxService";
 import {
@@ -30,9 +28,14 @@ const TEC_ITM = {
 };
 
 const { width, height } = Dimensions.get('window');
-const MAX_DISTANCE_TO_ROUTE = 3;
+const MAX_DISTANCE_TO_ROUTE = 3; // km para considerar una ruta "cercana" al usuario
 const TAB_BAR_HEIGHT = 70;
 const BOTTOM_SPACING = TAB_BAR_HEIGHT + 16;
+
+// 📏 Umbrales de distancia a la escuela (en metros)
+const DISTANCE_NEAR_SCHOOL = 50;      // ≤50m: dentro de la escuela
+const DISTANCE_VERY_CLOSE = 200;      // 50-200m: muy cerca (sugerencia opcional)
+const DISTANCE_FAR_FROM_SCHOOL = 200; // >200m: lejos, mostrar rutas normalmente
 
 export default function MapScreen() {
   const [activeRoutes, setActiveRoutes] = useState<TransportRoute[]>([]);
@@ -50,6 +53,8 @@ export default function MapScreen() {
   const [isLoadingRoute, setIsLoadingRoute] = useState<number | null>(null);
   const [initialCameraSet, setInitialCameraSet] = useState(false);
   const [nearbyRoutes, setNearbyRoutes] = useState<string[]>([]);
+  const [distanceToSchool, setDistanceToSchool] = useState<number | null>(null);
+  const [userNearSchool, setUserNearSchool] = useState(false);
   
   const cameraRef = useRef<Mapbox.Camera>(null);
   const routeCache = useRef<{ [key: number]: number[][] }>({});
@@ -63,8 +68,19 @@ export default function MapScreen() {
     [selectedCategory]
   );
 
+  // 📏 Calcular distancia entre dos puntos (en metros)
+  const getDistanceInMeters = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371000; // Radio de la Tierra en metros
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  }, []);
+
   const getDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371;
+    const R = 6371; // km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) ** 2 +
@@ -252,8 +268,32 @@ export default function MapScreen() {
     }
   }, []);
 
+  // 📍 Detectar si el usuario está cerca de la escuela
   useEffect(() => {
     if (!userLocation) return;
+    
+    const distance = getDistanceInMeters(
+      userLocation.latitude,
+      userLocation.longitude,
+      TEC_ITM.latitude,
+      TEC_ITM.longitude
+    );
+    
+    setDistanceToSchool(Math.round(distance));
+    setUserNearSchool(distance <= DISTANCE_NEAR_SCHOOL);
+    
+  }, [userLocation, getDistanceInMeters]);
+
+  // 🚌 Evaluar rutas solo si el usuario NO está dentro de la escuela
+  useEffect(() => {
+    if (!userLocation) return;
+    
+    // Si está cerca de la escuela (≤50m), no evaluar rutas
+    if (userNearSchool) {
+      setRecommendedRoute(null);
+      setNearbyRoutes([]);
+      return;
+    }
     
     const evaluateRoutes = async () => {
       let bestRoute: TransportRoute | null = null;
@@ -280,7 +320,7 @@ export default function MapScreen() {
     };
     
     evaluateRoutes();
-  }, [userLocation, evaluateRouteForRecommendation]);
+  }, [userLocation, userNearSchool, evaluateRouteForRecommendation]);
 
   const handleRoutePress = useCallback(async (route: TransportRoute) => {
     try {
@@ -424,6 +464,18 @@ export default function MapScreen() {
     return `${km.toFixed(1)} km`;
   };
 
+  // 🎯 Mensaje según distancia a la escuela
+  const getProximityMessage = () => {
+    if (!distanceToSchool) return null;
+    if (distanceToSchool <= DISTANCE_NEAR_SCHOOL) {
+      return "🎓 ¡Ya estás en la escuela! No necesitas una ruta.";
+    }
+    if (distanceToSchool <= DISTANCE_VERY_CLOSE) {
+      return "Estás muy cerca de la escuela. ¿Seguro que necesitas una ruta?";
+    }
+    return null;
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -506,7 +558,7 @@ export default function MapScreen() {
         })}
       </Mapbox.MapView>
 
-      {/* Botones de control del mapa - Posicionados más arriba para evitar solapamiento con el menú */}
+      {/* Botones de control del mapa */}
       <View style={styles.controlButtons}>
         <TouchableOpacity style={styles.controlBtn} onPress={centerOnUserLocation} activeOpacity={0.8}>
           <Ionicons name="locate" size={22} color="#205EA6" />
@@ -516,17 +568,27 @@ export default function MapScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Botón principal de rutas - Ajustado para no solapar con el menú */}
-      <TouchableOpacity
-        style={styles.mainButton}
-        onPress={() => setShowRoutes(!showRoutes)}
-        activeOpacity={0.9}
-      >
-        <Ionicons name="bus-outline" size={20} color="#FFFFFF" />
-        <Text style={styles.mainButtonText}>Explorar Rutas</Text>
-      </TouchableOpacity>
+      {/* Botón principal de rutas - solo visible si no está dentro de la escuela */}
+      {!userNearSchool && (
+        <TouchableOpacity
+          style={styles.mainButton}
+          onPress={() => setShowRoutes(!showRoutes)}
+          activeOpacity={0.9}
+        >
+          <Ionicons name="bus-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.mainButtonText}>Explorar Rutas</Text>
+        </TouchableOpacity>
+      )}
 
-      {showRoutes && (
+      {/* Mensaje de proximidad a la escuela */}
+      {getProximityMessage() && (
+        <View style={styles.proximityMessage}>
+          <Ionicons name="information-circle" size={18} color="#FFFFFF" />
+          <Text style={styles.proximityMessageText}>{getProximityMessage()}</Text>
+        </View>
+      )}
+
+      {showRoutes && !userNearSchool && (
         <View style={styles.panel}>
           <View style={styles.panelHeader}>
             <View style={styles.headerLeft}>
@@ -551,7 +613,7 @@ export default function MapScreen() {
             </View>
           </View>
 
-          {recommendedRoute && (
+          {recommendedRoute && !userNearSchool && (
             <View style={styles.recommendBox}>
               <View style={styles.recommendHeader}>
                 <Ionicons name="star" size={14} color="#FFB800" />
@@ -683,7 +745,7 @@ const styles = StyleSheet.create({
   controlButtons: {
     position: "absolute",
     right: 16,
-    top: height * 0.3, // Posicionado más arriba para evitar solapamiento
+    top: height * 0.3,
     gap: 12,
   },
   controlBtn: {
@@ -701,7 +763,7 @@ const styles = StyleSheet.create({
   },
   mainButton: {
     position: "absolute",
-    bottom: BOTTOM_SPACING + 10, // Espaciado para evitar solapamiento con la barra de navegación
+    bottom: BOTTOM_SPACING + 10,
     alignSelf: "center",
     flexDirection: "row",
     backgroundColor: "#205EA6",
@@ -720,6 +782,30 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  proximityMessage: {
+    position: "absolute",
+    bottom: BOTTOM_SPACING + 80,
+    alignSelf: "center",
+    flexDirection: "row",
+    backgroundColor: "#0F2C4F",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 30,
+    alignItems: "center",
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: "#205EA6",
+  },
+  proximityMessageText: {
+    color: "#DCEEFF",
+    fontSize: 13,
+    fontWeight: "500",
   },
   userMarker: {
     width: 42,
@@ -757,7 +843,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 6,
-  },
+  }, 
   panel: {
     position: "absolute",
     bottom: 0,
