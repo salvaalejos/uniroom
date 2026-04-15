@@ -12,6 +12,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  SafeAreaView,
+  Platform,
 } from "react-native";
 import { getRouteWithTraffic } from "../services/MapboxService";
 import {
@@ -19,17 +21,18 @@ import {
   TransportRoute,
 } from "../services/TransportRoutes";
 
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
-
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 Mapbox.setAccessToken(MAPBOX_TOKEN);
 
 const TEC_ITM = {
-  latitude: 19.513440, 
-  longitude: -101.614274,
+  latitude: 19.721869,
+  longitude: -101.185483,
 };
 
 const { width, height } = Dimensions.get('window');
 const MAX_DISTANCE_TO_ROUTE = 3;
+const TAB_BAR_HEIGHT = 70;
+const BOTTOM_SPACING = TAB_BAR_HEIGHT + 16;
 
 export default function MapScreen() {
   const [activeRoutes, setActiveRoutes] = useState<TransportRoute[]>([]);
@@ -164,7 +167,6 @@ export default function MapScreen() {
           const routeWithTraffic = await getRouteWithRealTimeTraffic(optimizedStops);
           
           if (routeWithTraffic) {
-
             const score = (routeWithTraffic.duration / 60) * 0.5 + (routeWithTraffic.distance * 2);
             
             if (!bestResult || score < bestResult.score) {
@@ -425,7 +427,7 @@ export default function MapScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#E85D04" />
+        <ActivityIndicator size="large" color="#205EA6" />
         <Text style={styles.loadingText}>Localizando tu posición...</Text>
         <Text style={styles.loadingSubtext}>Buscando las mejores rutas para ti</Text>
       </View>
@@ -434,7 +436,7 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A2E" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F2C4F" />
       
       <Mapbox.MapView
         style={styles.map}
@@ -452,7 +454,7 @@ export default function MapScreen() {
           >
             <View style={styles.userMarker}>
               <View style={styles.userMarkerPulse} />
-              <Ionicons name="navigate" size={20} color="#fff" />
+              <Ionicons name="navigate" size={20} color="#FFFFFF" />
             </View>
           </Mapbox.PointAnnotation>
         )}
@@ -462,7 +464,7 @@ export default function MapScreen() {
           coordinate={[TEC_ITM.longitude, TEC_ITM.latitude]}
         >
           <View style={styles.schoolMarker}>
-            <Ionicons name="business" size={22} color="#fff" />
+            <Ionicons name="business" size={22} color="#FFFFFF" />
           </View>
         </Mapbox.PointAnnotation>
 
@@ -504,21 +506,23 @@ export default function MapScreen() {
         })}
       </Mapbox.MapView>
 
+      {/* Botones de control del mapa - Posicionados más arriba para evitar solapamiento con el menú */}
       <View style={styles.controlButtons}>
         <TouchableOpacity style={styles.controlBtn} onPress={centerOnUserLocation} activeOpacity={0.8}>
-          <Ionicons name="locate" size={22} color="#E85D04" />
+          <Ionicons name="locate" size={22} color="#205EA6" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.controlBtn} onPress={centerOnSchool} activeOpacity={0.8}>
-          <Ionicons name="business" size={22} color="#E85D04" />
+          <Ionicons name="business" size={22} color="#205EA6" />
         </TouchableOpacity>
       </View>
 
+      {/* Botón principal de rutas - Ajustado para no solapar con el menú */}
       <TouchableOpacity
         style={styles.mainButton}
         onPress={() => setShowRoutes(!showRoutes)}
         activeOpacity={0.9}
       >
-        <Ionicons name="bus-outline" size={20} color="#fff" />
+        <Ionicons name="bus-outline" size={20} color="#FFFFFF" />
         <Text style={styles.mainButtonText}>Explorar Rutas</Text>
       </TouchableOpacity>
 
@@ -528,7 +532,7 @@ export default function MapScreen() {
             <View style={styles.headerLeft}>
               {showSubRoutes && (
                 <TouchableOpacity style={styles.iconBtn} onPress={handleBackToCategories}>
-                  <Ionicons name="arrow-back" size={22} color="#E85D04" />
+                  <Ionicons name="arrow-back" size={22} color="#205EA6" />
                 </TouchableOpacity>
               )}
               <Text style={styles.panelTitle}>
@@ -572,7 +576,7 @@ export default function MapScreen() {
                   </Text>
                 </View>
                 {isLoadingRoute === recommendedRoute.id ? (
-                  <ActivityIndicator size="small" color="#E85D04" />
+                  <ActivityIndicator size="small" color="#205EA6" />
                 ) : activeRoutes.some(r => r.id === recommendedRoute.id) && (
                   <Ionicons name="checkmark-circle" size={22} color="#2B9348" />
                 )}
@@ -637,7 +641,7 @@ export default function MapScreen() {
                       )}
                     </View>
                     {isLoadingRoute === item.id ? (
-                      <ActivityIndicator size="small" color="#E85D04" />
+                      <ActivityIndicator size="small" color="#205EA6" />
                     ) : isActive && <Ionicons name="checkmark" size={18} color="#2B9348" />}
                   </TouchableOpacity>
                 );
@@ -653,7 +657,7 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1A1A2E",
+    backgroundColor: "#0F2C4F",
   },
   map: {
     flex: 1,
@@ -662,23 +666,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1A1A2E",
+    backgroundColor: "#0F2C4F",
   },
   loadingText: {
     marginTop: 16,
     fontSize: 18,
-    color: "#E85D04",
+    color: "#DCEEFF",
     fontWeight: "600",
   },
   loadingSubtext: {
     marginTop: 8,
     fontSize: 14,
-    color: "#6C757D",
+    color: "#FFFFFF",
+    opacity: 0.8,
   },
   controlButtons: {
     position: "absolute",
     right: 16,
-    top: height * 0.35,
+    top: height * 0.3, // Posicionado más arriba para evitar solapamiento
     gap: 12,
   },
   controlBtn: {
@@ -688,44 +693,44 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: "#0F2C4F",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
   },
   mainButton: {
     position: "absolute",
-    bottom: 30,
+    bottom: BOTTOM_SPACING + 10, // Espaciado para evitar solapamiento con la barra de navegación
     alignSelf: "center",
     flexDirection: "row",
-    backgroundColor: "#E85D04",
+    backgroundColor: "#205EA6",
     paddingVertical: 14,
     paddingHorizontal: 28,
-    borderRadius: 30,
+    borderRadius: 40,
     alignItems: "center",
-    gap: 8,
-    shadowColor: "#E85D04",
+    gap: 10,
+    shadowColor: "#0F2C4F",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
   mainButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
   },
   userMarker: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#E85D04",
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#205EA6",
     borderWidth: 3,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#E85D04",
+    shadowColor: "#0F2C4F",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
@@ -733,22 +738,21 @@ const styles = StyleSheet.create({
   },
   userMarkerPulse: {
     position: "absolute",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#E85D04",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     opacity: 0.3,
   },
   schoolMarker: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#2B9348",
     borderWidth: 3,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#2B9348",
+    shadowColor: "#0F2C4F",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
@@ -761,12 +765,12 @@ const styles = StyleSheet.create({
     right: 0,
     height: height * 0.55,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    shadowColor: "#0F2C4F",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
     elevation: 20,
   },
   panelHeader: {
@@ -792,21 +796,21 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#DCEEFF",
     justifyContent: "center",
     alignItems: "center",
   },
   panelTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#212529",
+    color: "#0F2C4F",
   },
   recommendBox: {
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#E9ECEF",
-    backgroundColor: "#FFF9F0",
+    backgroundColor: "#DCEEFF",
   },
   recommendHeader: {
     flexDirection: "row",
@@ -816,7 +820,7 @@ const styles = StyleSheet.create({
   },
   recommendTitle: {
     fontSize: 13,
-    color: "#E85D04",
+    color: "#205EA6",
     fontWeight: "600",
   },
   recommendBadge: {
@@ -828,7 +832,7 @@ const styles = StyleSheet.create({
   recommendBadgeText: {
     fontSize: 9,
     fontWeight: "700",
-    color: "#fff",
+    color: "#FFFFFF",
   },
   recommendCard: {
     flexDirection: "row",
@@ -837,11 +841,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#FFE8D6",
+    borderColor: "#DCEEFF",
   },
   activeRecommend: {
-    backgroundColor: "#FFF4E6",
-    borderColor: "#E85D04",
+    backgroundColor: "#F0F7FF",
+    borderColor: "#205EA6",
   },
   recommendColor: {
     width: 22,
@@ -849,7 +853,7 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     marginRight: 12,
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
   },
   recommendInfo: {
     flex: 1,
@@ -857,7 +861,7 @@ const styles = StyleSheet.create({
   recommendText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#212529",
+    color: "#0F2C4F",
   },
   recommendTime: {
     fontSize: 11,
@@ -883,8 +887,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: "#fff",
-    shadowColor: "#000",
+    borderColor: "#FFFFFF",
+    shadowColor: "#0F2C4F",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -893,7 +897,7 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#212529",
+    color: "#0F2C4F",
     marginBottom: 2,
   },
   categoryCount: {
@@ -910,7 +914,7 @@ const styles = StyleSheet.create({
   nearbyBadgeText: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#fff",
+    color: "#FFFFFF",
   },
   routeCard: {
     flexDirection: "row",
@@ -921,7 +925,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E9ECEF",
   },
   activeRoute: {
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#DCEEFF",
   },
   routeDot: {
     width: 14,
@@ -929,7 +933,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     marginRight: 12,
     borderWidth: 1.5,
-    borderColor: "#fff",
+    borderColor: "#FFFFFF",
   },
   routeInfo: {
     flex: 1,
@@ -937,7 +941,7 @@ const styles = StyleSheet.create({
   routeName: {
     fontSize: 15,
     fontWeight: "500",
-    color: "#212529",
+    color: "#0F2C4F",
   },
   routeDetail: {
     fontSize: 11,

@@ -1,9 +1,5 @@
 🚀 GUÍA COMPLETA — INSTALAR Y CONFIGURAR MAPBOX EN UNIROOM
-🧱 1. Clonar el proyecto
-git clone https://github.com/salvaalejos/uniroom.git
-cd uniroom/mobile/uniroom
-📦 2. Instalar dependencias
-npm install
+
 🗺️ 3. Instalar Mapbox (WEB)
 npm install mapbox-gl
 📱 4. Instalar Mapbox (MOBILE - EXPO)
