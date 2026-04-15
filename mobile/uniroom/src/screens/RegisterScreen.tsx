@@ -18,26 +18,26 @@ import {
     Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // Íconos incluidos en Expo por default
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-export default function RegisterScreen({ navigation }: any) {
+export default function RegisterScreen({ navigation, route }: any) {
     // Estados para los campos de texto
-    const [fullName, setFullName] = useState('');
-    const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
+    const userToEdit = route.params?.userToEdit;
+    const [fullName, setFullName] = useState(userToEdit?.fullName || '');
+    const [email, setEmail] = useState(userToEdit?.email || '');
+    const [phone, setPhone] = useState(userToEdit?.phone || '');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
     // Estado para el rol ('student' | 'landlord' | null)
-    const [role, setRole] = useState<string | null>(null);
+    const [role, setRole] = useState<string | null>(userToEdit?.role || null);
+    const [gender, setGenger] = useState<string | null>(userToEdit?.gender || null);
+    const [selectedPic, setselectedPic] = useState(false)
 
-    const [picture, setPicture] = useState("../default_images/default_profile_pic.jpg")
+    const [picture, setPicture] = useState(userToEdit?.picture || "../default_images/profile_photo.jpg");
 
     const selectPic = async () => {
         const revision_formal = await ImagePicker.requestMediaLibraryPermissionsAsync()
-        if (!revision_formal){
-            Alert.alert('Let me access to your photos', 'CAINE SAYS YOU PARASITE');
-        } 
-
         let fotito = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsEditing: true,
@@ -51,15 +51,20 @@ export default function RegisterScreen({ navigation }: any) {
     }
     const handleRegister = () => {
         if (!role) {
-            Alert.alert("CUIDADO", "NOSE QUE ERES")
-            return;
+            Alert.alert("Antes de continuar...", "Favor de seleccionar un rol")
+            return
         } else if (fullName === "" || email === "" || phone === "" || role === "" || picture === ""){
-            Alert.alert("LOS DATOS", "QUE COMPLETES LOS DATOS")
-            return;
+            Alert.alert("Antes de continuar...", "Favor de completar los datos restantes")
+            return
+        } 
+        if (password != confirmPassword || password == ""){
+            Alert.alert("Verifica tu información", "Las contraseñas no coinciden")
+            return
         }
         console.log('Registrando usuario:', { fullName, email, phone, role });
+        //Aqui agregar verificación de existencia de usuario (si es su primera vez aquí o no, para que en caso de que sea arrendador, no le muestre el tutorial otra vez XD)
         if (role === "landlord"){
-            navigation.navigate("Tu Primer Inmueble")
+            navigation.navigate("Navigator")
         } else {
             navigation.navigate("Navigator")
         }
@@ -70,14 +75,18 @@ export default function RegisterScreen({ navigation }: any) {
             style={styles.container}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 {/* Encabezado */}
+                <View style={styles.title_container}>
+                    <Text style={styles.title}>Crea tu cuenta</Text>
+                    <Text style={styles.subtitle}>Únete a UniR00M</Text>
+                </View>
                 <View style={styles.headerContainer}>
-                    <Pressable onPress={selectPic}>
+                    <Pressable onPress={selectPic} style={{justifyContent: "center", alignItems: "center"}}>
+                        {!selectPic && <MaterialCommunityIcons name='camera'/>}
                         <Image
+                            id='foto_de_perfil'
                             style={styles.profile_picture}
                             source={{uri: picture}} />
                     </Pressable>
-                    <Text style={styles.title}>Crea tu cuenta</Text>
-                    <Text style={styles.subtitle}>Únete a UniR00M</Text>
                 </View>
                 {/* Formulario */}
                 <View style={styles.formContainer}>
@@ -122,7 +131,7 @@ export default function RegisterScreen({ navigation }: any) {
                         onChangeText={setConfirmPassword}
                     />
 
-                    {/* Selección de Rol */}
+                    {/* Selección de Rol ---------------------------------------------------------------------------------*/}
                     <Text style={styles.roleLabel}>¿Cómo usarás la app?</Text>
                     <View style={styles.roleContainer}>
                         {/* Botón Estudiante */}
@@ -163,19 +172,61 @@ export default function RegisterScreen({ navigation }: any) {
                             ]}>Arrendador</Text>
                         </TouchableOpacity>
                     </View>
-
+                    {/* Selección de SEXO ---------------------------------------------------------------------------------*/}
+                    <Text style={styles.roleLabel}>¿Con qué género te identificas?</Text>
+                    <View id='seleccion_de_genero' style={styles.roleContainer}>
+                        <TouchableOpacity id='man_button'
+                        style={[styles.genderCard, gender === 'man' && styles.genderCardActive]}
+                        onPress={() => setGenger('man')}
+                        >
+                            <MaterialCommunityIcons 
+                            name='human-male'
+                            size={32}
+                            color={gender === 'man' ? '#3498DB' : '#7F8C8D'} />
+                            <Text style={[
+                                styles.roleText,
+                                gender === 'man' && styles.roleTextActive
+                            ]}>Hombre</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity id='woman_button'
+                        style={[styles.genderCard, gender === 'woman' && styles.genderCardActive]}
+                        onPress={() => setGenger('woman')}>
+                            <MaterialCommunityIcons 
+                            name='human-female'
+                            size={32}
+                            color={gender === 'woman' ? '#3498DB' : '#7F8C8D'} />
+                            <Text style={[
+                                styles.roleText,
+                                role === 'woman' && styles.roleTextActive
+                            ]}>Mujer</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity id='helicopter_button'
+                        style={[styles.genderCard, gender === 'non-binary' && styles.genderCardActive]}
+                        onPress={() => setGenger('non-binary')}>
+                            <MaterialCommunityIcons 
+                            name='human-non-binary'
+                            size={32}
+                            color={gender === 'non-binary' ? '#3498DB' : '#7F8C8D'} />
+                            <Text style={[
+                                styles.roleText,
+                                role === 'non-binary' && styles.roleTextActive
+                            ]}>No Binario</Text>
+                        </TouchableOpacity>
+                    </View>
                     {/* Botón Continuar */}
                     <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
                         <Text style={styles.registerButtonText}>Continuar</Text>
                     </TouchableOpacity>
                 </View>
-                {/* Footer */}
-                <View style={styles.footerContainer}>
+                {/* Footer (no me parece necesario si existe un botón para volver al Login en el Header, servirá para editar el perfíl, fuentes: creanmé) */}
+                {/* {userToEdit === null && (
+                    <View style={styles.footerContainer}>
                     <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
                         <Text style={styles.loginText}>Iniciar sesión</Text>
                     </TouchableOpacity>
                 </View>
+                )} */}
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -192,9 +243,9 @@ const styles = StyleSheet.create({
     },
     profile_picture: {
         backgroundColor: "#FFFFFF",
-        height: 120,
-        width: 120,
-        borderRadius: 35,
+        height: 140,
+        width: 140,
+        borderRadius: 100,
         borderColor: "#DBDBDB",
         borderWidth: 2,
         padding: 5
@@ -304,4 +355,23 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: 'bold',
     },
+    genderCard: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        padding: 20,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: '#DBDBDB',
+        alignItems: 'center',
+        marginHorizontal: 5,
+    },
+    genderCardActive: {
+        borderColor: '#3498DB',
+        backgroundColor: '#EBF5FB', // Un azul muy clarito de fondo
+    },
+    title_container: {
+        marginTop: 20,
+        alignItems: "center"
+
+    }
 });

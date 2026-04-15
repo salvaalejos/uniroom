@@ -28,12 +28,12 @@ export default function App() {
                 <Stack.Screen
                     name="Register"
                     component={RegisterScreen}
-                    options={{ title: 'Registro' }} // Muestra "Registro" en la barra superior
+                    options={{ title: 'Registro', headerShown: true }} // Muestra "Registro" en la barra superior
                 />
                 <Stack.Screen 
                     name="Tu Primer Inmueble"
                     component={Upload_renta}
-                    options={{ title: 'Tu Primer Inmueble' }}
+                    options={{ title: 'Tu Primer Inmueble', headerShown: false }}
                 />
             </Stack.Navigator>
             <View style={{height: 50, backgroundColor: "#DCEEFF"}}>
