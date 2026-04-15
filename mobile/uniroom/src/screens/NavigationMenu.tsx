@@ -5,6 +5,25 @@ import { NavigationContainer } from '@react-navigation/native';
 import MapScreen from "./MapScreen"
 import RoutesScreen from './RoutesScreen'
 import HomeScreen from './HomeScreen'
+
+// Para crear inmuebles sjkfhdsf
+import { createStackNavigator } from "@react-navigation/stack" // npm install @react-navigation/stack
+import MisInmuebles from "./MisInmuebles"
+import Upload_Renta from "./Upload_Renta"
+
+const InmuebleStack = createStackNavigator()
+
+const InmuebleStackScreen = () => {
+    return (
+        <InmuebleStack.Navigator screenOptions={{ headerShown: false }}>
+            <InmuebleStack.Screen name="MisInmuebles" component={MisInmuebles} />
+            <InmuebleStack.Screen name="SubirInmueble" component={Upload_Renta} />
+        </InmuebleStack.Navigator>
+    )
+}
+
+// --------
+
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import NotificationScreen from "./NotificationScreen";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -51,7 +70,12 @@ const Profile_Menu = () => {
 const Tabs = [
     {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: MapScreen},
     {route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: RoutesScreen},
-    {route : 'Tu inmueble', label: "Tu Casa" ,activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
+    //{route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
+    
+    // ruta provicional para los inmuebles
+    {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: InmuebleStackScreen},
+
+
     {route : 'Notificaciones', label: 'Notificaciones', activeIcon: 'bell', inActiveIcon: "bell-outline", component: NotificationScreen},
     {route : 'ProfileTab', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: ProfileDataScreen}
 ]
