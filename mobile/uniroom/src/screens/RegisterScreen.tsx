@@ -20,20 +20,21 @@ import {
 import { Ionicons } from '@expo/vector-icons'; // Íconos incluidos en Expo por default
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-export default function RegisterScreen({ navigation }: any) {
+export default function RegisterScreen({ navigation, route }: any) {
     // Estados para los campos de texto
-    const [fullName, setFullName] = useState('');
-    const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
+    const userToEdit = route.params?.userToEdit;
+    const [fullName, setFullName] = useState(userToEdit?.fullName || '');
+    const [email, setEmail] = useState(userToEdit?.email || '');
+    const [phone, setPhone] = useState(userToEdit?.phone || '');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
     // Estado para el rol ('student' | 'landlord' | null)
-    const [role, setRole] = useState<string | null>(null);
-    const [gender, setGenger] = useState<string | null>(null);
+    const [role, setRole] = useState<string | null>(userToEdit?.role || null);
+    const [gender, setGenger] = useState<string | null>(userToEdit?.gender || null);
     const [selectedPic, setselectedPic] = useState(false)
 
-    const [picture, setPicture] = useState("../default_images/default_profile_pic.jpg")
+    const [picture, setPicture] = useState(userToEdit?.picture || "../default_images/profile_photo.jpg");
 
     const selectPic = async () => {
         const revision_formal = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -51,14 +52,19 @@ export default function RegisterScreen({ navigation }: any) {
     const handleRegister = () => {
         if (!role) {
             Alert.alert("Antes de continuar...", "Favor de seleccionar un rol")
-            return;
+            return
         } else if (fullName === "" || email === "" || phone === "" || role === "" || picture === ""){
             Alert.alert("Antes de continuar...", "Favor de completar los datos restantes")
-            return;
+            return
+        } 
+        if (password != confirmPassword || password == ""){
+            Alert.alert("Verifica tu información", "Las contraseñas no coinciden")
+            return
         }
         console.log('Registrando usuario:', { fullName, email, phone, role });
+        //Aqui agregar verificación de existencia de usuario (si es su primera vez aquí o no, para que en caso de que sea arrendador, no le muestre el tutorial otra vez XD)
         if (role === "landlord"){
-            navigation.navigate("Tu Primer Inmueble")
+            navigation.navigate("Navigator")
         } else {
             navigation.navigate("Navigator")
         }
@@ -212,13 +218,15 @@ export default function RegisterScreen({ navigation }: any) {
                         <Text style={styles.registerButtonText}>Continuar</Text>
                     </TouchableOpacity>
                 </View>
-                {/* Footer */}
-                <View style={styles.footerContainer}>
+                {/* Footer (no me parece necesario si existe un botón para volver al Login en el Header, servirá para editar el perfíl, fuentes: creanmé) */}
+                {/* {userToEdit === null && (
+                    <View style={styles.footerContainer}>
                     <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
                         <Text style={styles.loginText}>Iniciar sesión</Text>
                     </TouchableOpacity>
                 </View>
+                )} */}
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -237,7 +245,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF",
         height: 140,
         width: 140,
-        borderRadius: 10,
+        borderRadius: 100,
         borderColor: "#DBDBDB",
         borderWidth: 2,
         padding: 5

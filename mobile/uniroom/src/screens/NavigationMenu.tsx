@@ -5,26 +5,44 @@ import { NavigationContainer } from '@react-navigation/native';
 import MapScreen from "./MapScreen"
 import RoutesScreen from './RoutesScreen'
 import HomeScreen from './HomeScreen'
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import NotificationScreen from "./NotificationScreen";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useIsFocused } from "@react-navigation/native"
 import * as Animatable from "react-native-animatable"
 import Profile from "./Profile"
-import Settings from "./Settings"
+import Themes from "./Themes"
+import {red, blue, bluePrimaryColor, blueSecondColor} from "../styles"
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import ProfileDataScreen from "./ProfileDataScreen"
+const Stack = createNativeStackNavigator()
 
 const Profile_Menu = () => {
     return (
-            <Stack.Navigator initialRouteName="Perfil">
+            <Stack.Navigator initialRouteName="ProfileScreen"
+            screenOptions={{
+                headerShown: false,
+                headerStyle: { backgroundColor: bluePrimaryColor },
+                headerTintColor: blueSecondColor,
+            }}>
                 <Stack.Screen
-                name="Perfil"
+                name="ProfileScreen"
                 component={Profile}
-                options={{headerShown: false}}
+                options={{
+                    title: "Mi Perfil"
+                }}
                 >
                 </Stack.Screen>
                 <Stack.Screen
-                name="Settings"
-                component={Settings}>
+                name="Themes"
+                component={Themes}
+                options={{presentation: "modal", title: "Temas", headerShown: true, headerLeft: () => null}}>
+                </Stack.Screen>
+                <Stack.Screen
+                name="Profile_Info"
+                component={ProfileDataScreen}
+                options={{presentation: "modal", title: "Tus Datos", headerShown: true}}>
+
                 </Stack.Screen>
             </Stack.Navigator>
         )
@@ -33,11 +51,10 @@ const Profile_Menu = () => {
 const Tabs = [
     {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: MapScreen},
     {route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: RoutesScreen},
-    {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
+    {route : 'Tu inmueble', label: "Tu Casa" ,activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
     {route : 'Notificaciones', label: 'Notificaciones', activeIcon: 'bell', inActiveIcon: "bell-outline", component: NotificationScreen},
-    {route : 'Perfil', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: Profile_Menu}
+    {route : 'ProfileTab', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: ProfileDataScreen}
 ]
-
 
 const TabButton = (props: any) => {
     const {item, onPress} = props
@@ -54,9 +71,6 @@ const TabButton = (props: any) => {
     const animation2 = { 0: { scale: 1.2, translateY: -24 }, 1: { scale: 1, translateY: 8 } }
     const imageAnimation = {0: {rotate: "0deg"}, 1: {rotate: "360deg"}}
     const imageAnimation2 = {0: {rotate: "360deg"}, 1: {rotate: "0deg"}}
-    useEffect(() => {
-
-    })
 
     //Ya luego le cambio los errores xd
     useEffect(() => {
@@ -74,28 +88,28 @@ const TabButton = (props: any) => {
     },[focused])
 
     return (
-        <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={1}>
+        <TouchableOpacity style={blue.navigation_menu_container} onPress={onPress} activeOpacity={1}>
             <Animatable.View id="animacion_general"
             ref={viewRef}
             animation="zoomIn"
             duration={750}
-            style={styles.container}>
+            style={blue.navigation_menu_container}>
                 <View 
-                style={styles.button}>
+                style={blue.navigation_menu_button}>
                     <Animatable.View id="circulo_animado"
                     ref={circleRef}
-                    style={{...StyleSheet.absoluteFillObject, backgroundColor: "#205EA6", borderRadius: 25}}/>
+                    style={{...StyleSheet.absoluteFillObject, backgroundColor: blueSecondColor, borderRadius: 25}}/>
                         <Animatable.View id="icono_animado"
                         ref={iconRef}
                         duration={1250}>
                             <MaterialCommunityIcons name={item.activeIcon}
                             size={33}
-                            color={focused ? "#DCEEFF" : "#205EA6"} />
+                            color={focused ? bluePrimaryColor : blueSecondColor} />
                         </Animatable.View>
                 </View>
                 <Animatable.Text 
                 ref={textRef} 
-                style={{fontSize: 12, color: "#205EA6"}}>
+                style={{fontSize: 12, color: blueSecondColor}}>
                     {item.label}
                 </Animatable.Text>
             </Animatable.View>
@@ -103,43 +117,32 @@ const TabButton = (props: any) => {
     )
 }
 
-const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
 
 export default function NavigationMenu(){
+    const [theme, setTheme] = useState(blue)
     return (
        <Tab.Navigator
         screenOptions={{
             animation: "fade",
-            headerShown: true,
-            tabBarStyle: {
-                height: 70,
-                position: "absolute",
-                left: 1,
-                right: 1,
-                backgroundColor: "#DCEEFF"
-            }
+            tabBarStyle: blue.tabBarStyle,
         }}
        >
         {
         Tabs.map((item, index) => {
-            const [pressed, setPressed] = useState(false)
             return (
-                <Tab.Screen name={item.route} component={item.component}
-                    options={{
-                        tabBarShowLabel: false,
-                        // tabBarLabel: item.label,
-                        // tabBarLabelStyle: {fontSize: 10},
-                        tabBarIcon: ({focused}) => {
-                            return (
-                                <MaterialCommunityIcons name={focused ? item.activeIcon : item.inActiveIcon}
-                                size={32}
-                                color={"blue"}
-                                />
-                            )
-                        },
-                        tabBarButton: (props) => <TabButton {...props} item={item}/>
-                    }}
+                <Tab.Screen 
+                key={index}
+                name={item.route} 
+                component={item.component}
+                options={({ route }) => ({
+                    headerShown: item.route !== 'ProfileTab',
+                    headerTitle: item.label,
+                    headerStyle: { backgroundColor: bluePrimaryColor },
+                    headerTintColor: blueSecondColor,
+                    tabBarShowLabel: false,
+                    tabBarButton: (props) => <TabButton {...props} item={item}/>
+                    })}
                 />
             )
         })
@@ -148,22 +151,5 @@ export default function NavigationMenu(){
     )
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center"
-    },
-    button: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        borderWidth: 6,
-        borderColor: "#DCEEFF",
-        backgroundColor: "#DCEEFF",
-        justifyContent: "center",
-        alignItems: "center"
-    }
-})
 
 
