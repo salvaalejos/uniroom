@@ -28,10 +28,14 @@
     },
     "plugins": [
   "expo-font",
-  [
-    "@rnmapbox/maps",
-    {}
-  ]
+    ["expo-dev-client"],
+    [
+      "@rnmapbox/maps",
+      {
+          "RNMapboxMapsImpl": "mapbox",
+          "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN"
+        }
+    ]
 ],
     "extra": {
       "eas": {
