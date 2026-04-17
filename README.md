@@ -32,3 +32,4 @@ Y debería abrir el proyecto en el celu que tengas conectado.
 Tu celu debe estar en la misma red que tu lap.
 A veces al proyecto se le va la onda y dice que hubo un error. En esos casos oprime _Ctrl + C_ para cancelar el servidor y vuelvelo a correr, no se cargo bien el proyecto. (Tambien sirve revisar si tienes buena conexión a internet que no puede descargar el proyecto, si esta de la patada, mejor abre el celu en la lap xd)
 
+(=^･ω･^=)

@@ -14,7 +14,7 @@ const Stack = createNativeStackNavigator();
 export default function App() {
     return (
         <NavigationContainer>
-            <Stack.Navigator initialRouteName="Login">
+            <Stack.Navigator initialRouteName="Navigator">
                 <Stack.Screen 
                     name="Navigator"
                     component={NavigationMenu}
@@ -28,7 +28,12 @@ export default function App() {
                 <Stack.Screen
                     name="Register"
                     component={RegisterScreen}
-                    options={{ title: 'Registro' }} // Muestra "Registro" en la barra superior
+                    options={{ title: 'Registro', headerShown: true }} // Muestra "Registro" en la barra superior
+                />
+                <Stack.Screen 
+                    name="Tu Primer Inmueble"
+                    component={Upload_renta}
+                    options={{ title: 'Tu Primer Inmueble', headerShown: false }}
                 />
                 <Stack.Screen 
                     name="Tu Primer Inmueble"

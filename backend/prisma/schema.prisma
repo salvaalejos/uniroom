@@ -48,6 +48,9 @@ model Usuario {
   rol             RolUsuario                         // "rol"
   estado          EstadoUsuario @default(ACTIVO)     // "estado"
 
+  //Notificaciones
+  notificaciones Notificacion[]
+  
   // Datos personales
   nombre          String        @db.VarChar(100)     // "Nombre"
   apellidos       String        @db.VarChar(100)     // "Apellidos"
@@ -136,4 +139,17 @@ model Imagenes {
   // Relación
   id_inmueble Int                                    // "Id inmueble FK"
   inmueble    Inmueble @relation(fields: [id_inmueble], references: [id_inmueble])
+}
+
+model Notificacion {
+  id          Int      @id @default(autoincrement())
+  titulo       String   // "Nueva solicitud de cuarto o Renta tardia"
+  mensaje     String   // "Juan Pérez quiere rentar tu habitación. o El pago de tu renta esta atrasado tienes que pagar xd"
+  visto      Boolean  @default(false) // Para saber si ya la vio
+  tipo        String   // "RESERVA", "MENSAJE", "ALERTA"
+  fecha_creacion   DateTime @default(now())
+
+  // pa quien es el mensaje 
+  usuario_id      String
+  usuario         Usuario  @relation(fields: [usuario_id], references: [id_usuario])
 }
