@@ -35,6 +35,11 @@ export default function App() {
                     component={Upload_renta}
                     options={{ title: 'Tu Primer Inmueble', headerShown: false }}
                 />
+                <Stack.Screen 
+                    name="Tu Primer Inmueble"
+                    component={Upload_renta}
+                    options={{ title: 'Tu Primer Inmueble' }}
+                />
             </Stack.Navigator>
             <View style={{height: 50, backgroundColor: "#DCEEFF"}}>
             </View>

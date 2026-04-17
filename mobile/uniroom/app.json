@@ -16,20 +16,33 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.anonymous.uniroom",
+      "permissions": ["ACCESS_FINE_LOCATION"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.uniroom"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-video",
-      "expo-font"
+  "expo-font",
+    ["expo-dev-client"],
+    [
+      "@rnmapbox/maps",
+      {
+          "RNMapboxMapsImpl": "mapbox",
+          "RNMAPBOX_MAPS_DOWNLOAD_TOKEN": "process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN"
+        }
     ]
+],
+    "extra": {
+      "eas": {
+        "projectId": "a5c800be-3e9d-4084-b253-bdea671fa95a"
+      }
+    }
   }
 }
