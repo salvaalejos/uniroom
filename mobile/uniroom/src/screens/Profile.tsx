@@ -9,20 +9,6 @@ const Profile = ({ navigation }: any) => {
 
     const [nombre, setNombre] = useState("Juan Alberto")
     const [lastname, setLastname] = useState("Sánchez Hernández")
-<<<<<<< HEAD
-    const [calif, setCalif] = useState(4.7)
-    // const iconRef = useRef(null)
-    // const focused = useIsFocused()
-    const buttons = [
-        {name_icon: "setting", label: "Configuración", component: "Settings"},
-        {name_icon: "contacts", label: "Datos Personales", component: "Profile_Info",}, 
-        {name_icon: "eye", label: "Vistos recientemente", component: "Profile_History",},
-        {name_icon: "heart", label: "Favoritos", component: "Profile_Favs",},
-        {name_icon: "star", label: "Calificaciones", component: "Profile_Califs",}
-    ]
-
-    //Animaciones de giro en desarrollo 
-=======
     const [calif, setCalif] = useState(4.8)
     //Misma madre de la animación pendiente
     // const iconRef = useRef(null)
@@ -36,7 +22,6 @@ const Profile = ({ navigation }: any) => {
     ]
 
     //Animaciones de giro en desarrollo para botón seleccionado (No es prioridad ahora mismo xd)
->>>>>>> JuanSHBranch
     // const start = {0: {rotate: "0deg"}, 1: {rotate: "360deg"}}
     // const finish = {0: {rotate: "360deg"}, 1: {rotate: "360deg"}}
     // useEffect(() => {
@@ -46,12 +31,6 @@ const Profile = ({ navigation }: any) => {
     //         iconRef.current.animate(finish)
     //     }
     // })
-
-<<<<<<< HEAD
-
-
-=======
->>>>>>> JuanSHBranch
     return (
         <View style={styles.main_container}>
             <View style={styles.pic_and_data_container}>
@@ -76,12 +55,8 @@ const Profile = ({ navigation }: any) => {
             </View>
             <View style={styles.button_container}>
                 {buttons.map((item, index) => {
-                return (
-<<<<<<< HEAD
-                    <TouchableOpacity key={item.label} style={styles.button}>  
-=======
+                return ( 
                     <TouchableOpacity key={item.label} style={styles.button} onPress={() => navigation.navigate(item.component)}>  
->>>>>>> JuanSHBranch
                         <AntDesign style={styles.button_icon} name={item.name_icon} size={32} color={"#DCEEFF"}/>
                         <View style={styles.container_button_text}>
                             <Text style={styles.button_text}>
@@ -93,9 +68,9 @@ const Profile = ({ navigation }: any) => {
                 })}
             </View>
         </View>
-
     )
 }
+
 export default Profile
 
 const styles = StyleSheet.create({
@@ -155,11 +130,7 @@ const styles = StyleSheet.create({
         height: 70,
         padding: 10,
         width: "100%",
-<<<<<<< HEAD
-        borderRadius: 30,
-=======
         borderRadius: 10,
->>>>>>> JuanSHBranch
         margin: "2%"
     },
     button_icon: {
