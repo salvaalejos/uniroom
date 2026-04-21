@@ -8,4 +8,4 @@ if (Platform.OS === "web") {
   MapScreen = require("./MapMobileScreen").default
 }
 
-export default MapScreen
+export default MapScreen as any

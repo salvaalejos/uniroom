@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-export default function ProfileDataScreen({ navigation }: any) {
+export default function ProfileScreen({ navigation }: any) {
     useEffect(() => {
         const parent = navigation.getParent()
         if (parent) parent.setOptions({ headerShown: false });
@@ -26,7 +26,7 @@ export default function ProfileDataScreen({ navigation }: any) {
         fullName: 'Juan Alberto Sánchez Hernández',
         email: 'jash0144@uniroom.houses.com',
         phone: '4434689407',
-        role: 'student', // 'student' o 'landlord'
+        role: 'landlord', // 'student' o 'landlord'
         gender: 'man',   // 'man', 'woman', 'non-binary'
         rating: 4.8,
         picture: "../default_images/profile_photo.jpg" // URL de prueba
@@ -94,6 +94,16 @@ export default function ProfileDataScreen({ navigation }: any) {
                     <MaterialCommunityIcons name='format-paint' size={24} color={"#FFFFFF"}/>
                     <Text style={styles.editButtonText}>Temas de colores (Pendiente) </Text>
                 </TouchableOpacity> */}
+                <TouchableOpacity 
+                    style={styles.editButton}>
+                    <MaterialCommunityIcons name="star" size={24} color="#FFFFFF" />
+                    <Text style={styles.editButtonText}>Calificaciones</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={styles.final_button}>
+                    <MaterialCommunityIcons name="logout" size={24} color="#FFFFFF" />
+                    <Text style={styles.editButtonText}>Cerrar Sesión</Text>
+                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );
@@ -188,7 +198,18 @@ const styles = StyleSheet.create({
         borderRadius: 15,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 20,
+    },
+    final_button: {
+        backgroundColor: '#205EA6',
+        flexDirection: 'row',
+        width: '100%',
+        padding: 16,
+        borderRadius: 15,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 80,
+        
     },
     editButtonText: {
         color: '#FFFFFF',

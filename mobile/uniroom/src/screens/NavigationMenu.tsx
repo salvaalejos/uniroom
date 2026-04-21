@@ -4,17 +4,17 @@ import { useEffect, useRef, useState } from "react"
 import { NavigationContainer } from '@react-navigation/native';
 import MapScreen from "./MapScreen"
 import MapRouteScreen from "./MapRouteScreen"
+import CalendarScreen from "./CalendarScreen"
 import { ComponentType } from "react"
 import HomeScreen from './HomeScreen'
 import Themes from "./Themes"
 import {red, blue, bluePrimaryColor, blueSecondColor} from "../styles"
-import ProfileDataScreen from "./ProfileDataScreen"
+import ProfileScreen from "./ProfileScreen"
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import NotificationScreen from "./NotificationScreen";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useIsFocused } from "@react-navigation/native"
 import * as Animatable from "react-native-animatable"
-import Profile from "./Profile"
 import Settings from "./Settings"
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -59,7 +59,7 @@ const Profile_Menu = () => {
                 </Stack.Screen>
                 <Stack.Screen
                 name="Profile_Info"
-                component={ProfileDataScreen}
+                component={ProfileScreen}
                 options={{presentation: "modal", title: "Tus Datos", headerShown: true}}>
 
                 </Stack.Screen>
@@ -68,17 +68,19 @@ const Profile_Menu = () => {
 }
 
 const Tabs = [
-    {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: MapScreen},
-    {route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: MapRouteScreen},
-    //{route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
-    
-    // ruta provicional para los inmuebles
-    {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: InmuebleStackScreen},
-
-
-    {route : 'Notificaciones', label: 'Notificaciones', activeIcon: 'bell', inActiveIcon: "bell-outline", component: NotificationScreen},
-    {route : 'ProfileTab', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: ProfileDataScreen}
+    { route: 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: MapScreen },
+    { route: 'Rutas', label: 'Rutas', activeIcon: "car", inActiveIcon: "car-outline", component: MapRouteScreen},
+    { route: 'TuInmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: InmuebleStackScreen },
+    { route: 'Notificaciones', label: 'Notificaciones', activeIcon: 'bell', inActiveIcon: "bell-outline", component: NotificationScreen },
+    { route: 'ProfileTab', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: ProfileScreen }
 ]
+
+const LandlordTabs = [
+    {route: 'MisInmuebles', label: 'Mis Inmuebles', activeIcon: "home-city", inActiveIcon: "home-city-outline", component: MisInmuebles},
+    {route: 'Publicar', label: 'Dar de Alta', activeIcon: "home-plus", inActiveIcon: "home-plus-outline", component: Upload_Renta},
+    {route: 'Calendario', label: 'Agenda', activeIcon: "calendar-month", inActiveIcon: "calendar-month-outline", component: CalendarScreen},
+    {route: 'Avisos', label: 'Notificaciones', activeIcon: "bell-check", inActiveIcon: "bell-check-outline", component: NotificationScreen},
+    {route: 'CuentaArrendador', label: 'Mi Cuenta', activeIcon: "account-tie", inActiveIcon: "account-tie-outline", component: ProfileScreen}]
 
 const TabButton = (props: any) => {
     const {item, onPress} = props
@@ -95,9 +97,6 @@ const TabButton = (props: any) => {
     const animation2 = { 0: { scale: 1.2, translateY: -24 }, 1: { scale: 1, translateY: 8 } }
     const imageAnimation = {0: {rotate: "0deg"}, 1: {rotate: "360deg"}}
     const imageAnimation2 = {0: {rotate: "360deg"}, 1: {rotate: "0deg"}}
-    useEffect(() => {
-
-    })
 
     //Ya luego le cambio los errores xd
     useEffect(() => {
@@ -147,7 +146,16 @@ const TabButton = (props: any) => {
 const Tab = createBottomTabNavigator()
 
 export default function NavigationMenu(){
+    const [userRole, setUserRole] = useState("arrendador");
+    const [userStatus, setUserStatus] = useState("Libre");
     const [theme, setTheme] = useState(blue)
+    const currentTabs = userRole === "arrendador" ? LandlordTabs : Tabs;
+    const visibleTabs = Tabs.filter(tab => {
+        if (userStatus === "Libre") {
+            return ['Inmuebles', 'Notificaciones', 'ProfileTab'].includes(tab.route);
+        }
+        return true; 
+    });
     return (
        <Tab.Navigator
         screenOptions={{
@@ -156,10 +164,10 @@ export default function NavigationMenu(){
         }}
        >
         {
-        Tabs.map((item, index) => {
+        currentTabs.map((item, index) => {
             return (
                 <Tab.Screen 
-                key={index}
+                key={item.route}
                 name={item.route} 
                 component={item.component}
                 options={({ route }) => ({

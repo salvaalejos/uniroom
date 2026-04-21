@@ -4,12 +4,6 @@ import { authRoutes } from "./routes/auth";
 import { usersRoutes } from "./routes/users";
 
 const app = new Elysia()
-  .use(
-    jwt({
-      name: "jwt",
-      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
-    })
-  )
   .use(authRoutes)
   .use(usersRoutes)
   .get("/", () => "Hello Elysia")

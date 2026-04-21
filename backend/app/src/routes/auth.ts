@@ -1,7 +1,14 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
+import jwt from "@elysiajs/jwt";
 
 export const authRoutes = new Elysia({ prefix: "/auth" })
+  .use(
+    jwt({
+      name: "jwt",
+      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
+    })
+  )
   .post(
     "/register",
     async ({ body, set }) => {
