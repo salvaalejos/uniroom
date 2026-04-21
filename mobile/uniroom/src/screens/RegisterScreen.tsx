@@ -90,8 +90,15 @@ export default function RegisterScreen({ navigation, route }: any) {
 
         setIsLoading(true);
 
-        const [nombre, ...apellidosParts] = fullName.trim().split(' ');
-        const apellidos = apellidosParts.join(' ') || '.';
+        const fullNameParts = fullName.trim().split(/\s+/).filter(Boolean);
+        if (fullNameParts.length < 2) {
+            setErrorMessage('Ingresa tu nombre y al menos un apellido');
+            setIsLoading(false);
+            return;
+        }
+
+        const [nombre, ...apellidosParts] = fullNameParts;
+        const apellidos = apellidosParts.join(' ');
         const backendRole = role === 'student' ? 'ESTUDIANTE' : 'ARRENDADOR';
 
         try {
