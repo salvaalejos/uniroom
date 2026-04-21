@@ -157,7 +157,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           apellidos: t.String(),
           numero_contacto: t.String(),
           genero: t.Union([t.Literal("MASCULINO"), t.Literal("FEMENINO"), t.Literal("OTRO")]),
-          edad: t.Number(),
+          edad: t.Integer({ minimum: 0 }),
           foto: t.String(),
           visibilidad: t.Boolean(),
         })
