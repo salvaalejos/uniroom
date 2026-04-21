@@ -77,6 +77,11 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         return { error: "Credenciales inválidas" };
       }
 
+      if (user.estado !== "ACTIVO") {
+        set.status = 403;
+        return { error: "La cuenta no está activa" };
+      }
+
       // Firmar token JWT
       const token = await jwt.sign({
         sub: user.id_usuario,
