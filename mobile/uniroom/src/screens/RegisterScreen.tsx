@@ -7,9 +7,12 @@ import {
     TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
-    ScrollView
+    ScrollView,
+    ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // Íconos incluidos en Expo
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export default function RegisterScreen({ navigation }: any) {
     // Estados para los campos de texto
@@ -22,13 +25,78 @@ export default function RegisterScreen({ navigation }: any) {
     // Estado para el rol ('student' | 'landlord' | null)
     const [role, setRole] = useState<string | null>(null);
 
-    const handleRegister = () => {
+    // Estado de carga
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+
+    const handleRegister = async () => {
+        setErrorMessage('');
+        setSuccessMessage('');
+
         if (!role) {
-            console.log('Falta seleccionar un rol');
+            setErrorMessage('Falta seleccionar un rol');
             return;
         }
-        console.log('Registrando usuario:', { fullName, email, phone, role });
-        // Aquí irá la conexión al backend
+
+        if (password !== confirmPassword) {
+            setErrorMessage('Las contraseñas no coinciden');
+            return;
+        }
+
+        if (!fullName || !email || !password) {
+            setErrorMessage('Por favor completa todos los campos obligatorios');
+            return;
+        }
+
+        // Validar formato de email antes de enviar al backend
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email.trim())) {
+            setErrorMessage('Ingresa un correo electrónico válido (ej: nombre@dominio.com)');
+            return;
+        }
+
+        if (password.length <= 5) {
+            setErrorMessage('La contraseña debe tener más de 5 caracteres.');
+            return;
+        }
+
+        setIsLoading(true);
+
+        const [nombre, ...apellidosParts] = fullName.trim().split(' ');
+        const apellidos = apellidosParts.join(' ') || '.';
+        const backendRole = role === 'student' ? 'ESTUDIANTE' : 'ARRENDADOR';
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email.trim(),
+                    password,
+                    nombre,
+                    apellidos,
+                    rol: backendRole
+                })
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                // Elysia devuelve { summary, type, on, property } para errores de validación (422)
+                let errorMsg = data?.error ?? data?.message ?? data?.summary;
+                if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
+                throw new Error(errorMsg ?? 'No se pudo completar el registro');
+            }
+
+            setSuccessMessage('¡Tu cuenta ha sido creada correctamente! Ahora puedes iniciar sesión para acceder a tu cuenta.');
+        } catch (error: any) {
+            setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -44,8 +112,29 @@ export default function RegisterScreen({ navigation }: any) {
                     <Text style={styles.subtitle}>Únete a UniRoom</Text>
                 </View>
 
+                {errorMessage ? (
+                    <View style={styles.errorContainer}>
+                        <Ionicons name="alert-circle" size={20} color="#E74C3C" />
+                        <Text style={styles.errorTextUI}>{errorMessage}</Text>
+                    </View>
+                ) : null}
+
+                {successMessage ? (
+                    <View style={styles.successContainer}>
+                        <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
+                        <View style={styles.successTextContainer}>
+                            <Text style={styles.successTitle}>Registrado con éxito</Text>
+                            <Text style={styles.successTextUI}>{successMessage}</Text>
+                            <TouchableOpacity style={styles.successButton} onPress={() => navigation.goBack()}>
+                                <Text style={styles.successButtonText}>Ir a Iniciar Sesión</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ) : null}
+
                 {/* Formulario */}
-                <View style={styles.formContainer}>
+                {!successMessage && (
+                    <View style={styles.formContainer}>
                     <TextInput
                         style={styles.input}
                         placeholder="Nombre completo"
@@ -130,10 +219,19 @@ export default function RegisterScreen({ navigation }: any) {
                     </View>
 
                     {/* Botón Continuar */}
-                    <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
-                        <Text style={styles.registerButtonText}>Continuar</Text>
+                    <TouchableOpacity 
+                        style={[styles.registerButton, isLoading && styles.registerButtonDisabled]} 
+                        onPress={handleRegister}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <Text style={styles.registerButtonText}>Continuar</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
+                )}
 
                 {/* Footer */}
                 <View style={styles.footerContainer}>
@@ -172,6 +270,60 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#7F8C8D',
         marginTop: 5,
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FDEDEC',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#FADBD8',
+    },
+    errorTextUI: {
+        color: '#E74C3C',
+        marginLeft: 8,
+        fontSize: 15,
+        flex: 1,
+    },
+    successContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#EAFAF1',
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#D5F5E3',
+        alignItems: 'flex-start',
+    },
+    successTextContainer: {
+        marginLeft: 12,
+        flex: 1,
+    },
+    successTitle: {
+        color: '#27AE60',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    successTextUI: {
+        color: '#2E4053',
+        fontSize: 15,
+        marginBottom: 16,
+        lineHeight: 22,
+    },
+    successButton: {
+        backgroundColor: '#27AE60',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        alignSelf: 'flex-start',
+    },
+    successButtonText: {
+        color: '#FFF',
+        fontWeight: 'bold',
+        fontSize: 15,
     },
     formContainer: {
         marginBottom: 20,
@@ -226,6 +378,9 @@ const styles = StyleSheet.create({
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
+    },
+    registerButtonDisabled: {
+        opacity: 0.7,
     },
     registerButtonText: {
         color: '#FFFFFF',
