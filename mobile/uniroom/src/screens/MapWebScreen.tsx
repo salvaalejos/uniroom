@@ -1,12 +1,7 @@
 import mapboxgl from "mapbox-gl"
 import React, { useEffect, useRef } from "react"
 
-useEffect(() => {
-  const link = document.createElement('link');
-  link.href = 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css';
-  link.rel = 'stylesheet';
-  document.head.appendChild(link);
-}, []);
+
 
 mapboxgl.accessToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN as string
 
@@ -14,6 +9,14 @@ export default function MapScreen(){
 
  const mapContainer =
  useRef<HTMLDivElement>(null)
+
+ 
+  useEffect(() => {
+  const link = document.createElement('link');
+  link.href = 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css';
+  link.rel = 'stylesheet';
+  document.head.appendChild(link);
+}, []);
 
  useEffect(()=>{
 

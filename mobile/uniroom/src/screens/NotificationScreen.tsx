@@ -1,64 +1,106 @@
 import React, { useState, useEffect } from "react";
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { 
-  View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, SafeAreaView, TextInput, Alert, ScrollView 
+  View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, SafeAreaView, TextInput, Alert, ScrollView, RefreshControl, Image, Platform
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 
+interface NotificacionType {
+  id_notificacion: string; 
+  titulo: string;
+  mensaje: string;
+  visto: boolean;
+  tipo: string;
+  fecha_creacion: string;
+  usuario_id: string;
+  remitente_nombre: string;
+}
+interface ContactoType {
+  id_usuario: string;
+  nombre: string;
+}
+// --- CONSTANTES PARA LA CONEXIÓN AL BACKEND ---
+const BACKEND_URL ="http://192.168.1.2:3000";
+//const MI_ID_DE_USUARIO = "5024b108-a41a-4401-9f4b-bc8392ce48b8"; // ADMIN 
+const MI_ID_DE_USUARIO = "67012f3e-b644-4c33-ba43-8756632b2508"; // Pati Chapoy
+
+
 export default function NotificationScreen() {
-  // 1. Estados para la lista de Notificaciones
-  const [notificaciones, setNotificaciones] = useState([]);
+  const [notificaciones, setNotificaciones] = useState<NotificacionType[]>([]);
+  const [cargando, setCargando] = useState(false); 
   
-  // 2. Estados para controlar la vista detallada
-  const [notificacionSeleccionada, setNotificacionSeleccionada] = useState(null);
+  const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<NotificacionType | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // 3. Estados para el FORMULARIO de Nuevo Reporte
   const [modalFormularioVisible, setModalFormularioVisible] = useState(false);
   const [nuevoTitulo, setNuevoTitulo] = useState("");
   const [nuevoMensaje, setNuevoMensaje] = useState("");
 
-  // 4. Estados para los Contactos (Destinatarios)
-  const [contactos, setContactos] = useState([]);
-  const [destinatarioSeleccionado, setDestinatarioSeleccionado] = useState(null);
+  const [contactos, setContactos] = useState<ContactoType[]>([]);
+  const [destinatarioSeleccionado, setDestinatarioSeleccionado] = useState<string | null>(null);
+
+  const cargarNotificaciones = async () => {
+    try {
+      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${MI_ID_DE_USUARIO}`);
+      if (respuesta.ok) {
+        const datosReales = await respuesta.json();
+        const datosFormateados = datosReales.map((notif: any) => {
+          const fechaObj = new Date(notif.fecha_creacion);
+          return {
+            ...notif,
+            fecha_creacion: `${fechaObj.getDate()}/${fechaObj.getMonth() + 1} ${fechaObj.getHours()}:${fechaObj.getMinutes().toString().padStart(2, '0')}`
+          };
+        });
+        setNotificaciones(datosFormateados);
+      }
+    } catch (error) {
+      console.error("Error conectando al backend:", error);
+    }
+  };
+
+  //Para recargar laa notificaciones de manera manual (pull to refresh)
+  const onRefresh = async () => {
+    setCargando(true);
+    await cargarNotificaciones();
+    setCargando(false);
+  };
 
   useEffect(() => {
-    // Datos de prueba - Notificaciones
-    const notificacionesDePrueba = [
-      {
-        id_notificacion: "1",
-        titulo: "Fuga de agua en el baño",
-        mensaje: "Hola, te reporto que la llave del lavabo está goteando desde ayer. ¿Podrías mandar a alguien a revisarlo por favor? Saludos.",
-        leida: false,
-        remitente: "Said. (Estudiante)",
-        fecha: "14 Abr, 10:30 AM"
-      },
-      {
-        id_notificacion: "2",
-        titulo: "Pago de luz recibido",
-        mensaje: "Gracias por enviar el comprobante. El pago de la luz de este mes ha quedado registrado sin problemas.",
-        leida: true,
-        remitente: "Administración (Arrendador)",
-        fecha: "12 Abr, 04:15 PM"
-      },
-    ];
-    setNotificaciones(notificacionesDePrueba);
+    cargarNotificaciones();
 
-    // Datos de prueba - Contactos
     const contactosDePrueba = [
-      { id_usuario: "u1", nombre: "Obama (Casa del techo blanco)" },
-      { id_usuario: "u2", nombre: "Pinocho (Casa de la esquina)" },
-      { id_usuario: "admin", nombre: "Administración" },
+      { id_usuario: "67012f3e-b644-4c33-ba43-8756632b2508", nombre: "Pati Chapoy" },
+      { id_usuario: "5024b108-a41a-4401-9f4b-bc8392ce48b8", nombre: "Administración" },
     ];
     setContactos(contactosDePrueba);
   }, []);
 
-  const abrirDetalle = (item) => {
+  const abrirDetalle = async (item: NotificacionType) => {
     setNotificacionSeleccionada(item);
     setModalVisible(true);
+
+    if (!item.visto) {
+      try {
+        const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${item.id_notificacion}/visto`, {
+          method: 'PATCH',
+        });
+
+        if (respuesta.ok) {
+         
+          setNotificaciones(prevNotificaciones => 
+            prevNotificaciones.map(n => 
+              n.id_notificacion === item.id_notificacion ? { ...n, visto: true } : n
+            )
+          );
+          console.log("Estado actualizado a Visto");
+        }
+      } catch (error) {
+        console.error("Error al marcar como visto:", error);
+      }
+    }
   };
 
-  // Función para simular el envío del formulario
-  const enviarReporte = () => {
+  const enviarReporte = async () => {
     if (!destinatarioSeleccionado) {
       Alert.alert("Destinatario faltante", "Por favor selecciona a quién va dirigido el reporte.");
       return;
@@ -69,53 +111,152 @@ export default function NotificationScreen() {
       return;
     }
 
-    const nombreDestinatario = contactos.find(c => c.id_usuario === destinatarioSeleccionado)?.nombre || "Usuario";
+    try {
+      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          usuario_id: destinatarioSeleccionado,
+          titulo: nuevoTitulo,
+          mensaje: nuevoMensaje,
+          tipo: "REPORTE",
+          remitente_nombre: contactos.find((c) => c.id_usuario === MI_ID_DE_USUARIO)?.nombre || "",
+        }),
+      });
 
-    const nuevoReporte = {
-      id_notificacion: Math.random().toString(), 
-      titulo: nuevoTitulo,
-      mensaje: nuevoMensaje,
-      leida: true, 
-      remitente: `Tú (Para: ${nombreDestinatario})`, 
-      fecha: "Justo ahora"
-    };
-
-
-    setNotificaciones([nuevoReporte, ...notificaciones]);
-    
-    setNuevoTitulo("");
-    setNuevoMensaje("");
-    setDestinatarioSeleccionado(null);
-    setModalFormularioVisible(false);
+      if (respuesta.ok) {
+        Alert.alert("¡Enviado!", "Tu reporte ha sido enviado exitosamente.");
+        setNuevoTitulo("");
+        setNuevoMensaje("");
+        setDestinatarioSeleccionado(null);
+        setModalFormularioVisible(false);
+        cargarNotificaciones();
+      } else {
+        Alert.alert("Error", "No se pudo enviar el reporte en el servidor.");
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error de conexión", "No se pudo conectar con el servidor.");
+    }
   };
 
-  const renderNotificacion = ({ item }) => (
+  const renderNotificacion = ({ item }: any) => (
+    <Swipeable
+    renderLeftActions={() => renderLeftActions(item.id_notificacion)}
+    friction={2} 
+    rightThreshold={40} 
+  >
     <TouchableOpacity 
-      style={[styles.tarjeta, !item.leida && styles.tarjetaNoLeida]}
+      style={[styles.tarjeta, !item.visto && styles.tarjetaNoLeida]}
       onPress={() => abrirDetalle(item)}
       activeOpacity={0.7}
     >
       <View style={styles.encabezadoTarjeta}>
-        <Text style={[styles.titulo, !item.leida && styles.textoNegrita]} numberOfLines={1}>{item.titulo}</Text>
-        <Text style={styles.fecha}>{item.fecha}</Text>
+        <Text style={[styles.titulo, !item.visto && styles.textoNegrita]} numberOfLines={1}>{item.titulo}</Text>
+        <Text style={styles.fecha}>{item.fecha_creacion}</Text>
       </View>
-      <Text style={styles.remitenteLista}>{item.remitente}</Text>
+      <Text style={styles.remitenteLista}>{item.remitente_nombre}</Text>
       <Text style={styles.mensajeResumen} numberOfLines={1}>{item.mensaje}</Text>
     </TouchableOpacity>
+      </Swipeable>
   );
+  
+const vaciarBandeja = () => {
+    // Pa Web
+    if (Platform.OS === 'web') {
+      const confirmar = window.confirm("¿Seguro que quieres borrar todas las notificaciones?");
+      if (confirmar) {
+        ejecutarBorrado();
+      }
+    } 
+    // Pa Celular
+    else {
+      Alert.alert(
+        "¿Borrar todo?",
+        "Esta acción eliminará todos tus mensajes permanentemente.",
+        [
+          { text: "Cancelar", style: "cancel" },
+          { 
+            text: "Sí, borrar",
+            style: "destructive", 
+            onPress: ejecutarBorrado 
+          }
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+  
+  const ejecutarBorrado = async () => {
+    try {
+      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${MI_ID_DE_USUARIO}/todas`, {
+        method: 'DELETE',
+      });
+      if (respuesta.ok) {
+        setNotificaciones([]);
+    }
+    } catch (error) {
+      console.error("Error al borrar:", error);
+    }
+  };
 
+
+  const borrarIndividual = async (id_notificacion: string) => {
+  try {
+    const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${id_notificacion}`, {
+      method: 'DELETE',
+    });
+
+    if (respuesta.ok) {
+      setNotificaciones(prev => prev.filter(n => n.id_notificacion !== id_notificacion));
+      console.log(" Notificación borrada de la BD y pantalla");
+    }
+  } catch (error) {
+    console.error("Error al borrar individual:", error);
+  }
+};
+
+const renderLeftActions = (id_notificacion: string) => {
   return (
+    <TouchableOpacity 
+      style={styles.contenedorEliminarSwipe} 
+      onPress={() => borrarIndividual(id_notificacion)}
+    >
+      <Ionicons name="trash" size={28} color="white" />
+      <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>Borrar</Text>
+    </TouchableOpacity>
+  );
+};
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <View style={styles.contenedor}>
+      <View style={styles.contenedorEncabezado}>
       <Text style={styles.encabezadoPrincipal}>Bandeja de Entrada</Text>
-      
+
+      <TouchableOpacity onPress={vaciarBandeja}>
+        <Image 
+          source={require('../../assets/borrarnotificaciones.png')} 
+          resizeMode="contain"
+          style={styles.imagenBorrar} 
+        /> 
+      </TouchableOpacity>
+      </View>
+    
       <FlatList
         data={notificaciones}
         keyExtractor={(item) => item.id_notificacion}
         renderItem={renderNotificacion}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={cargando} onRefresh={onRefresh} colors={["#205EA6"]} />
+        }
+        ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 50, color: '#888'}}>No hay notificaciones aún.</Text>}
       />
 
       {/* Botón flotante para abrir el formulario */}
+
       <TouchableOpacity 
         style={styles.botonFlotanteCircular}
         onPress={() => setModalFormularioVisible(true)}
@@ -123,39 +264,38 @@ export default function NotificationScreen() {
         <Ionicons name="add" size={28} color="white" /> 
       </TouchableOpacity>
 
+
+          
+
       {/* ==========================================
-          MODAL 1: VISTA DETALLADA
+          MODAL 1: VISTA DETALLADA DE LA NOTIFICACIÓN
           ========================================== */}
-      <Modal
-        animationType="slide"
-        transparent={false}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+      <Modal animationType="slide" transparent={false} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         {notificacionSeleccionada && (
           <SafeAreaView style={styles.contenedorModal}>
-            
+          
             <View style={styles.barraSuperiorModal}>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Text style={styles.botonCerrar}>← Regresar</Text>
               </TouchableOpacity>
+            
             </View>
-
+            
             <View style={styles.contenidoDetalle}>
               <Text style={styles.tituloModal}>{notificacionSeleccionada.titulo}</Text>
               
               <View style={styles.infoRemitente}>
                 <View style={styles.avatarCircular}>
-                  <Text style={styles.letraAvatar}>{notificacionSeleccionada.remitente.charAt(0)}</Text>
+                  <Text style={styles.letraAvatar}>{notificacionSeleccionada.remitente_nombre.charAt(0)}</Text>
                 </View>
                 <View>
-                  <Text style={styles.nombreRemitente}>{notificacionSeleccionada.remitente}</Text>
-                  <Text style={styles.fechaModal}>{notificacionSeleccionada.fecha}</Text>
+                  <Text style={styles.nombreRemitente}>{notificacionSeleccionada.remitente_nombre}</Text>
+                  <Text style={styles.fechaModal}>{notificacionSeleccionada.fecha_creacion}</Text>
                 </View>
               </View>
 
               <View style={styles.separador} />
-
+              
               <Text style={styles.mensajeCompleto}>{notificacionSeleccionada.mensaje}</Text>
             </View>
 
@@ -164,35 +304,24 @@ export default function NotificationScreen() {
       </Modal>
 
       {/* ==========================================
-          MODAL 2: FORMULARIO DE NUEVO REPORTE
+          MODAL 2: FORMULARIO DE NUEVA NOTIFICACIÓN 
           ========================================== */}
-      <Modal 
-        animationType="fade" 
-        transparent={true} 
-        visible={modalFormularioVisible}
-        onRequestClose={() => setModalFormularioVisible(false)}
-      >
+      <Modal animationType="fade" transparent={true} visible={modalFormularioVisible} onRequestClose={() => setModalFormularioVisible(false)}>
         <View style={styles.fondoOscuroModal}>
           <View style={styles.tarjetaFormulario}>
-            <Text style={styles.tituloFormulario}>Nuevo Reporte</Text>
 
-            {/* Selector de Contactos */}
+            <Text style={styles.tituloFormulario}>Nuevo Reporte</Text>
+          
             <Text style={styles.labelInput}>Para:</Text>
             <View style={styles.contenedorScrollChips}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {contactos.map((contacto) => (
                   <TouchableOpacity
                     key={contacto.id_usuario}
-                    style={[
-                      styles.chipContacto,
-                      destinatarioSeleccionado === contacto.id_usuario && styles.chipSeleccionado
-                    ]}
+                    style={[styles.chipContacto, destinatarioSeleccionado === contacto.id_usuario && styles.chipSeleccionado]}
                     onPress={() => setDestinatarioSeleccionado(contacto.id_usuario)}
                   >
-                    <Text style={[
-                      styles.textoChip,
-                      destinatarioSeleccionado === contacto.id_usuario && styles.textoChipSeleccionado
-                    ]}>
+                    <Text style={[styles.textoChip, destinatarioSeleccionado === contacto.id_usuario && styles.textoChipSeleccionado]}>
                       {contacto.nombre}
                     </Text>
                   </TouchableOpacity>
@@ -201,39 +330,15 @@ export default function NotificationScreen() {
             </View>
             
             <Text style={styles.labelInput}>Asunto</Text>
-            <TextInput 
-              style={styles.inputTexto}
-              placeholder="Ej. Problema con el internet"
-              value={nuevoTitulo}
-              onChangeText={setNuevoTitulo}
-            />
-
+            <TextInput style={styles.inputTexto} placeholder="Ej. Problema con el internet" value={nuevoTitulo} onChangeText={setNuevoTitulo} />
             <Text style={styles.labelInput}>Mensaje</Text>
-            <TextInput 
-              style={[styles.inputTexto, styles.inputMultilinea]}
-              placeholder="Describe los detalles aquí..."
-              multiline={true}
-              numberOfLines={4}
-              textAlignVertical="top"
-              value={nuevoMensaje}
-              onChangeText={setNuevoMensaje}
-            />
-
+            <TextInput style={[styles.inputTexto, styles.inputMultilinea]} placeholder="Describe los detalles aquí..." multiline={true} numberOfLines={4} textAlignVertical="top" value={nuevoMensaje} onChangeText={setNuevoMensaje} />
+            
             <View style={styles.contenedorBotonesForm}>
-              <TouchableOpacity 
-                style={styles.botonCancelar} 
-                onPress={() => {
-                  setModalFormularioVisible(false);
-                  setDestinatarioSeleccionado(null);
-                }}
-              >
+              <TouchableOpacity style={styles.botonCancelar} onPress={() => { setModalFormularioVisible(false); setDestinatarioSeleccionado(null); }}>
                 <Text style={styles.textoBotonCancelar}>Cancelar</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.botonEnviar} 
-                onPress={enviarReporte}
-              >
+              <TouchableOpacity style={styles.botonEnviar} onPress={enviarReporte}>
                 <Text style={styles.textoBotonEnviar}>Enviar</Text>
               </TouchableOpacity>
             </View>
@@ -242,6 +347,7 @@ export default function NotificationScreen() {
       </Modal>
 
     </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -304,7 +410,7 @@ const styles = StyleSheet.create({
   botonFlotanteCircular: {
     position: 'absolute',
     bottom: 90,           
-    left: 20,             
+    right: 20,             
     backgroundColor: '#205EA6',
     padding: 16,          
     borderRadius: 30,     
@@ -316,6 +422,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,           
+  },
+  contenedorEncabezado: {
+    flexDirection: 'row',      
+    justifyContent: 'space-between', 
+    alignItems: 'center',         
+    width: '100%',
+    marginTop: 50,                
+    marginBottom: 10,
+  },
+imagenBorrar: {
+  width: 30,
+  height: 30,
+},
+
+contenedorEliminarSwipe: {
+    backgroundColor: '#ff0056',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    height: '90%', // Un poco menos que la tarjeta para que no choque con los bordes
+    marginTop: 5,  // Alineado con el margen de tu tarjeta
+    borderRadius: 10,
+    marginLeft: 10,
   },
 
   // --- Estilos del Modal 1 (Vista Detallada) ---
@@ -452,7 +581,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  // --- Estilos del Selector de Contactos (Chips) ---
   contenedorScrollChips: {
     height: 40,
     marginBottom: 16,

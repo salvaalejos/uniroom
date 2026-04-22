@@ -1,9 +1,15 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
+import { cors } from "@elysiajs/cors";
 import { authRoutes } from "./routes/auth";
 import { usersRoutes } from "./routes/users";
+import { notificacionRoutes } from "./routes/notificacion";
 
-const app = new Elysia()
+
+const app = new Elysia()    
+.use(cors({
+    origin: '*' // El asterisco significa "Aceptar peticiones de CUALQUIER lado"
+  }))
   .use(
     jwt({
       name: "jwt",
@@ -12,6 +18,7 @@ const app = new Elysia()
   )
   .use(authRoutes)
   .use(usersRoutes)
+  .use(notificacionRoutes)
   .get("/", () => "Hello Elysia")
   .listen(3000);
 
