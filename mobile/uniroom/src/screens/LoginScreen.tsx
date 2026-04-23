@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 type AuthenticatedUser = {
     name: string;
@@ -22,7 +23,7 @@ const getUserName = (payload: any) => {
         return '';
     }
 
-    return payload.nombre ?? payload.name ?? payload.usuario?.nombre ?? payload.user?.name ?? '';
+    return payload.nombre ?? payload.name ?? payload.usuario?.nombre ?? payload.user?.nombre ?? payload.user?.name ?? '';
 };
 
 const getUserRole = (payload: any) => {
@@ -30,7 +31,7 @@ const getUserRole = (payload: any) => {
         return '';
     }
 
-    return payload.rol ?? payload.role ?? payload.usuario?.rol ?? payload.user?.role ?? '';
+    return payload.rol ?? payload.role ?? payload.usuario?.rol ?? payload.user?.rol ?? payload.user?.role ?? '';
 };
 
 export default function LoginScreen({ navigation }: any) {
@@ -44,7 +45,7 @@ export default function LoginScreen({ navigation }: any) {
 
     const handleLogin = async () => {
         if (!email || !password) {
-            setErrorMessage('Ingresa tu correo y contraseña.');
+            setErrorMessage('Ingresa tu correo y contraseña para continuar.');
             return;
         }
 
@@ -57,13 +58,14 @@ export default function LoginScreen({ navigation }: any) {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({ email: email.trim(), password })
             });
 
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(payload?.message ?? 'No se pudo iniciar sesión.');
+                const apiError = payload?.error ?? payload?.message ?? 'Credenciales incorrectas o problema para iniciar sesión.';
+                throw new Error(apiError);
             }
 
             const name = getUserName(payload);
@@ -142,7 +144,12 @@ export default function LoginScreen({ navigation }: any) {
                     )}
                 </TouchableOpacity>
 
-                {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+                {errorMessage ? (
+                    <View style={styles.errorContainer}>
+                        <Ionicons name="alert-circle" size={20} color="#E74C3C" />
+                        <Text style={styles.errorTextUI}>{errorMessage}</Text>
+                    </View>
+                ) : null}
 
                 <TouchableOpacity>
                     <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
@@ -212,10 +219,21 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
-    errorText: {
-        marginTop: 12,
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FDEDEC',
+        padding: 14,
+        borderRadius: 12,
+        marginTop: 16,
+        borderWidth: 1,
+        borderColor: '#FADBD8',
+    },
+    errorTextUI: {
         color: '#E74C3C',
-        textAlign: 'center',
+        marginLeft: 8,
+        fontSize: 15,
+        flex: 1,
     },
     forgotPasswordText: {
         color: '#205EA6',

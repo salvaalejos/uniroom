@@ -1,10 +1,20 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export const authRoutes = new Elysia({ prefix: "/auth" })
   .post(
     "/register",
     async ({ body, set }) => {
+      console.log("[register] body recibido:", JSON.stringify(body));
+
+      // Validar formato de email manualmente
+      if (!EMAIL_REGEX.test(body.email)) {
+        set.status = 400;
+        return { error: "El formato del correo electrónico no es válido" };
+      }
+
       // Verificar si el email ya existe
       const existingUser = await db.usuario.findUnique({
         where: { email: body.email },
@@ -39,7 +49,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     },
     {
       body: t.Object({
-        email: t.String({ format: "email" }),
+        email: t.String(),
         password: t.String({ minLength: 6 }),
         nombre: t.String(),
         apellidos: t.String(),
@@ -65,6 +75,11 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       if (!isValid) {
         set.status = 401;
         return { error: "Credenciales inválidas" };
+      }
+
+      if (user.estado !== "ACTIVO") {
+        set.status = 403;
+        return { error: "La cuenta no está activa" };
       }
 
       // Firmar token JWT
