@@ -118,6 +118,7 @@ export default function RegisterScreen({ navigation, route }: any) {
         formData.append('nombre', nombre);
         formData.append('apellidos', apellidos);
         formData.append('rol', backendRole);
+        formData.append('numero_contacto', phone)
         formData.append('genero', gender?.toUpperCase() || 'OTRO');
 
         if (picture && picture.includes(':/')) {

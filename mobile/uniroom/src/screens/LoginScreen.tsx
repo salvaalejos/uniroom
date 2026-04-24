@@ -10,13 +10,16 @@ import {
     View
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
 
 type AuthenticatedUser = {
     name: string;
     role: string;
 };
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 const getUserId = (payload: any) => {
     if (!payload || typeof payload !== 'object') return '';
