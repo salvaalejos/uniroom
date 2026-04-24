@@ -1,6 +1,6 @@
 import { Platform } from "react-native"
 
-let MapScreen
+let MapScreen: any
 
 if (Platform.OS === "web") {
   MapScreen = require("./MapWebScreen").default

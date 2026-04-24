@@ -18,6 +18,11 @@ type AuthenticatedUser = {
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
+const getUserId = (payload: any) => {
+    if (!payload || typeof payload !== 'object') return '';
+    return payload.id_usuario ?? payload.usuario?.id_usuario ?? payload.user?.id_usuario ?? '';
+};
+
 const getUserName = (payload: any) => {
     if (!payload || typeof payload !== 'object') {
         return '';
@@ -70,12 +75,15 @@ export default function LoginScreen({ navigation }: any) {
 
             const name = getUserName(payload);
             const role = getUserRole(payload);
+            const userId = getUserId(payload);
 
-            if (!name || !role) {
+            if (!name || !role || !userId) {
                 throw new Error('El backend no devolvió nombre y rol del usuario.');
             }
 
+            navigation.replace("Navigator", { userId: userId })
             setAuthenticatedUser({ name, role });
+
         } catch (error: any) {
             setAuthenticatedUser(null);
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión.');
@@ -89,23 +97,6 @@ export default function LoginScreen({ navigation }: any) {
         setPassword('');
         setErrorMessage('');
     };
-
-    if (authenticatedUser) {
-        return (
-            <View style={styles.loggedContainer}>
-                <Text style={styles.title}>¡Bienvenido!</Text>
-                <View style={styles.userCard}>
-                    <Text style={styles.userLabel}>Nombre</Text>
-                    <Text style={styles.userValue}>{authenticatedUser.name}</Text>
-                    <Text style={styles.userLabel}>Rol</Text>
-                    <Text style={styles.userValue}>{authenticatedUser.role}</Text>
-                </View>
-                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                    <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
 
     return (
         <KeyboardAvoidingView

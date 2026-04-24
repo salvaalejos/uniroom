@@ -22,6 +22,19 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         return { error: "El email ya está registrado" };
       }
 
+      let fotoPath: string | null = null;
+      if (body.foto) {
+        // Creamos un nombre único: timestamp + nombre original
+        const fileName = `${Date.now()}-${body.foto.name}`;
+        const destination = `./uploads/${fileName}`;
+
+        // Guardamos físicamente en la carpeta uploads
+        await Bun.write(destination, body.foto);
+        
+        // Guardamos la ruta relativa para la DB
+        fotoPath = `/public/${fileName}`;
+      }
+
       // Encriptar la contraseña usando Bun de manera nativa y rápida
       const password_hash = await Bun.password.hash(body.password, {
         algorithm: "bcrypt",
@@ -36,6 +49,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
           nombre: body.nombre,
           apellidos: body.apellidos,
           rol: body.rol,
+          foto: fotoPath
         },
       });
 
@@ -51,6 +65,10 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         nombre: t.String(),
         apellidos: t.String(),
         rol: t.Union([t.Literal("ESTUDIANTE"), t.Literal("ARRENDADOR")]),
+        foto: t.Optional(t.File({
+            type: ['image/jpeg', 'image/png', 'image/jpg'],
+            maxSize: '5m' // Límite de 5MB por foto
+        }))
       }),
     }
   )
