@@ -95,9 +95,6 @@ const TabButton = (props: any) => {
     const animation2 = { 0: { scale: 1.2, translateY: -24 }, 1: { scale: 1, translateY: 8 } }
     const imageAnimation = {0: {rotate: "0deg"}, 1: {rotate: "360deg"}}
     const imageAnimation2 = {0: {rotate: "360deg"}, 1: {rotate: "0deg"}}
-    useEffect(() => {
-
-    })
 
     //Ya luego le cambio los errores xd
     useEffect(() => {
