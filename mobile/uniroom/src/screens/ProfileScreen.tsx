@@ -104,12 +104,12 @@ export default function ProfileScreen({ navigation, route }: any) {
                     <InfoRow 
                         icon="account-outline" 
                         label="Rol" 
-                        value={userData.role === 'student' ? 'Estudiante' : 'Arrendador'} 
+                        value={userData.rol === 'ESTUDIANTE' ? 'Estudiante' : 'Arrendador'} 
                     />
                     <InfoRow 
                         icon="gender-transgender" 
                         label="Género" 
-                        value={userData.gender === 'man' ? 'Hombre' : userData.gender === 'woman' ? 'Mujer' : 'No Binario'} 
+                        value={userData.genero === 'MASCULINO' ? 'Hombre' : userData.genero === 'FEMENINO' ? 'Mujer' : 'No Binario'} 
                     />
                     <InfoRow 
                         icon="email-outline" 
@@ -141,7 +141,8 @@ export default function ProfileScreen({ navigation, route }: any) {
                     <Text style={styles.editButtonText}>Calificaciones</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                    style={styles.final_button}>
+                    style={styles.final_button}
+                    onPress={() => navigation.replace('Login')}>
                     <MaterialCommunityIcons name="logout" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Cerrar Sesión</Text>
                 </TouchableOpacity>

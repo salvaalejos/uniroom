@@ -9,14 +9,15 @@
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/jwt": "^1.4.1",
     "@elysiajs/static": "^1.4.10",
-    "@prisma/client": "^5.10.2",
+    "@prisma/client": "5.22.0",
     "elysia": "latest",
     "jsonwebtoken": "^9.0.3",
-    "jwt": "^0.2.0"
+    "jwt": "^0.2.0",
+    "mercadopago": "^2.12.0"
   },
   "devDependencies": {
     "bun-types": "1.1.38",
-    "prisma": "5.10.2"
+    "prisma": "5.22.0"
   },
   "module": "src/index.js"
 }

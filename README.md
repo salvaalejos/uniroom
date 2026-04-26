@@ -175,3 +175,26 @@ Se abrirá una pestaña en su navegador en `http://localhost:5555`.
 
 
 
+NOTAAA QUE LE FALTO A JUANITO XD: El backend recuerden que estamos trabajando con bun y elysia, por lo que primero deben correr el siguiente comando para instalar bun en su compu:
+
+
+```
+powershell -c "irm bun.sh/install.ps1 | iex"
+
+```
+
+Luego este para instalar elysia dentro de la carpeta backend:
+
+
+```
+bun install
+
+```
+
+y finalmente:
+
+```
+bun run dev
+```
+
+Despues ya corre normal  el back :D
