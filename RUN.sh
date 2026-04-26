@@ -1,5 +1,6 @@
 #!/bin/bash
 
+powershell -c "irm bun.sh/install.ps1 | iex"
 docker-compose up -d
 
 cd mobile/uniroom
