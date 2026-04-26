@@ -20,16 +20,17 @@ const authenticateRequest = (
   set: { status?: number }
 ) => {
   const token = getBearerToken(headers.authorization);
-  const jwtSecret = process.env.JWT_SECRET;
+  const jwtSecret = process.env.JWT_SECRET || "super_secret_elysia_key";
 
-  if (!token || !jwtSecret) {
+  if (!token) {
     set.status = 401;
     return null;
   }
 
   try {
     return jwt.verify(token, jwtSecret) as AuthUser;
-  } catch {
+  } catch (error) {
+    console.error("JWT Verify Error:", error);
     set.status = 401;
     return null;
   }
