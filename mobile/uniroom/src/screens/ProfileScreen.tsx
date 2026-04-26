@@ -119,7 +119,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                     <InfoRow 
                         icon="gender-transgender" 
                         label="Género" 
-                        value={userData.gender === 'man' ? 'Hombre' : userData.gender === 'woman' ? 'Mujer' : 'No Binario'} 
+                        value={userData.genero === 'MASCULINO' ? 'Hombre' : userData.genero === 'FEMENINO' ? 'Mujer' : 'No Binario'} 
                     />
                     <InfoRow 
                         icon="email-outline" 

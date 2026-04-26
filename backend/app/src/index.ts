@@ -2,6 +2,7 @@ import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import { authRoutes } from "./routes/auth";
 import { usersRoutes } from "./routes/users";
+import { paymentRoutes } from "./routes/payments";
 import cors from "@elysiajs/cors";
 import staticPlugin from "@elysiajs/static";
 const app = new Elysia()
@@ -21,6 +22,7 @@ const app = new Elysia()
 
   .use(authRoutes)
   .use(usersRoutes)
+  .use(paymentRoutes)
   .get("/", () => "Hello Elysia")
   .listen({
     port: 3000,

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState, useRef } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
+import { useNavigation } from "@react-navigation/native"
 
 
 // ─ Constantes ─
@@ -47,12 +48,13 @@ type Comentario = { autor: string, texto: string, fecha: string }
 type Props = {
     visible: boolean
     onClose: () => void
+    token?: string
 }
 
 
 // ─ Componente ─ ฅ^•ﻌ•^ฅ hola guapuritas
 
-const InmuebleScreen = ({ visible, onClose }: Props) => {
+const InmuebleScreen = ({ visible, onClose, token }: Props) => {
 
     const insets = useSafeAreaInsets()
     const scrollRef = useRef<ScrollView>(null)
@@ -62,6 +64,9 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
     const [miCalificacion, setMiCalificacion] = useState(0)
     const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIALES)
     const [nuevoComentario, setNuevoComentario] = useState("")
+    const [modalTarifaVisible, setModalTarifaVisible] = useState(false)
+
+    const navigation = useNavigation<any>()
 
     const player = useVideoPlayer(
         PROPIEDAD.media[imagenActual].tipo === "video" ? PROPIEDAD.media[imagenActual].src : null
@@ -263,11 +268,37 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                         <Text style={styles.footerPrecio}>${PROPIEDAD.precio.toLocaleString('es-MX')}</Text>
                         <Text style={styles.footerMes}>/ mes</Text>
                     </View>
-                    <TouchableOpacity style={styles.btnContacto}>
+                    <TouchableOpacity style={styles.btnContacto} onPress={() => setModalTarifaVisible(true)}>
                         <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
                         <Text style={styles.btnContactoTexto}>Contactar</Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Modal de Tarifa de Servicio */}
+                <Modal visible={modalTarifaVisible} transparent animationType="fade">
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalCard}>
+                            <MaterialCommunityIcons name="shield-check" size={48} color="#205EA6" style={{ marginBottom: 16 }} />
+                            <Text style={styles.modalTitle}>Tarifa de Contacto</Text>
+                            <Text style={styles.modalText}>
+                                Para proteger a nuestra comunidad y garantizar un servicio de calidad, cobramos una pequeña tarifa de $50 MXN para contactar a este arrendador.
+                            </Text>
+                            <TouchableOpacity 
+                                style={styles.btnPagar} 
+                                onPress={() => {
+                                    setModalTarifaVisible(false);
+                                    onClose(); // Cierra el InmuebleScreen
+                                    navigation.navigate("PaymentScreen", { token: token }); // Redirige a la pantalla de pagos
+                                }}
+                            >
+                                <Text style={styles.btnPagarTexto}>Entendido, proceder al pago</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalTarifaVisible(false)}>
+                                <Text style={styles.btnCancelarTexto}>Cancelar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
 
             </View>
 
@@ -519,5 +550,57 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         fontSize: 15,
     },
-
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.5)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+    },
+    modalCard: {
+        backgroundColor: "#fff",
+        borderRadius: 24,
+        padding: 32,
+        alignItems: "center",
+        width: "100%",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    modalTitle: {
+        fontSize: 22,
+        fontWeight: "bold",
+        color: "#0F2C4F",
+        marginBottom: 12,
+    },
+    modalText: {
+        fontSize: 15,
+        color: "#666",
+        textAlign: "center",
+        lineHeight: 22,
+        marginBottom: 24,
+    },
+    btnPagar: {
+        backgroundColor: "#205EA6",
+        width: "100%",
+        padding: 16,
+        borderRadius: 12,
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    btnPagarTexto: {
+        color: "#fff",
+        fontWeight: "bold",
+        fontSize: 16,
+    },
+    btnCancelar: {
+        padding: 12,
+    },
+    btnCancelarTexto: {
+        color: "#888",
+        fontWeight: "600",
+        fontSize: 15,
+    }
 })

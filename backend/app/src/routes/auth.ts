@@ -59,6 +59,8 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
           nombre: body.nombre,
           apellidos: body.apellidos,
           rol: body.rol,
+          numero_contacto: body.numero_contacto,
+          genero: body.genero,
           foto: fotoPath
         },
       });
@@ -75,6 +77,8 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         nombre: t.String(),
         apellidos: t.String(),
         rol: t.Union([t.Literal("ESTUDIANTE"), t.Literal("ARRENDADOR")]),
+        numero_contacto: t.Optional(t.String()),
+        genero: t.Optional(t.Union([t.Literal("MASCULINO"), t.Literal("FEMENINO"), t.Literal("OTRO")])),
         foto: t.Optional(t.File({
             type: ['image/jpeg', 'image/png', 'image/jpg'],
             maxSize: '5m' // Límite de 5MB por foto

@@ -18,3 +18,4 @@ backend/app/.env
 # Logs y Temporales
 *.log
 test_register.json
+.env
