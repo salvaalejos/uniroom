@@ -1,3 +1,13 @@
+## IMPORTANTE!!! 
+1. Los mapas en la parte de rutas solamente pueden ejecutarse en móvil, no en web. (Si entran a esa pestaña por accidente en web, recargen la página). 
+2. El .env para las credenciales de los mapas se los voy a mandar por WhatsApp (deben guardarlo en /mobile/uniroom). 
+3. Para la conexión con la BD tambien hay que crear un .env (este debe guardarse en /backend en caso de que no lo tengan): 
+```env
+# Conexión a la BD (Usuario: uniroom_user / Pass: 12345 / Puerto: 5435)
+DATABASE_URL="postgresql://uniroom_user:12345@127.0.0.1:5435/uniroom?schema=public&connect_timeout=30&sslmode=disable"
+
+```
+
 # Pasos para ejecutar el proyecto con el Script RUN.sh
 1. Abrir Docker Desktop en tu Lap (si es Windows, si es Linux revisar que si este activo). [La ballena de la parte inferior izquierda debe estar en verde]. 
 2. Ejecutar este comando en terminal para los permisos de ejecución y luego ejecutar ahora si el script. 
@@ -18,6 +28,7 @@ npx prisma studio
 ```
 ---
 ![./ignorepaso5.gif](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSY5tnWvLBoT8CBqCzr_0oCO5drR0yLUbaaSQ&s)
+
 
 # Como correr en mobile este proyecto. 
 ![./ignore.gif](https://media.tenor.com/6DlKoODackcAAAAM/evangelion-rei.gif)
