@@ -122,13 +122,20 @@ export default function RegisterScreen({ navigation, route }: any) {
         formData.append('genero', gender?.toUpperCase() || 'OTRO');
 
         if (picture && picture.includes(':/')) {
-        const uriParts = picture.split('.');
-        const fileType = uriParts[uriParts.length - 1];
-        formData.append('foto', {
-            uri: Platform.OS === 'android' ? picture : picture.replace('file://', ''),
-            name: `profile_${Date.now()}.${fileType}`,
-            type: `image/${fileType}`,
-        } as any);
+        if (Platform.OS === 'web') {
+        const response = await fetch(picture);
+        const blob = await response.blob();
+        const fileType = blob.type.split('/')[1] || 'jpg';
+        formData.append('foto', blob, `profile_${Date.now()}.${fileType}`); 
+        } else {
+            const uriParts = picture.split('.');
+            const fileType = uriParts[uriParts.length - 1];
+            formData.append('foto', {
+                uri: Platform.OS === 'android' ? picture : picture.replace('file://', ''),
+                name: `profile_${Date.now()}.${fileType}`,
+                type: `image/${fileType}`,
+            } as any);
+        }
         }
 
         try {
