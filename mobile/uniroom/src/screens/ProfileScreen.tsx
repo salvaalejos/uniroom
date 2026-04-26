@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import { CommonActions } from '@react-navigation/native';
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
 const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
@@ -33,6 +34,15 @@ export default function ProfileScreen({ navigation, route }: any) {
             }
         }
     }, [navigation, userId])
+
+    const handleLogout = () => {
+        navigation.dispatch(
+        CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+        })
+    );
+    }
 
     const getUserData = async () => {
         try {
@@ -142,7 +152,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                 </TouchableOpacity>
                 <TouchableOpacity 
                     style={styles.final_button}
-                    onPress={() => navigation.replace('Login')}>
+                    onPress={handleLogout}>
                     <MaterialCommunityIcons name="logout" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Cerrar Sesión</Text>
                 </TouchableOpacity>
