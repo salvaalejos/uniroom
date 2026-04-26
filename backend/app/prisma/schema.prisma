@@ -1,7 +1,6 @@
 // 1. Configuración básica
 generator client {
   provider = "prisma-client-js"
-  output   = "../app/node_modules/.prisma/client"
 }
 
 datasource db {
@@ -65,12 +64,16 @@ model Usuario {
   // FALSE = Ocultar datos privados (privado)
   visibilidad     Boolean       @default(false)      // "Estado" de la tabla Visibilidad
 
+  // Integración Mercado Pago
+  mp_customer_id  String?       @db.VarChar(100)     // ID del cliente en Mercado Pago
+
   fecha_creacion  DateTime      @default(now())
 
   // Relaciones
   inmuebles_propiedad Inmueble[]     @relation("InmueblesArrendador") // Sus casas (si es arrendador)
   inmuebles_rentados  Inmueble[]     @relation("InmuebleEstudiante")  // Donde vive (si es estudiante)
   calificaciones      Calificacion[]                                  // Reviews que ha escrito
+  transacciones       Transaccion[]                                   // Pagos realizados
 }
 
 // [PDF] Entidad: Inmueble
@@ -153,4 +156,18 @@ model Notificacion {
   // pa quien es el mensaje 
   usuario_id      String
   usuario         Usuario  @relation(fields: [usuario_id], references: [id_usuario])
+}
+
+// [NUEVO] Entidad: Transacción (Mercado Pago)
+model Transaccion {
+  id_transaccion  String   @id @default(uuid())
+  monto           Decimal  @db.Decimal(10, 2)
+  estado          String   @default("pending") // approved, rejected, pending
+  payment_id      String?  // ID devuelto por Mercado Pago
+  descripcion     String?
+
+  id_usuario      String
+  usuario         Usuario  @relation(fields: [id_usuario], references: [id_usuario])
+
+  fecha_creacion  DateTime @default(now())
 }

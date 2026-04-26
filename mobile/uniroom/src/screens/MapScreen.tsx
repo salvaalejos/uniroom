@@ -18,8 +18,9 @@ const PROPIEDADES = [
   { id: 10, precio: 2900, x: 0.60, y: 0.78 },
 ]
 
-const MapScreen = () => {
+const MapScreen = ({ route }: any) => {
   const [modalVisible, setModalVisible] = useState(false)
+  const token = route?.params?.token;
 
   return (
     <View style={styles.container}>
@@ -48,6 +49,7 @@ const MapScreen = () => {
       <InmuebleScreen
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
+        token={token}
       />
     </View>
   )

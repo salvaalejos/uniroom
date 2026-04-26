@@ -116,6 +116,10 @@ export default function RegisterScreen({ navigation, route }: any) {
         const [nombre, ...apellidosParts] = fullNameParts;
         const apellidos = apellidosParts.join(' ');
         const backendRole = role === 'student' ? 'ESTUDIANTE' : 'ARRENDADOR';
+        
+        let backendGender = 'OTRO';
+        if (gender === 'man') backendGender = 'MASCULINO';
+        else if (gender === 'woman') backendGender = 'FEMENINO';
 
         //Este form data es para enviar la foto y la info en un solo golpe xd
         const formData = new FormData();
@@ -126,7 +130,7 @@ export default function RegisterScreen({ navigation, route }: any) {
         formData.append('apellidos', apellidos);
         formData.append('rol', backendRole);
         formData.append('numero_contacto', phone)
-        formData.append('genero', gender?.toUpperCase() || 'OTRO');
+        formData.append('genero', backendGender);
 
         if (picture && picture.includes(':/')) {
         if (Platform.OS === 'web') {
@@ -177,8 +181,9 @@ export default function RegisterScreen({ navigation, route }: any) {
             throw new Error('Cuenta creada, pero no pudimos iniciar sesión, lo sentimos.');
             }
             const userId = getUserId(payload);
-            if (userId) {
-            navigation.replace("Navigator", { userId: userId });
+            const token = payload.token;
+            if (userId && token) {
+            navigation.replace("Navigator", { userId: userId, token: token });
             } else {
                 throw new Error('Error al obtener los datos de acceso.');
             }

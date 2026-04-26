@@ -206,7 +206,7 @@ export default function NavigationMenu({ route }: any) {
                     key={item.route}
                     name={item.route}
                     component={item.component}
-                    initialParams={item.component === Profile_Menu ? { userId: userId, token: token } : {}}
+                    initialParams={{ userId: userId, token: token }}
                     options={{
                         headerShown: item.route !== 'ProfileTab' && item.route !== 'CuentaArrendador',
                         headerTitle: item.label,
