@@ -2,7 +2,7 @@
 Aparentemente utilizando image-picker no me deja poner la foto xd, pero ahorita queda xd
 ya quedo btw xd
 */
-import React, {useState } from 'react';
+import React, {useState, useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
     StyleSheet,
@@ -46,6 +46,11 @@ export default function RegisterScreen({ navigation, route }: any) {
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
+    const getUserId = (payload: any) => {
+    if (!payload || typeof payload !== 'object') return '';
+    return payload.id_usuario ?? payload.usuario?.id_usuario ?? payload.user?.id_usuario ?? '';
+    };
+
     const selectPic = async () => {
         const revision_formal = await ImagePicker.requestMediaLibraryPermissionsAsync()
         let fotito = await ImagePicker.launchImageLibraryAsync({
@@ -59,6 +64,8 @@ export default function RegisterScreen({ navigation, route }: any) {
             console.log(picture)
         }
     }
+
+    const loginEndpoint = `${API_BASE_URL}/auth/login`
 
     const handleRegister = async () => {
         setErrorMessage('');
@@ -152,8 +159,27 @@ export default function RegisterScreen({ navigation, route }: any) {
                 if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
                 throw new Error(errorMsg ?? 'No se pudo completar el registro');
             }
-
-            setSuccessMessage('¡Tu cuenta ha sido creada correctamente! Ahora puedes iniciar sesión para acceder a tu cuenta.');
+            //Hacer un pequeño login para pasar directamente al navigator, xd
+            const responseLogin = await fetch(loginEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                email: email.trim(), 
+                password: password 
+            })
+            });
+            const payload = await responseLogin.json().catch(() => ({}));
+            if (!responseLogin.ok) {
+            throw new Error('Cuenta creada, pero no pudimos iniciar sesión, lo sentimos.');
+            }
+            const userId = getUserId(payload);
+            if (userId) {
+            navigation.replace("Navigator", { userId: userId });
+            } else {
+                throw new Error('Error al obtener los datos de acceso.');
+            }
         } catch (error: any) {
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
         } finally {
