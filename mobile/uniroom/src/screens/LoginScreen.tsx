@@ -10,13 +10,21 @@ import {
     View
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
 
 type AuthenticatedUser = {
     name: string;
     role: string;
 };
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const getUserId = (payload: any) => {
+    if (!payload || typeof payload !== 'object') return '';
+    return payload.id_usuario ?? payload.usuario?.id_usuario ?? payload.user?.id_usuario ?? '';
+};
 
 const getUserName = (payload: any) => {
     if (!payload || typeof payload !== 'object') {
@@ -70,12 +78,16 @@ export default function LoginScreen({ navigation }: any) {
 
             const name = getUserName(payload);
             const role = getUserRole(payload);
+            const userId = getUserId(payload);
+            const token = payload.token;
 
-            if (!name || !role) {
-                throw new Error('El backend no devolvió nombre y rol del usuario.');
+            if (!name || !role || !userId || !token) {
+                throw new Error('El backend no devolvió nombre, rol o token del usuario.');
             }
 
+            navigation.replace("Navigator", { userId: userId, token: token })
             setAuthenticatedUser({ name, role });
+
         } catch (error: any) {
             setAuthenticatedUser(null);
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión.');
@@ -89,23 +101,6 @@ export default function LoginScreen({ navigation }: any) {
         setPassword('');
         setErrorMessage('');
     };
-
-    if (authenticatedUser) {
-        return (
-            <View style={styles.loggedContainer}>
-                <Text style={styles.title}>¡Bienvenido!</Text>
-                <View style={styles.userCard}>
-                    <Text style={styles.userLabel}>Nombre</Text>
-                    <Text style={styles.userValue}>{authenticatedUser.name}</Text>
-                    <Text style={styles.userLabel}>Rol</Text>
-                    <Text style={styles.userValue}>{authenticatedUser.role}</Text>
-                </View>
-                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                    <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
 
     return (
         <KeyboardAvoidingView

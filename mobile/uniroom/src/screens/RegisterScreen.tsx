@@ -2,7 +2,7 @@
 Aparentemente utilizando image-picker no me deja poner la foto xd, pero ahorita queda xd
 ya quedo btw xd
 */
-import React, {useState } from 'react';
+import React, {useState, useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
     StyleSheet,
@@ -19,8 +19,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // Íconos incluidos en Expo por default
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
 
 export default function RegisterScreen({ navigation, route }: any) {
     // Estados para los campos de texto
@@ -43,6 +46,11 @@ export default function RegisterScreen({ navigation, route }: any) {
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
+    const getUserId = (payload: any) => {
+    if (!payload || typeof payload !== 'object') return '';
+    return payload.id_usuario ?? payload.usuario?.id_usuario ?? payload.user?.id_usuario ?? '';
+    };
+
     const selectPic = async () => {
         const revision_formal = await ImagePicker.requestMediaLibraryPermissionsAsync()
         let fotito = await ImagePicker.launchImageLibraryAsync({
@@ -56,6 +64,8 @@ export default function RegisterScreen({ navigation, route }: any) {
             console.log(picture)
         }
     }
+
+    const loginEndpoint = `${API_BASE_URL}/auth/login`
 
     const handleRegister = async () => {
         setErrorMessage('');
@@ -76,6 +86,11 @@ export default function RegisterScreen({ navigation, route }: any) {
             return;
         }
 
+        if (!picture) {
+            setErrorMessage("Por favor, selecciona una foto de perfil")
+            return
+        }
+
         // Validar formato de email antes de enviar al backend
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email.trim())) {
@@ -90,6 +105,7 @@ export default function RegisterScreen({ navigation, route }: any) {
 
         setIsLoading(true);
 
+
         const fullNameParts = fullName.trim().split(/\s+/).filter(Boolean);
         if (fullNameParts.length < 2) {
             setErrorMessage('Ingresa tu nombre y al menos un apellido');
@@ -101,19 +117,38 @@ export default function RegisterScreen({ navigation, route }: any) {
         const apellidos = apellidosParts.join(' ');
         const backendRole = role === 'student' ? 'ESTUDIANTE' : 'ARRENDADOR';
 
+        //Este form data es para enviar la foto y la info en un solo golpe xd
+        const formData = new FormData();
+
+        formData.append('email', email.trim());
+        formData.append('password', password);
+        formData.append('nombre', nombre);
+        formData.append('apellidos', apellidos);
+        formData.append('rol', backendRole);
+        formData.append('numero_contacto', phone)
+        formData.append('genero', gender?.toUpperCase() || 'OTRO');
+
+        if (picture && picture.includes(':/')) {
+        if (Platform.OS === 'web') {
+        const response = await fetch(picture);
+        const blob = await response.blob();
+        const fileType = blob.type.split('/')[1] || 'jpg';
+        formData.append('foto', blob, `profile_${Date.now()}.${fileType}`); 
+        } else {
+            const uriParts = picture.split('.');
+            const fileType = uriParts[uriParts.length - 1];
+            formData.append('foto', {
+                uri: Platform.OS === 'android' ? picture : picture.replace('file://', ''),
+                name: `profile_${Date.now()}.${fileType}`,
+                type: `image/${fileType}`,
+            } as any);
+        }
+        }
+
         try {
             const response = await fetch(`${API_BASE_URL}/auth/register`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: email.trim(),
-                    password,
-                    nombre,
-                    apellidos,
-                    rol: backendRole
-                })
+                body: formData
             });
 
             const data = await response.json().catch(() => ({}));
@@ -126,6 +161,27 @@ export default function RegisterScreen({ navigation, route }: any) {
             }
 
             setSuccessMessage('¡Tu cuenta ha sido creada correctamente! Ahora puedes iniciar sesión para acceder a tu cuenta.');
+            //Hacer un pequeño login para pasar directamente al navigator, xd
+            const responseLogin = await fetch(loginEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                email: email.trim(), 
+                password: password 
+            })
+            });
+            const payload = await responseLogin.json().catch(() => ({}));
+            if (!responseLogin.ok) {
+            throw new Error('Cuenta creada, pero no pudimos iniciar sesión, lo sentimos.');
+            }
+            const userId = getUserId(payload);
+            if (userId) {
+            navigation.replace("Navigator", { userId: userId });
+            } else {
+                throw new Error('Error al obtener los datos de acceso.');
+            }
         } catch (error: any) {
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
         } finally {

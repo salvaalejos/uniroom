@@ -83,21 +83,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     }
 
     const user = await db.usuario.findUnique({
-      where: { id_usuario: id },
-      select: {
-        id_usuario: true,
-        email: true,
-        nombre: true,
-        apellidos: true,
-        numero_contacto: true,
-        genero: true,
-        edad: true,
-        foto: true,
-        rol: true,
-        estado: true,
-        visibilidad: true,
-        fecha_creacion: true,
-      },
+      where: { id_usuario: id }
     });
 
     if (!user) {
