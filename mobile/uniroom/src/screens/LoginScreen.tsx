@@ -115,6 +115,7 @@ export default function LoginScreen({ navigation }: any) {
                 <TextInput
                     style={styles.input}
                     placeholder="Correo electrónico"
+                    placeholderTextColor="#abcdef"
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={email}
@@ -124,6 +125,7 @@ export default function LoginScreen({ navigation }: any) {
 
                 <TextInput
                     style={styles.input}
+                    placeholderTextColor="#abcdef"
                     placeholder="Contraseña"
                     secureTextEntry
                     value={password}
@@ -201,6 +203,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#DBDBDB',
         fontSize: 16,
+        color: "#000000"
     },
     loginButton: {
         backgroundColor: '#205EA6',

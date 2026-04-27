@@ -5,15 +5,14 @@ postgres-data/
 node_modules/
 backend/app/node_modules/
 backend/node_modules/
+mobile/uniroom/node_modules
 
 # Entorno
 .env
 backend/.env
 backend/app/.env
-<<<<<<< HEAD
-=======
 mobile/uniroom/.env
->>>>>>> Said_SecondBranch
+
 
 # IDEs
 .idea/
@@ -22,8 +21,4 @@ mobile/uniroom/.env
 # Logs y Temporales
 *.log
 test_register.json
-<<<<<<< HEAD
 .env
-=======
-.env
->>>>>>> Said_SecondBranch

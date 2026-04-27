@@ -19,14 +19,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from "@react-navigation/stack"
 import MisInmuebles from "./MisInmuebles"
 import Upload_Renta from "./Upload_Renta"
-<<<<<<< HEAD
 import HousingMapScreen from "./HousingMapScreen";
-=======
 import Constants from 'expo-constants';
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
 const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
->>>>>>> main
 
 const InmuebleStack = createStackNavigator()
 
@@ -75,24 +72,12 @@ const Profile_Menu = ({ route }: any) => {
         )
 }
 
-<<<<<<< HEAD
-const Tabs = [
-    {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: HousingMapScreen},
-    
-    //{route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: MapScreen},
-    //{route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: MapRouteScreen},
-    //{route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
-    
-    // ruta provicional para los inmuebles
-    {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: InmuebleStackScreen},
-=======
 const StudentTabs = [
     { route: 'Inmuebles', label: 'Explorar', activeIcon: "map-search", component: MapScreen },
     { route: 'Rutas', label: 'Rutas', activeIcon: "car", component: MapRouteScreen },
     { route: 'Notificaciones', label: 'Avisos', activeIcon: 'bell', component: NotificationScreen },
     { route: 'ProfileTab', label: 'Mi Perfil', activeIcon: "account", component: Profile_Menu }
 ];
->>>>>>> main
 
 const LandlordTabs = [
     { route: 'MisInmuebles', label: 'Mis Casas', activeIcon: "home-city", component: MisInmuebles },

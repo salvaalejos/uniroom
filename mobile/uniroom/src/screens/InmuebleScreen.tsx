@@ -25,21 +25,12 @@ type Comentario = { autor: string, texto: string, fecha: string }
 type Props = {
     visible: boolean
     onClose: () => void
-<<<<<<< HEAD
     inmueble?: any
+    token?: string
 }
 
 // ─ Componente ─
 const InmuebleScreen = ({ visible, onClose, inmueble }: Props) => {
-=======
-    token?: string
-}
-
-
-// ─ Componente ─ ฅ^•ﻌ•^ฅ hola guapuritas
-
-const InmuebleScreen = ({ visible, onClose, token }: Props) => {
->>>>>>> main
 
     const insets = useSafeAreaInsets()
     const scrollRef = useRef<ScrollView>(null)
@@ -323,8 +314,6 @@ const InmuebleScreen = ({ visible, onClose, token }: Props) => {
                         <Text style={styles.btnContactoTexto}>Contactar</Text>
                     </TouchableOpacity>
                 </View>
-<<<<<<< HEAD
-=======
 
                 {/* Modal de Tarifa de Servicio */}
                 <Modal visible={modalTarifaVisible} transparent animationType="fade">
@@ -352,7 +341,6 @@ const InmuebleScreen = ({ visible, onClose, token }: Props) => {
                     </View>
                 </Modal>
 
->>>>>>> main
             </View>
         </Modal>
     )
@@ -605,8 +593,6 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         fontSize: 15,
     },
-<<<<<<< HEAD
-=======
     modalOverlay: {
         flex: 1,
         backgroundColor: "rgba(0,0,0,0.5)",
@@ -660,5 +646,4 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         fontSize: 15,
     }
->>>>>>> main
 })

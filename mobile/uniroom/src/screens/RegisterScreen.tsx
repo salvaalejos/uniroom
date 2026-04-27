@@ -39,7 +39,7 @@ export default function RegisterScreen({ navigation, route }: any) {
     const [gender, setGenger] = useState<string | null>(userToEdit?.gender || null);
     const [selectedPic, setselectedPic] = useState(false)
 
-    const [picture, setPicture] = useState(userToEdit?.picture || "../default_images/profile_photo.jpg");
+    const [picture, setPicture] = useState(userToEdit?.picture || "");
 
     // Estado de carga
     const [isLoading, setIsLoading] = useState(false);
@@ -205,11 +205,20 @@ export default function RegisterScreen({ navigation, route }: any) {
                 </View>
                 <View style={styles.headerContainer}>
                     <Pressable onPress={selectPic} style={{justifyContent: "center", alignItems: "center"}}>
-                        {!selectPic && <MaterialCommunityIcons name='camera'/>}
-                        <Image
-                            id='foto_de_perfil'
-                            style={styles.profile_picture}
-                            source={{uri: picture}} />
+                        {picture ? (
+                            /* Si hay foto, mostramos la imagen normal */
+                            <Image
+                                id='foto_de_perfil'
+                                style={styles.profile_picture}
+                                source={{uri: picture}} 
+                            />
+                        ) : (
+                            /* Si NO hay foto, mostramos un círculo con borde punteado y la cámara */
+                            <View style={styles.profile_placeholder}>
+                                <MaterialCommunityIcons name='camera-plus' size={40} color="#3498DB" />
+                                <Text style={styles.addPhotoText}>Subir foto</Text>
+                            </View>
+                        )}
                     </Pressable>
                 </View>
 
@@ -239,6 +248,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     <TextInput
                         style={styles.input}
                         placeholder="Nombre completo"
+                        placeholderTextColor="#abcdef"
                         autoCapitalize="words"
                         value={fullName}
                         onChangeText={setFullName}
@@ -247,6 +257,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     <TextInput
                         style={styles.input}
                         placeholder="Correo electrónico"
+                        placeholderTextColor="#abcdef"
                         keyboardType="email-address"
                         autoCapitalize="none"
                         value={email}
@@ -256,6 +267,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     <TextInput
                         style={styles.input}
                         placeholder="Número de teléfono"
+                        placeholderTextColor="#abcdef"
                         keyboardType="phone-pad"
                         value={phone}
                         onChangeText={setPhone}
@@ -264,6 +276,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     <TextInput
                         style={styles.input}
                         placeholder="Contraseña"
+                        placeholderTextColor="#abcdef"
                         secureTextEntry
                         value={password}
                         onChangeText={setPassword}
@@ -272,6 +285,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     <TextInput
                         style={styles.input}
                         placeholder="Confirmar contraseña"
+                        placeholderTextColor="#abcdef"
                         secureTextEntry
                         value={confirmPassword}
                         onChangeText={setConfirmPassword}
@@ -394,6 +408,23 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F5F7FA',
+    },
+    profile_placeholder: {
+        height: 140,
+        width: 140,
+        borderRadius: 100,
+        backgroundColor: '#EBF5FB', // Fondo azul clarito
+        borderColor: '#3498DB',     // Borde azul
+        borderWidth: 2,
+        borderStyle: 'dashed',      // Borde punteado para indicar "zona para subir"
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addPhotoText: {
+        color: '#3498DB',
+        fontSize: 14,
+        fontWeight: 'bold',
+        marginTop: 5,
     },
     profile_picture: {
         backgroundColor: "#FFFFFF",

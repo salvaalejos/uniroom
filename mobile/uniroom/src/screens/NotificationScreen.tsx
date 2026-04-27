@@ -10,6 +10,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { socketService } from '../services/websocketService';
 import { obtenerMisCitas, actualizarEstadoCita } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+
+const BACKEND_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
 
 // --- TIPOS UNIFICADOS ---
 type Notificacion = {
@@ -27,8 +32,6 @@ interface ContactoType {
   id_usuario: string;
   nombre: string;
 }
-
-const BACKEND_URL = "http://192.168.1.2:3000";
 
 export default function NotificationScreen() {
   // --- ESTADOS ---

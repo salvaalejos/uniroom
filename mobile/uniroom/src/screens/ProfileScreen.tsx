@@ -132,24 +132,25 @@ export default function ProfileScreen({ navigation, route }: any) {
                         value={userData.numero_contacto} 
                     />
                 </View>
-                <TouchableOpacity 
+                {/* <TouchableOpacity 
                     style={styles.editButton}
                     onPress={() => navigation.navigate('Register', { userToEdit: userData })}
                 >
+                    AUN PENDIENTES LOS BOTONTES DE EDITAR PERFIL Y CALIFICACIONES ------------------------------------------------------------------------------------------------------------
                     <MaterialCommunityIcons name="account-edit-outline" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Editar Perfil</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
                 {/* Botón de Temas, pendiente */}
                 {/* <TouchableOpacity
                 style={styles.editButton}>
                     <MaterialCommunityIcons name='format-paint' size={24} color={"#FFFFFF"}/>
                     <Text style={styles.editButtonText}>Temas de colores (Pendiente) </Text>
                 </TouchableOpacity> */}
-                <TouchableOpacity 
+                {/* <TouchableOpacity 
                     style={styles.editButton}>
                     <MaterialCommunityIcons name="star" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Calificaciones</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
                 <TouchableOpacity 
                     style={styles.final_button}
                     onPress={handleLogout}>
