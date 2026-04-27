@@ -6,13 +6,22 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "@elysiajs/jwt": "^1.4.1",
-    "@prisma/client": "^5.10.2",
-    "elysia": "latest"
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/jwt": "^1.4.2",
+    "@elysiajs/static": "^1.4.10",
+    "@prisma/client": "5.22.0",
+    "cors": "^2.8.6",
+    "elysia": "latest",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "jwt": "^0.2.0",
+    "mercadopago": "^2.12.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
-    "bun-types": "latest",
-    "prisma": "^5.10.2"
+    "bun-types": "1.1.38",
+    "prisma": "5.22.0"
   },
   "module": "src/index.js"
 }

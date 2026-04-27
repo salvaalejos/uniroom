@@ -2,7 +2,7 @@
 Aparentemente utilizando image-picker no me deja poner la foto xd, pero ahorita queda xd
 ya quedo btw xd
 */
-import React, {useState } from 'react';
+import React, {useState, useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
     StyleSheet,
@@ -12,13 +12,18 @@ import {
     TouchableOpacity,
     KeyboardAvoidingView,
     Platform,
-    ScrollView, 
-    Image, 
+    ScrollView,
+    Image,
     Pressable,
-    Alert
+    ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // Íconos incluidos en Expo por default
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
 
 export default function RegisterScreen({ navigation, route }: any) {
     // Estados para los campos de texto
@@ -34,7 +39,17 @@ export default function RegisterScreen({ navigation, route }: any) {
     const [gender, setGenger] = useState<string | null>(userToEdit?.gender || null);
     const [selectedPic, setselectedPic] = useState(false)
 
-    const [picture, setPicture] = useState(userToEdit?.picture || "../default_images/profile_photo.jpg");
+    const [picture, setPicture] = useState(userToEdit?.picture || "");
+
+    // Estado de carga
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+
+    const getUserId = (payload: any) => {
+    if (!payload || typeof payload !== 'object') return '';
+    return payload.id_usuario ?? payload.usuario?.id_usuario ?? payload.user?.id_usuario ?? '';
+    };
 
     const selectPic = async () => {
         const revision_formal = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -49,24 +64,133 @@ export default function RegisterScreen({ navigation, route }: any) {
             console.log(picture)
         }
     }
-    const handleRegister = () => {
+
+    const loginEndpoint = `${API_BASE_URL}/auth/login`
+
+    const handleRegister = async () => {
+        setErrorMessage('');
+        setSuccessMessage('');
+
         if (!role) {
-            Alert.alert("Antes de continuar...", "Favor de seleccionar un rol")
-            return
-        } else if (fullName === "" || email === "" || phone === "" || role === "" || picture === ""){
-            Alert.alert("Antes de continuar...", "Favor de completar los datos restantes")
-            return
-        } 
-        if (password != confirmPassword || password == ""){
-            Alert.alert("Verifica tu información", "Las contraseñas no coinciden")
+            setErrorMessage('Falta seleccionar un rol');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setErrorMessage('Las contraseñas no coinciden');
+            return;
+        }
+
+        if (!fullName || !email || !password) {
+            setErrorMessage('Por favor completa todos los campos obligatorios');
+            return;
+        }
+
+        if (!picture) {
+            setErrorMessage("Por favor, selecciona una foto de perfil")
             return
         }
-        console.log('Registrando usuario:', { fullName, email, phone, role });
-        //Aqui agregar verificación de existencia de usuario (si es su primera vez aquí o no, para que en caso de que sea arrendador, no le muestre el tutorial otra vez XD)
-        if (role === "landlord"){
-            navigation.navigate("Navigator")
+
+        // Validar formato de email antes de enviar al backend
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email.trim())) {
+            setErrorMessage('Ingresa un correo electrónico válido (ej: nombre@dominio.com)');
+            return;
+        }
+
+        if (password.length <= 5) {
+            setErrorMessage('La contraseña debe tener más de 5 caracteres.');
+            return;
+        }
+
+        setIsLoading(true);
+
+
+        const fullNameParts = fullName.trim().split(/\s+/).filter(Boolean);
+        if (fullNameParts.length < 2) {
+            setErrorMessage('Ingresa tu nombre y al menos un apellido');
+            setIsLoading(false);
+            return;
+        }
+
+        const [nombre, ...apellidosParts] = fullNameParts;
+        const apellidos = apellidosParts.join(' ');
+        const backendRole = role === 'student' ? 'ESTUDIANTE' : 'ARRENDADOR';
+        
+        let backendGender = 'OTRO';
+        if (gender === 'man') backendGender = 'MASCULINO';
+        else if (gender === 'woman') backendGender = 'FEMENINO';
+
+        //Este form data es para enviar la foto y la info en un solo golpe xd
+        const formData = new FormData();
+
+        formData.append('email', email.trim());
+        formData.append('password', password);
+        formData.append('nombre', nombre);
+        formData.append('apellidos', apellidos);
+        formData.append('rol', backendRole);
+        formData.append('numero_contacto', phone)
+        formData.append('genero', backendGender);
+
+        if (picture && picture.includes(':/')) {
+        if (Platform.OS === 'web') {
+        const response = await fetch(picture);
+        const blob = await response.blob();
+        const fileType = blob.type.split('/')[1] || 'jpg';
+        formData.append('foto', blob, `profile_${Date.now()}.${fileType}`); 
         } else {
-            navigation.navigate("Navigator")
+            const uriParts = picture.split('.');
+            const fileType = uriParts[uriParts.length - 1];
+            formData.append('foto', {
+                uri: Platform.OS === 'android' ? picture : picture.replace('file://', ''),
+                name: `profile_${Date.now()}.${fileType}`,
+                type: `image/${fileType}`,
+            } as any);
+        }
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                // Elysia devuelve { summary, type, on, property } para errores de validación (422)
+                let errorMsg = data?.error ?? data?.message ?? data?.summary;
+                if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
+                throw new Error(errorMsg ?? 'No se pudo completar el registro');
+            }
+
+            setSuccessMessage('¡Tu cuenta ha sido creada correctamente! Ahora puedes iniciar sesión para acceder a tu cuenta.');
+            //Hacer un pequeño login para pasar directamente al navigator, xd
+            const responseLogin = await fetch(loginEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                email: email.trim(), 
+                password: password 
+            })
+            });
+            const payload = await responseLogin.json().catch(() => ({}));
+            if (!responseLogin.ok) {
+            throw new Error('Cuenta creada, pero no pudimos iniciar sesión, lo sentimos.');
+            }
+            const userId = getUserId(payload);
+            const token = payload.token;
+            if (userId && token) {
+            navigation.replace("Navigator", { userId: userId, token: token });
+            } else {
+                throw new Error('Error al obtener los datos de acceso.');
+            }
+        } catch (error: any) {
+            setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
+        } finally {
+            setIsLoading(false);
         }
     };
     return (
@@ -81,18 +205,50 @@ export default function RegisterScreen({ navigation, route }: any) {
                 </View>
                 <View style={styles.headerContainer}>
                     <Pressable onPress={selectPic} style={{justifyContent: "center", alignItems: "center"}}>
-                        {!selectPic && <MaterialCommunityIcons name='camera'/>}
-                        <Image
-                            id='foto_de_perfil'
-                            style={styles.profile_picture}
-                            source={{uri: picture}} />
+                        {picture ? (
+                            /* Si hay foto, mostramos la imagen normal */
+                            <Image
+                                id='foto_de_perfil'
+                                style={styles.profile_picture}
+                                source={{uri: picture}} 
+                            />
+                        ) : (
+                            /* Si NO hay foto, mostramos un círculo con borde punteado y la cámara */
+                            <View style={styles.profile_placeholder}>
+                                <MaterialCommunityIcons name='camera-plus' size={40} color="#3498DB" />
+                                <Text style={styles.addPhotoText}>Subir foto</Text>
+                            </View>
+                        )}
                     </Pressable>
                 </View>
+
+                {errorMessage ? (
+                    <View style={styles.errorContainer}>
+                        <Ionicons name="alert-circle" size={20} color="#E74C3C" />
+                        <Text style={styles.errorTextUI}>{errorMessage}</Text>
+                    </View>
+                ) : null}
+
+                {successMessage ? (
+                    <View style={styles.successContainer}>
+                        <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
+                        <View style={styles.successTextContainer}>
+                            <Text style={styles.successTitle}>Registrado con éxito</Text>
+                            <Text style={styles.successTextUI}>{successMessage}</Text>
+                            <TouchableOpacity style={styles.successButton} onPress={() => navigation.goBack()}>
+                                <Text style={styles.successButtonText}>Ir a Iniciar Sesión</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ) : null}
+
                 {/* Formulario */}
-                <View style={styles.formContainer}>
+                {!successMessage && (
+                    <View style={styles.formContainer}>
                     <TextInput
                         style={styles.input}
                         placeholder="Nombre completo"
+                        placeholderTextColor="#abcdef"
                         autoCapitalize="words"
                         value={fullName}
                         onChangeText={setFullName}
@@ -101,6 +257,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     <TextInput
                         style={styles.input}
                         placeholder="Correo electrónico"
+                        placeholderTextColor="#abcdef"
                         keyboardType="email-address"
                         autoCapitalize="none"
                         value={email}
@@ -110,6 +267,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     <TextInput
                         style={styles.input}
                         placeholder="Número de teléfono"
+                        placeholderTextColor="#abcdef"
                         keyboardType="phone-pad"
                         value={phone}
                         onChangeText={setPhone}
@@ -118,6 +276,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     <TextInput
                         style={styles.input}
                         placeholder="Contraseña"
+                        placeholderTextColor="#abcdef"
                         secureTextEntry
                         value={password}
                         onChangeText={setPassword}
@@ -126,6 +285,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     <TextInput
                         style={styles.input}
                         placeholder="Confirmar contraseña"
+                        placeholderTextColor="#abcdef"
                         secureTextEntry
                         value={confirmPassword}
                         onChangeText={setConfirmPassword}
@@ -214,19 +374,27 @@ export default function RegisterScreen({ navigation, route }: any) {
                         </TouchableOpacity>
                     </View>
                     {/* Botón Continuar */}
-                    <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
-                        <Text style={styles.registerButtonText}>Continuar</Text>
+                    <TouchableOpacity 
+                        style={[styles.registerButton, isLoading && styles.registerButtonDisabled]} 
+                        onPress={handleRegister}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <Text style={styles.registerButtonText}>Continuar</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
-                {/* Footer (no me parece necesario si existe un botón para volver al Login en el Header, servirá para editar el perfíl, fuentes: creanmé) */}
-                {/* {userToEdit === null && (
-                    <View style={styles.footerContainer}>
+                )}
+
+                {/* Footer */}
+                <View style={styles.footerContainer}>
                     <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
                         <Text style={styles.loginText}>Iniciar sesión</Text>
                     </TouchableOpacity>
                 </View>
-                )} */}
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -240,6 +408,23 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F5F7FA',
+    },
+    profile_placeholder: {
+        height: 140,
+        width: 140,
+        borderRadius: 100,
+        backgroundColor: '#EBF5FB', // Fondo azul clarito
+        borderColor: '#3498DB',     // Borde azul
+        borderWidth: 2,
+        borderStyle: 'dashed',      // Borde punteado para indicar "zona para subir"
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addPhotoText: {
+        color: '#3498DB',
+        fontSize: 14,
+        fontWeight: 'bold',
+        marginTop: 5,
     },
     profile_picture: {
         backgroundColor: "#FFFFFF",
@@ -278,6 +463,60 @@ const styles = StyleSheet.create({
         color: '#7F8C8D',
         marginTop: 5,
         padding: 5
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FDEDEC',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#FADBD8',
+    },
+    errorTextUI: {
+        color: '#E74C3C',
+        marginLeft: 8,
+        fontSize: 15,
+        flex: 1,
+    },
+    successContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#EAFAF1',
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#D5F5E3',
+        alignItems: 'flex-start',
+    },
+    successTextContainer: {
+        marginLeft: 12,
+        flex: 1,
+    },
+    successTitle: {
+        color: '#27AE60',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    successTextUI: {
+        color: '#2E4053',
+        fontSize: 15,
+        marginBottom: 16,
+        lineHeight: 22,
+    },
+    successButton: {
+        backgroundColor: '#27AE60',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        alignSelf: 'flex-start',
+    },
+    successButtonText: {
+        color: '#FFF',
+        fontWeight: 'bold',
+        fontSize: 15,
     },
     formContainer: {
         marginBottom: 20,
@@ -333,6 +572,9 @@ const styles = StyleSheet.create({
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
+    },
+    registerButtonDisabled: {
+        opacity: 0.7,
     },
     registerButtonText: {
         color: '#FFFFFF',

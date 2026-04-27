@@ -108,6 +108,22 @@ const MisInmuebles = () => {
         
         <View style={[styles.container, { paddingTop: insets.top }]}>
         
+            {/* Header */}
+            <View style={styles.header}>
+
+                <Text style={styles.titulo}>
+                    Mis inmuebles
+                </Text>
+
+                {/* <TouchableOpacity style={styles.btnNuevo} onPress={nuevoInmueble}>
+                    <MaterialCommunityIcons name="plus" size={22} color="#fff"/>
+                    <Text style={styles.btnNuevoTexto}>
+                        Nuevo
+                    </Text>
+                </TouchableOpacity> */}
+
+            </View>
+
             {/* Lista */}
             <ScrollView key={inmuebles.length} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 170 }}>
 
@@ -262,6 +278,21 @@ const styles = StyleSheet.create({
         shadowColor: "#000",
         shadowOpacity: 0.2,
         shadowRadius: 8,
+    header: {
+        marginTop: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        backgroundColor: "#fff",
+        borderBottomWidth: 1,
+        borderBottomColor: "#eee",
+    },
+    titulo: {
+        fontSize: 25,
+        fontWeight: "800",
+        color: "#1a1a2e",
     },
     btnNuevo: {
         flexDirection: "row",

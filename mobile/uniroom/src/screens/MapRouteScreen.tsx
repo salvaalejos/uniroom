@@ -1,6 +1,6 @@
 import { Platform } from "react-native"
 
-let MapScreen
+let MapScreen: any
 
 if (Platform.OS === "web") {
   MapScreen = require("./MapWebScreen").default
@@ -8,4 +8,4 @@ if (Platform.OS === "web") {
   MapScreen = require("./MapMobileScreen").default
 }
 
-export default MapScreen
+export default MapScreen as any

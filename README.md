@@ -1,3 +1,35 @@
+## IMPORTANTE!!! 
+1. Los mapas en la parte de rutas solamente pueden ejecutarse en móvil, no en web. (Si entran a esa pestaña por accidente en web, recargen la página). 
+2. El .env para las credenciales de los mapas se los voy a mandar por WhatsApp (deben guardarlo en /mobile/uniroom). 
+3. Para la conexión con la BD tambien hay que crear un .env (este debe guardarse en /backend en caso de que no lo tengan): 
+```env
+# Conexión a la BD (Usuario: uniroom_user / Pass: 12345 / Puerto: 5435)
+DATABASE_URL="postgresql://uniroom_user:12345@127.0.0.1:5435/uniroom?schema=public&connect_timeout=30&sslmode=disable"
+
+```
+
+# Pasos para ejecutar el proyecto con el Script RUN.sh
+1. Abrir Docker Desktop en tu Lap (si es Windows, si es Linux revisar que si este activo). [La ballena de la parte inferior izquierda debe estar en verde]. 
+2. Ejecutar este comando en terminal para los permisos de ejecución y luego ejecutar ahora si el script. 
+```bash
+chmod u+x RUN.sh
+./RUN.sh
+```
+3. Luego entrar a la carpeta mobile/uniroom para correr el proyecto con Expo
+```bash
+cd mobile
+cd uniroom 
+npx expo start
+```
+4. Ahora,  para visualizar la BD de manera visual, hay que volver a la carpeta raíz y entrar a la carpeta backend/app/, para despues ejecutar en otra terminal el siguiente comando.
+```bash
+cd backend/app/
+npx prisma studio
+```
+---
+![./ignorepaso5.gif](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSY5tnWvLBoT8CBqCzr_0oCO5drR0yLUbaaSQ&s)
+
+
 # Como correr en mobile este proyecto. 
 ![./ignore.gif](https://media.tenor.com/6DlKoODackcAAAAM/evangelion-rei.gif)
 
@@ -78,12 +110,11 @@ services:
       POSTGRES_PASSWORD: '12345'
       POSTGRES_DB: uniroom
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data_db
+      - ./postgres-data:/var/lib/postgresql/data
 
 ```
 
 ---
-(Juan aquí: Se le cambio el nombre de solamente _data_ a _datadb_ porque si no, llega a dar errores, ya que se esta instanciando una base de datos con datos dentro. Esta es una solución temporal, aunque si no tienen problemas con ello, se puede quedar solamente como data_db 🥺😔🫢)
 ## PASO 3: Levantar la Base de Datos
 
 Abran la terminal en la carpeta raíz del proyecto y ejecuten:
@@ -151,8 +182,30 @@ Se abrirá una pestaña en su navegador en `http://localhost:5555`.
 (=^･ω･^=)
 
 
-<!-- ![./ignore2.gif](https://i.redd.it/9q7lhby67v4e1.gif) -->
 
 
 
 
+NOTAAA QUE LE FALTO A JUANITO XD: El backend recuerden que estamos trabajando con bun y elysia, por lo que primero deben correr el siguiente comando para instalar bun en su compu:
+
+
+```
+powershell -c "irm bun.sh/install.ps1 | iex"
+
+```
+
+Luego este para instalar elysia dentro de la carpeta backend:
+
+
+```
+bun install
+
+```
+
+y finalmente:
+
+```
+bun run dev
+```
+
+Despues ya corre normal  el back :D

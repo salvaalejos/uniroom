@@ -40,8 +40,8 @@ export const red = StyleSheet.create({
         height: 50,
         borderRadius: 25,
         borderWidth: 6,
-        borderColor: {redPrimaryColor},
-        backgroundColor: {redPrimaryColor},
+        borderColor: redPrimaryColor,
+        backgroundColor: redPrimaryColor,
         justifyContent: "center",
         alignItems: "center"
     },
@@ -50,6 +50,6 @@ export const red = StyleSheet.create({
         position: "absolute",
         left: 1,
         right: 1,
-        backgroundColor: {redPrimaryColor}
+        backgroundColor: redPrimaryColor
     }
 }) 

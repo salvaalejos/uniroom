@@ -1,10 +1,27 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
+import jwt from "@elysiajs/jwt";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const authRoutes = new Elysia({ prefix: "/auth" })
+  .use(
+    jwt({
+      name: "jwt",
+      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
+    })
+  )
   .post(
     "/register",
     async ({ body, set }) => {
+      console.log("[register] body recibido:", JSON.stringify(body));
+
+      // Validar formato de email manualmente
+      if (!EMAIL_REGEX.test(body.email)) {
+        set.status = 400;
+        return { error: "El formato del correo electrónico no es válido" };
+      }
+
       // Verificar si el email ya existe
       const existingUser = await db.usuario.findUnique({
         where: { email: body.email },
@@ -13,6 +30,19 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       if (existingUser) {
         set.status = 400;
         return { error: "El email ya está registrado" };
+      }
+
+      let fotoPath: string | null = null;
+      if (body.foto) {
+        // Creamos un nombre único: timestamp + nombre original
+        const fileName = `${Date.now()}-${body.foto.name}`;
+        const destination = `./uploads/${fileName}`;
+
+        // Guardamos físicamente en la carpeta uploads
+        await Bun.write(destination, body.foto);
+        
+        // Guardamos la ruta relativa para la DB
+        fotoPath = `/public/${fileName}`;
       }
 
       // Encriptar la contraseña usando Bun de manera nativa y rápida
@@ -29,6 +59,9 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
           nombre: body.nombre,
           apellidos: body.apellidos,
           rol: body.rol,
+          numero_contacto: body.numero_contacto,
+          genero: body.genero,
+          foto: fotoPath
         },
       });
 
@@ -39,11 +72,17 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     },
     {
       body: t.Object({
-        email: t.String({ format: "email" }),
+        email: t.String(),
         password: t.String({ minLength: 6 }),
         nombre: t.String(),
         apellidos: t.String(),
         rol: t.Union([t.Literal("ESTUDIANTE"), t.Literal("ARRENDADOR")]),
+        numero_contacto: t.Optional(t.String()),
+        genero: t.Optional(t.Union([t.Literal("MASCULINO"), t.Literal("FEMENINO"), t.Literal("OTRO")])),
+        foto: t.Optional(t.File({
+            type: ['image/jpeg', 'image/png', 'image/jpg'],
+            maxSize: '5m' // Límite de 5MB por foto
+        }))
       }),
     }
   )
@@ -65,6 +104,11 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       if (!isValid) {
         set.status = 401;
         return { error: "Credenciales inválidas" };
+      }
+
+      if (user.estado !== "ACTIVO") {
+        set.status = 403;
+        return { error: "La cuenta no está activa" };
       }
 
       // Firmar token JWT

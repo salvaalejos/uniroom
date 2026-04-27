@@ -1,0 +1,187 @@
+// 1. Configuración básica
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMS ---
+
+enum RolUsuario {
+  ESTUDIANTE
+  ARRENDADOR
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  SUSPENDIDO
+}
+
+enum Genero {
+  MASCULINO
+  FEMENINO
+  OTRO
+}
+
+enum EstadoInmueble {
+  DISPONIBLE
+  OCUPADO
+  OCULTO
+}
+
+enum TipoInmueble {
+  CASA
+  DEPA
+  CUARTO
+}
+
+enum EstadoCita {
+  PENDIENTE
+  ACEPTADA
+  RECHAZADA
+  REAGENDADA
+}
+
+// --- MODELOS ---
+
+// [PDF] Entidad: Usuario
+model Usuario {
+  id_usuario      String        @id @default(uuid())
+  email           String        @unique
+  password_hash   String
+  rol             RolUsuario
+  estado          EstadoUsuario @default(ACTIVO)
+
+  notificaciones Notificacion[]
+  
+  nombre          String        @db.VarChar(100)
+  apellidos       String        @db.VarChar(100)
+  numero_contacto String?       @db.VarChar(20)
+  genero          Genero?
+  edad            Int?
+  foto            String?
+  visibilidad     Boolean       @default(false)
+  mp_customer_id  String?       @db.VarChar(100)
+  fecha_creacion  DateTime      @default(now())
+
+  inmuebles_propiedad Inmueble[]     @relation("InmueblesArrendador")
+  inmuebles_rentados  Inmueble[]     @relation("InmuebleEstudiante")
+  calificaciones      Calificacion[]
+  transacciones       Transaccion[]
+  
+  // Citas como estudiante
+  citas_estudiante    Cita[]          @relation("CitasEstudiante")
+  // Citas como anfitrión (dueño de la propiedad)
+  citas_anfitrion     Cita[]          @relation("CitasAnfitrion")
+}
+
+model Inmueble {
+  id_inmueble     Int             @id @default(autoincrement())
+  id_arrendador   String
+  arrendador      Usuario         @relation("InmueblesArrendador", fields: [id_arrendador], references: [id_usuario])
+
+  precio_mensual  Decimal         @db.Decimal(10, 2)
+  estado          EstadoInmueble  @default(DISPONIBLE)
+  descripcion     String?         @db.Text
+  direccion_latitud  Decimal?
+  direccion_longitud Decimal?
+  tipo_inmueble   TipoInmueble
+
+  id_estudiante   String?
+  estudiante      Usuario?        @relation("InmuebleEstudiante", fields: [id_estudiante], references: [id_usuario])
+
+  servicios       Servicios[]
+  restricciones   Restricciones[]
+  calificaciones  Calificacion[]
+  imagenes        Imagenes[]
+  citas           Cita[]
+
+  fecha_creacion  DateTime        @default(now())
+}
+
+// [PDF] Entidad: Servicios
+model Servicios {
+  id_servicios Int        @id @default(autoincrement())
+  nombre       String
+  inmuebles    Inmueble[]
+}
+
+// [PDF] Entidad: Restricciones
+model Restricciones {
+  id_restriccion Int        @id @default(autoincrement())
+  nombre         String
+  inmuebles      Inmueble[]
+}
+
+// [PDF] Entidad: Calificación
+model Calificacion {
+  id_calificacion Int     @id @default(autoincrement())
+  descripcion     String? @db.Text
+  calificacion    Int
+
+  id_estudiante   String
+  estudiante      Usuario @relation(fields: [id_estudiante], references: [id_usuario])
+
+  id_inmueble     Int
+  inmueble        Inmueble @relation(fields: [id_inmueble], references: [id_inmueble])
+}
+
+// [PDF] Entidad: Imágenes
+model Imagenes {
+  id_imagen   Int      @id @default(autoincrement())
+  imagen      String
+  id_inmueble Int
+  inmueble    Inmueble @relation(fields: [id_inmueble], references: [id_inmueble])
+}
+
+model Notificacion {
+  id          Int      @id @default(autoincrement())
+  titulo      String
+  mensaje     String
+  visto       Boolean  @default(false)
+  tipo        String
+  fecha_creacion DateTime @default(now())
+  remitente_nombre String // Quien lo manda
+  usuario_id  String
+  usuario     Usuario  @relation(fields: [usuario_id], references: [id_usuario])
+}
+
+// [NUEVO] Entidad: Transacción (Mercado Pago)
+model Transaccion {
+  id_transaccion  String   @id @default(uuid())
+  monto           Decimal  @db.Decimal(10, 2)
+  estado          String   @default("pending")
+  payment_id      String?
+  descripcion     String?
+
+  id_usuario      String
+  usuario         Usuario  @relation(fields: [id_usuario], references: [id_usuario])
+
+  fecha_creacion  DateTime @default(now())
+
+}
+
+// --- NUEVO MODELO: Cita (visita programada entre estudiante y anfitrión) ---
+model Cita {
+  id_cita         String      @id @default(uuid())
+  fecha_hora      DateTime                                    // Fecha y hora acordadas
+  estado          EstadoCita  @default(PENDIENTE)
+  motivo_rechazo  String?                                     // Si es rechazada, opcionalmente un motivo
+
+  // Relaciones
+  id_inmueble     Int
+  inmueble        Inmueble    @relation(fields: [id_inmueble], references: [id_inmueble])
+
+  id_estudiante   String
+  estudiante      Usuario     @relation("CitasEstudiante", fields: [id_estudiante], references: [id_usuario])
+
+  id_anfitrion    String
+  anfitrion       Usuario     @relation("CitasAnfitrion", fields: [id_anfitrion], references: [id_usuario])
+
+  // Auditoría
+  creado_en       DateTime    @default(now())
+  actualizado_en  DateTime    @updatedAt
+}
