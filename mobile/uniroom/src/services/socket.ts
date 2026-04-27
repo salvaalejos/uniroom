@@ -8,7 +8,7 @@ export const connectSocket = (userId: string): Promise<Socket> => {
       resolve(socket);
       return;
     }
-    socket = io('http://localhost:3000', {
+    socket = io('http://localhost:3001', {   // <-- puerto 3001
       transports: ['websocket'],
     });
     socket.on('connect', () => {
@@ -24,7 +24,6 @@ export const connectSocket = (userId: string): Promise<Socket> => {
 };
 
 export const getSocket = () => socket;
-
 export const disconnectSocket = () => {
   if (socket) {
     socket.disconnect();

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { socketService } from '../services/websocketService';
+import { solicitarCita } from '../services/api';
 import type { Propiedad } from '../data/propiedades';
 
 const { width, height } = Dimensions.get('window');
@@ -42,7 +42,6 @@ export default function PropertyDetailModal({
   const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIALES);
   const [nuevoComentario, setNuevoComentario] = useState("");
   
-  // Estados para el formulario de cita
   const [showFormularioCita, setShowFormularioCita] = useState(false);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [horaSeleccionada, setHoraSeleccionada] = useState(new Date());
@@ -100,21 +99,13 @@ export default function PropertyDetailModal({
 
     setEnviandoCita(true);
     try {
-      socketService.emit('solicitar_cita', {
-        propiedadId: propiedad.id,
-        propiedadTitulo: propiedad.titulo,
-        anfitrionId: propiedad.anfitrionId || 'anfitrion_default',
-        estudianteId: currentUserId,
-        fecha: fechaHora.toISOString(),
-        mensaje: `Solicito visitar la propiedad ${propiedad.titulo} el día ${fechaHora.toLocaleString()}`,
-      });
+      await solicitarCita(propiedad.id, fechaHora.toISOString());
       Alert.alert('Solicitud enviada', 'El anfitrión recibirá tu petición y te responderá pronto.');
       setShowFormularioCita(false);
       setFechaSeleccionada(new Date());
       setHoraSeleccionada(new Date());
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'No se pudo enviar la solicitud. Intenta de nuevo.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'No se pudo enviar la solicitud.');
     } finally {
       setEnviandoCita(false);
     }
@@ -133,7 +124,6 @@ export default function PropertyDetailModal({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        {/* Botones flotantes (siempre visibles) */}
         <TouchableOpacity style={[styles.btnCerrar, { top: insets.top + 16 }]} onPress={onClose}>
           <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a" />
         </TouchableOpacity>
@@ -141,13 +131,7 @@ export default function PropertyDetailModal({
           <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"} />
         </TouchableOpacity>
 
-        {/* Scroll principal que contiene carrusel + información */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={styles.scrollPrincipal}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Carrusel (ahora dentro del scroll) */}
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollPrincipal} contentContainerStyle={styles.scrollContent}>
           <ScrollView
             ref={scrollRef}
             horizontal
@@ -168,7 +152,6 @@ export default function PropertyDetailModal({
             ))}
           </ScrollView>
 
-          {/* Miniaturas (dentro del scroll principal) */}
           {propiedad.media.length > 1 && (
             <View style={styles.miniaturas}>
               {propiedad.media.map((item, i) => (
@@ -188,7 +171,6 @@ export default function PropertyDetailModal({
             </View>
           )}
 
-          {/* Contenido informativo */}
           <View style={styles.info}>
             <Text style={styles.titulo}>{propiedad.titulo}</Text>
 
@@ -235,7 +217,6 @@ export default function PropertyDetailModal({
             <View style={styles.tags}>{propiedad.reglas.map((r, i) => <View key={i} style={[styles.tag, styles.tagRegla]}><Text style={[styles.tagTexto, styles.tagTextoRegla]}>{r}</Text></View>)}</View>
             <View style={styles.divider} />
 
-            {/* Botón de "Solicitar visita" (alternativa) */}
             {modoActual === 'buscando' && !yaEsMiVivienda && (
               <TouchableOpacity style={styles.botonSolicitarCita} onPress={() => setShowFormularioCita(true)}>
                 <MaterialCommunityIcons name="calendar-clock" size={20} color="#FFF" />
@@ -243,7 +224,6 @@ export default function PropertyDetailModal({
               </TouchableOpacity>
             )}
 
-            {/* Comentarios */}
             <Text style={styles.subtitulo}>Comentarios</Text>
             <View style={styles.inputComentarioContainer}>
               <TextInput
@@ -273,7 +253,6 @@ export default function PropertyDetailModal({
           </View>
         </ScrollView>
 
-        {/* Footer con botón "Agendar cita" (reemplaza a "Rentar ahora") */}
         <View style={styles.footer}>
           <View>
             <Text style={styles.footerPrecio}>${propiedad.precio.toLocaleString('es-MX')}</Text>
@@ -299,7 +278,6 @@ export default function PropertyDetailModal({
           )}
         </View>
 
-        {/* Modal para formulario de cita */}
         <Modal visible={showFormularioCita} transparent animationType="fade">
           <View style={styles.modalFondo}>
             <View style={styles.modalCita}>

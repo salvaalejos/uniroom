@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, SafeAreaView, TextInput, Alert, ScrollView
+  View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, SafeAreaView, Alert
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { socketService } from '../services/websocketService';
+import { obtenerMisCitas, actualizarEstadoCita } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Definir tipos de notificaciones
+// Definir tipos de notificaciones (se amplía para incluir datos de cita)
 type Notificacion = {
   id: string;
   tipo: 'mensaje' | 'solicitud_cita' | 'respuesta_cita';
@@ -21,21 +23,27 @@ export default function NotificationScreen() {
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<Notificacion | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [userId] = useState("usuario_demo"); // En producción usar ID real
-  const [userRole] = useState<"estudiante" | "anfitrion">("anfitrion"); // Aquí se define el rol del usuario actual
+  const [userId, setUserId] = useState<string>("");
+  const [userRole, setUserRole] = useState<"estudiante" | "anfitrion">("estudiante");
 
+  // Cargar usuario y notificaciones iniciales
   useEffect(() => {
-    // Conectar WebSocket
-    socketService.connect(userId, userRole);
+    const init = async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const id = payload.sub;
+      const rol = payload.rol === 'ESTUDIANTE' ? 'estudiante' : 'anfitrion';
+      setUserId(id);
+      setUserRole(rol);
+      socketService.connect(id, rol);
+      await cargarCitasComoNotificaciones();
+    };
+    init();
 
-    // Escuchar nuevas notificaciones
-    socketService.on('nueva_notificacion', (notificacion: Notificacion) => {
-      setNotificaciones(prev => [notificacion, ...prev]);
-    });
-
-    // Si es anfitrión, escuchar solicitudes de cita
-    if (userRole === 'anfitrion') {
-      socketService.on('solicitud_cita', (data) => {
+    // Escuchar eventos WebSocket
+    socketService.on('solicitud_cita', (data) => {
+      if (userRole === 'anfitrion') {
         const nuevaNotif: Notificacion = {
           id: data.id,
           tipo: 'solicitud_cita',
@@ -47,10 +55,12 @@ export default function NotificationScreen() {
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
-      });
-    } else {
-      // Estudiante escucha respuestas a sus citas
-      socketService.on('respuesta_cita', (data) => {
+        cargarCitasComoNotificaciones(); // refrescar desde BD
+      }
+    });
+
+    socketService.on('respuesta_cita', (data) => {
+      if (userRole === 'estudiante') {
         const nuevaNotif: Notificacion = {
           id: data.id,
           tipo: 'respuesta_cita',
@@ -64,34 +74,60 @@ export default function NotificationScreen() {
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
-      });
-    }
-
-    // Cargar notificaciones previas (desde API si existe)
-    cargarNotificacionesIniciales();
+        cargarCitasComoNotificaciones();
+      }
+    });
 
     return () => {
-      socketService.off('nueva_notificacion');
       socketService.off('solicitud_cita');
       socketService.off('respuesta_cita');
     };
-  }, []);
+  }, [userRole]);
 
-  const cargarNotificacionesIniciales = async () => {
-    // Aquí puedes hacer fetch a tu backend para obtener notificaciones guardadas
-    // Por ahora, datos de ejemplo
-    const notificacionesEjemplo: Notificacion[] = [
-      {
-        id: "1",
-        tipo: "mensaje",
-        titulo: "Bienvenido",
-        mensaje: "Gracias por usar la app",
-        leida: false,
-        remitente: "Sistema",
-        fecha: "Hoy",
-      },
-    ];
-    setNotificaciones(notificacionesEjemplo);
+  // Cargar citas desde el backend y convertirlas a notificaciones (sincronización inicial)
+  const cargarCitasComoNotificaciones = async () => {
+    try {
+      const citas = await obtenerMisCitas();
+      const notifs: Notificacion[] = citas.map((cita: any) => {
+        const esEstudiante = userRole === 'estudiante';
+        const titular = esEstudiante ? cita.anfitrion?.nombre : cita.estudiante?.nombre;
+        let titulo = '';
+        let mensaje = '';
+        if (cita.estado === 'PENDIENTE') {
+          titulo = esEstudiante ? 'Cita pendiente' : 'Nueva solicitud de visita';
+          mensaje = esEstudiante
+            ? `Tienes una cita pendiente con ${cita.anfitrion?.nombre} para ${cita.inmueble.titulo} el ${new Date(cita.fecha_hora).toLocaleString()}`
+            : `${cita.estudiante?.nombre} solicitó visitar ${cita.inmueble.titulo} el ${new Date(cita.fecha_hora).toLocaleString()}`;
+        } else if (cita.estado === 'ACEPTADA') {
+          titulo = 'Cita aceptada';
+          mensaje = `Tu cita para ${cita.inmueble.titulo} ha sido ACEPTADA para el ${new Date(cita.fecha_hora).toLocaleString()}`;
+        } else if (cita.estado === 'RECHAZADA') {
+          titulo = 'Cita rechazada';
+          mensaje = `Tu cita para ${cita.inmueble.titulo} fue RECHAZADA. Motivo: ${cita.motivo_rechazo || 'No especificado'}`;
+        } else {
+          titulo = 'Cita reagendada';
+          mensaje = `La cita para ${cita.inmueble.titulo} ha sido reagendada para ${new Date(cita.fecha_hora).toLocaleString()}`;
+        }
+        return {
+          id: cita.id_cita,
+          tipo: cita.estado === 'PENDIENTE' ? 'solicitud_cita' : 'respuesta_cita',
+          titulo,
+          mensaje,
+          leida: false,
+          remitente: titular || 'Sistema',
+          fecha: new Date(cita.fecha_hora).toLocaleString(),
+          datosExtra: cita,
+        };
+      });
+      // Combinar con notificaciones existentes (sin duplicados)
+      setNotificaciones(prev => {
+        const idsExistentes = new Set(prev.map(n => n.id));
+        const nuevas = notifs.filter(n => !idsExistentes.has(n.id));
+        return [...nuevas, ...prev];
+      });
+    } catch (error) {
+      console.error("Error cargando citas:", error);
+    }
   };
 
   const abrirDetalle = (item: Notificacion) => {
@@ -101,36 +137,19 @@ export default function NotificationScreen() {
     setNotificaciones(prev => prev.map(n => n.id === item.id ? { ...n, leida: true } : n));
   };
 
-  const responderSolicitud = (notif: Notificacion, aceptar: boolean, motivoRechazo?: string) => {
+  const responderSolicitud = async (notif: Notificacion, aceptar: boolean, motivoRechazo?: string) => {
     const data = notif.datosExtra;
     if (!data) return;
 
-    // Emitir respuesta al servidor
-    socketService.emit('respuesta_solicitud', {
-      solicitudId: data.id,
-      aceptada: aceptar,
-      motivo: motivoRechazo || '',
-      estudianteId: data.estudianteId,
-      propiedadId: data.propiedadId,
-      fecha: data.fecha,
-    });
-
-    Alert.alert(aceptar ? 'Cita aceptada' : 'Cita rechazada', aceptar ? 'Se ha notificado al estudiante.' : 'Se ha notificado al estudiante.');
-    setModalVisible(false);
-  };
-
-  const reagendarCita = (notif: Notificacion) => {
-    // Aquí puedes abrir un calendario para nueva fecha/hora
-    Alert.prompt('Reagendar cita', 'Ingresa nueva fecha y hora (ej. 2025-05-01 15:00)', (nuevaFecha) => {
-      if (nuevaFecha) {
-        socketService.emit('reagendar_cita', {
-          solicitudId: notif.datosExtra.id,
-          nuevaFecha: new Date(nuevaFecha).toISOString(),
-          estudianteId: notif.datosExtra.estudianteId,
-        });
-        Alert.alert('Solicitud enviada', 'Se ha propuesto una nueva fecha al estudiante.');
-      }
-    });
+    try {
+      const nuevoEstado = aceptar ? 'ACEPTADA' : 'RECHAZADA';
+      await actualizarEstadoCita(data.id_cita, nuevoEstado, motivoRechazo);
+      Alert.alert(aceptar ? 'Cita aceptada' : 'Cita rechazada', 'Se ha notificado al solicitante.');
+      setModalVisible(false);
+      cargarCitasComoNotificaciones(); // refrescar
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
   };
 
   const renderNotificacion = ({ item }: { item: Notificacion }) => (
@@ -158,7 +177,6 @@ export default function NotificationScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Modal de detalle de notificación */}
       <Modal visible={modalVisible} animationType="slide" transparent={false} onRequestClose={() => setModalVisible(false)}>
         {notificacionSeleccionada && (
           <SafeAreaView style={styles.contenedorModal}>
@@ -188,18 +206,13 @@ export default function NotificationScreen() {
                     <Text style={styles.textoBotonAceptar}>Aceptar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.botonRechazar} onPress={() => {
-                    Alert.prompt('Motivo de rechazo', 'Escribe el motivo (opcional)', (motivo) => responderSolicitud(notificacionSeleccionada, false, motivo));
+                    Alert.prompt('Motivo de rechazo', 'Escribe el motivo (opcional)', (motivo) =>
+                      responderSolicitud(notificacionSeleccionada, false, motivo)
+                    );
                   }}>
                     <Text style={styles.textoBotonRechazar}>Rechazar</Text>
                   </TouchableOpacity>
                 </View>
-              )}
-
-              {/* Si es respuesta de cita rechazada y usuario es estudiante, mostrar botón reagendar */}
-              {userRole === 'estudiante' && notificacionSeleccionada.tipo === 'respuesta_cita' && !notificacionSeleccionada.datosExtra?.aceptada && (
-                <TouchableOpacity style={styles.botonReagendar} onPress={() => reagendarCita(notificacionSeleccionada)}>
-                  <Text style={styles.textoBotonReagendar}>Reagendar cita</Text>
-                </TouchableOpacity>
               )}
             </View>
           </SafeAreaView>
@@ -209,6 +222,8 @@ export default function NotificationScreen() {
   );
 }
 
+// Los estilos son exactamente los mismos que proporcionaste, no es necesario repetirlos.
+// Inclúyelos tal cual están en tu archivo original.
 const styles = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: "#f8f9fa", paddingHorizontal: 16, paddingTop: 40 },
   encabezadoPrincipal: { fontSize: 24, fontWeight: "bold", marginBottom: 16, color: "#1a1a1a" },
@@ -237,6 +252,4 @@ const styles = StyleSheet.create({
   textoBotonAceptar: { color: "#fff", fontWeight: "bold" },
   botonRechazar: { backgroundColor: "#DC2F02", paddingVertical: 10, paddingHorizontal: 20, borderRadius: 30 },
   textoBotonRechazar: { color: "#fff", fontWeight: "bold" },
-  botonReagendar: { backgroundColor: "#FFB800", paddingVertical: 12, borderRadius: 30, alignItems: "center", marginTop: 20 },
-  textoBotonReagendar: { color: "#1a1a2e", fontWeight: "bold" },
 });

@@ -43,7 +43,8 @@
         }
       ],
       "expo-video",
-      "expo-localization"
+      "expo-localization",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

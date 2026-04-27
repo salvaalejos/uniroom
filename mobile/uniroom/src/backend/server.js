@@ -7,86 +7,52 @@ const app = express();
 app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-// Almacenamiento en memoria (en producción usa base de datos)
-const solicitudes = new Map();
-let solicitudIdCounter = 1;
+const userSockets = new Map(); // userId -> socketId
 
 io.on('connection', (socket) => {
   console.log('Usuario conectado:', socket.id);
 
-  socket.on('solicitar_cita', (data) => {
-    const { propiedadId, propiedadTitulo, anfitrionId, estudianteId, fecha, mensaje } = data;
-    const solicitudId = `${solicitudIdCounter++}`;
-    solicitudes.set(solicitudId, { ...data, id: solicitudId, estado: 'pendiente' });
-    
-    // Notificar al anfitrión (sabemos su socketId si está conectado)
-    // En producción, debes tener un mapa de userId -> socketId
-    io.emit('solicitud_cita', {
-      id: solicitudId,
-      propiedadId,
-      propiedadTitulo,
-      estudianteId,
-      estudianteNombre: `Estudiante ${estudianteId}`,
-      fecha,
-      mensaje
-    });
-    
-    // También guardar notificación en DB (opcional)
-    console.log('Solicitud de cita:', solicitudId);
+  socket.on('register', (userId) => {
+    userSockets.set(userId, socket.id);
+    console.log(`Usuario ${userId} registrado con socket ${socket.id}`);
   });
 
-  socket.on('respuesta_solicitud', (data) => {
-    const { solicitudId, aceptada, motivo, estudianteId, propiedadId, fecha } = data;
-    const solicitud = solicitudes.get(solicitudId);
-    if (solicitud) {
-      solicitud.estado = aceptada ? 'aceptada' : 'rechazada';
-      // Notificar al estudiante
-      io.emit('respuesta_cita', {
-        id: solicitudId,
-        aceptada,
-        motivo,
-        estudianteId,
-        propiedadId,
-        propiedadTitulo: solicitud.propiedadTitulo,
-        anfitrionNombre: 'Anfitrión',
-        fecha: solicitud.fecha,
-      });
-      console.log(`Respuesta a solicitud ${solicitudId}: ${aceptada ? 'Aceptada' : 'Rechazada'}`);
+  // Recibir solicitud desde el API (no desde el cliente directamente)
+  socket.on('solicitud_cita', (data) => {
+    const { anfitrionId, ...resto } = data;
+    const anfitrionSocket = userSockets.get(anfitrionId);
+    if (anfitrionSocket) {
+      io.to(anfitrionSocket).emit('solicitud_cita', resto);
+    } else {
+      console.log(`Anfitrión ${anfitrionId} no conectado`);
     }
   });
 
-  socket.on('reagendar_cita', (data) => {
-    const { solicitudId, nuevaFecha, estudianteId } = data;
-    const solicitud = solicitudes.get(solicitudId);
-    if (solicitud) {
-      solicitud.fecha = nuevaFecha;
-      solicitud.estado = 'reagendada';
-      // Notificar al estudiante la nueva propuesta
-      io.emit('respuesta_cita', {
-        id: solicitudId,
-        aceptada: true,
-        motivo: '',
-        estudianteId,
-        propiedadId: solicitud.propiedadId,
-        propiedadTitulo: solicitud.propiedadTitulo,
-        anfitrionNombre: 'Anfitrión',
-        fecha: nuevaFecha,
-      });
-      console.log(`Cita reagendada para solicitud ${solicitudId} a la fecha ${nuevaFecha}`);
+  socket.on('respuesta_cita', (data) => {
+    const { estudianteId, ...resto } = data;
+    const estudianteSocket = userSockets.get(estudianteId);
+    if (estudianteSocket) {
+      io.to(estudianteSocket).emit('respuesta_cita', resto);
+    } else {
+      console.log(`Estudiante ${estudianteId} no conectado`);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('Usuario desconectado');
+    for (let [userId, sockId] of userSockets.entries()) {
+      if (sockId === socket.id) {
+        userSockets.delete(userId);
+        break;
+      }
+    }
+    console.log('Usuario desconectado:', socket.id);
   });
 });
 
-server.listen(3000, () => {
-  console.log('Servidor WebSocket escuchando en http://localhost:3000');
+const WS_PORT = process.env.WS_PORT || 3001;
+server.listen(WS_PORT, () => {
+  console.log(`Servidor WebSocket en http://localhost:${WS_PORT}`);
 });
