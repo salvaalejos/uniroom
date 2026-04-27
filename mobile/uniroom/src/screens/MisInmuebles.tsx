@@ -105,6 +105,7 @@ const MisInmuebles = () => {
     }
 
     return (
+        
         <View style={[styles.container, { paddingTop: insets.top }]}>
         
             {/* Header */}
@@ -124,7 +125,7 @@ const MisInmuebles = () => {
             </View>
 
             {/* Lista */}
-            <ScrollView key={inmuebles.length} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 90 }}>
+            <ScrollView key={inmuebles.length} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 170 }}>
 
                 {inmuebles.length === 0 && (
 
@@ -226,6 +227,12 @@ const MisInmuebles = () => {
 
             </ScrollView>
 
+            {inmuebles.length > 0 && (
+                <TouchableOpacity style={[styles.btnFlotante, { bottom: insets.bottom + 90 }]} onPress={nuevoInmueble}>
+                    <MaterialCommunityIcons name="plus" size={26} color="#fff"/>
+                </TouchableOpacity>
+            )}
+
             {/* Modal de confirmacion */}
             {confirmarId !== null && (
                 <View style={styles.modalOverlay}>
@@ -258,6 +265,19 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#f5f7fa",
     },
+    btnFlotante: {
+        position: "absolute",
+        right: 20,
+        backgroundColor: "#205EA6",
+        borderRadius: 30,
+        width: 56,
+        height: 56,
+        justifyContent: "center",
+        alignItems: "center",
+        elevation: 6,
+        shadowColor: "#000",
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
     header: {
         marginTop: 1,
         flexDirection: "row",

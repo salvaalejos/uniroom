@@ -2,6 +2,7 @@ import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from "re
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { useNavigationState } from "@react-navigation/native";
 import { useEffect, useRef, useState } from "react"
+import { NavigationContainer } from '@react-navigation/native';
 import MapScreen from "./MapScreen"
 import MapRouteScreen from "./MapRouteScreen"
 import CalendarScreen from "./CalendarScreen"
@@ -18,6 +19,11 @@ import * as Animatable from "react-native-animatable"
 import Settings from "./Settings"
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from "@react-navigation/stack"
+
+// agendar cita de vivienda
+import MapScreen from "./MapScreen"
+import AgendarCita from "./AgendarCita";
+// Para crear inmuebles sjkfhdsf
 import MisInmuebles from "./MisInmuebles"
 import Upload_Renta from "./Upload_Renta"
 import HousingMapScreen from "./HousingMapScreen";
@@ -34,6 +40,17 @@ const InmuebleStackScreen = () => {
             <InmuebleStack.Screen name="MisInmuebles" component={MisInmuebles} />
             <InmuebleStack.Screen name="SubirInmueble" component={Upload_Renta} />
         </InmuebleStack.Navigator>
+    )
+}
+
+const CitaStack = createStackNavigator()
+
+const CitaStackScreen = () => {
+    return (
+        <CitaStack.Navigator screenOptions={{ headerShown: false }}>
+            <CitaStack.Screen name="MapScreen" component={MapScreen} />
+            <CitaStack.Screen name="AgendarCita" component={AgendarCita}/>
+        </CitaStack.Navigator>
     )
 }
 
