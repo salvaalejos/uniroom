@@ -8,13 +8,15 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import Upload_renta from './src/screens/Upload_Renta';
 import NavigationMenu from './src/screens/NavigationMenu';
 
+import PaymentScreen from './src/screens/PaymentScreen';
+
 // Crea el Stack
 const Stack = createNativeStackNavigator();
 
 export default function App() {
     return (
         <NavigationContainer>
-            <Stack.Navigator initialRouteName="Navigator">
+            <Stack.Navigator initialRouteName="Login">
                 <Stack.Screen 
                     name="Navigator"
                     component={NavigationMenu}
@@ -34,6 +36,11 @@ export default function App() {
                     name="Tu Primer Inmueble"
                     component={Upload_renta}
                     options={{ title: 'Tu Primer Inmueble', headerShown: false }}
+                />
+                <Stack.Screen 
+                    name="PaymentScreen"
+                    component={PaymentScreen}
+                    options={{ headerShown: false }}
                 />
             </Stack.Navigator>
             <View style={{height: 50, backgroundColor: "#DCEEFF"}}>

@@ -218,8 +218,9 @@ const PROPIEDADES = [
   },
 ]
 
-const MapScreen = () => {
+const MapScreen = ({ route }: any) => {
   const [modalVisible, setModalVisible] = useState(false)
+<<<<<<< HEAD
   const [inmuebleSeleccionado, setInmuebleSeleccionado] = useState(null)
   const [mapaListo, setMapaListo] = useState(false)
   const [cargando, setCargando] = useState(true)
@@ -260,6 +261,9 @@ const MapScreen = () => {
       </View>
     )
   }
+=======
+  const token = route?.params?.token;
+>>>>>>> main
 
   return (
     <View style={styles.container}>
@@ -299,11 +303,16 @@ const MapScreen = () => {
 
       <InmuebleScreen
         visible={modalVisible}
+<<<<<<< HEAD
         onClose={() => {
           setModalVisible(false)
           setInmuebleSeleccionado(null)
         }}
         inmueble={inmuebleSeleccionado}
+=======
+        onClose={() => setModalVisible(false)}
+        token={token}
+>>>>>>> main
       />
     </View>
   )

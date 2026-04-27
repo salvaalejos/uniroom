@@ -10,4 +10,8 @@ services:
       POSTGRES_PASSWORD: '12345'
       POSTGRES_DB: uniroom
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - uniroom_data:/var/lib/postgresql/data
+      - .:/app
+      - ./uploads:/app/uploads
+volumes:
+  uniroom_data:

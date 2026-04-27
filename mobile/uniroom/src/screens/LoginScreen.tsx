@@ -9,20 +9,29 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
 
 type AuthenticatedUser = {
     name: string;
     role: string;
 };
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const getUserId = (payload: any) => {
+    if (!payload || typeof payload !== 'object') return '';
+    return payload.id_usuario ?? payload.usuario?.id_usuario ?? payload.user?.id_usuario ?? '';
+};
 
 const getUserName = (payload: any) => {
     if (!payload || typeof payload !== 'object') {
         return '';
     }
 
-    return payload.nombre ?? payload.name ?? payload.usuario?.nombre ?? payload.user?.name ?? '';
+    return payload.nombre ?? payload.name ?? payload.usuario?.nombre ?? payload.user?.nombre ?? payload.user?.name ?? '';
 };
 
 const getUserRole = (payload: any) => {
@@ -30,7 +39,7 @@ const getUserRole = (payload: any) => {
         return '';
     }
 
-    return payload.rol ?? payload.role ?? payload.usuario?.rol ?? payload.user?.role ?? '';
+    return payload.rol ?? payload.role ?? payload.usuario?.rol ?? payload.user?.rol ?? payload.user?.role ?? '';
 };
 
 export default function LoginScreen({ navigation }: any) {
@@ -44,7 +53,7 @@ export default function LoginScreen({ navigation }: any) {
 
     const handleLogin = async () => {
         if (!email || !password) {
-            setErrorMessage('Ingresa tu correo y contraseña.');
+            setErrorMessage('Ingresa tu correo y contraseña para continuar.');
             return;
         }
 
@@ -57,23 +66,28 @@ export default function LoginScreen({ navigation }: any) {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({ email: email.trim(), password })
             });
 
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(payload?.message ?? 'No se pudo iniciar sesión.');
+                const apiError = payload?.error ?? payload?.message ?? 'Credenciales incorrectas o problema para iniciar sesión.';
+                throw new Error(apiError);
             }
 
             const name = getUserName(payload);
             const role = getUserRole(payload);
+            const userId = getUserId(payload);
+            const token = payload.token;
 
-            if (!name || !role) {
-                throw new Error('El backend no devolvió nombre y rol del usuario.');
+            if (!name || !role || !userId || !token) {
+                throw new Error('El backend no devolvió nombre, rol o token del usuario.');
             }
 
+            navigation.replace("Navigator", { userId: userId, token: token })
             setAuthenticatedUser({ name, role });
+
         } catch (error: any) {
             setAuthenticatedUser(null);
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión.');
@@ -87,23 +101,6 @@ export default function LoginScreen({ navigation }: any) {
         setPassword('');
         setErrorMessage('');
     };
-
-    if (authenticatedUser) {
-        return (
-            <View style={styles.loggedContainer}>
-                <Text style={styles.title}>¡Bienvenido!</Text>
-                <View style={styles.userCard}>
-                    <Text style={styles.userLabel}>Nombre</Text>
-                    <Text style={styles.userValue}>{authenticatedUser.name}</Text>
-                    <Text style={styles.userLabel}>Rol</Text>
-                    <Text style={styles.userValue}>{authenticatedUser.role}</Text>
-                </View>
-                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                    <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
 
     return (
         <KeyboardAvoidingView
@@ -142,7 +139,12 @@ export default function LoginScreen({ navigation }: any) {
                     )}
                 </TouchableOpacity>
 
-                {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+                {errorMessage ? (
+                    <View style={styles.errorContainer}>
+                        <Ionicons name="alert-circle" size={20} color="#E74C3C" />
+                        <Text style={styles.errorTextUI}>{errorMessage}</Text>
+                    </View>
+                ) : null}
 
                 <TouchableOpacity>
                     <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
@@ -212,10 +214,21 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
-    errorText: {
-        marginTop: 12,
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FDEDEC',
+        padding: 14,
+        borderRadius: 12,
+        marginTop: 16,
+        borderWidth: 1,
+        borderColor: '#FADBD8',
+    },
+    errorTextUI: {
         color: '#E74C3C',
-        textAlign: 'center',
+        marginLeft: 8,
+        fontSize: 15,
+        flex: 1,
     },
     forgotPasswordText: {
         color: '#205EA6',
