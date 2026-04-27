@@ -1,39 +1,17 @@
 // ─ Importes ─
 import { View, Text, TextInput, Image, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
 
-
 // ─ Constantes ─
-
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 
-// Foto del anfitrion provicional
+// Foto del anfitrion provisional
 const ANFITRION = require("../default_images/anfi.jpg")
 
-// Datos falsos por ahora sjdhsjd
-const PROPIEDAD = {
-    titulo: "Departamento Centro Morelia",
-    anfitrion: "Stevenson",
-    precio: 3200,
-    calificacion: 4.91,
-    opiniones: 56,
-    ubicacion: "Centro Histórico, Morelia — Zona tranquila, cerca de transporte público",
-    descripcion: "Departamento amueblado de 2 habitaciones en el corazón de Morelia. Ideal para estudiantes. Incluye todos los servicios básicos y acceso a áreas comunes.",
-    servicios: ["WiFi incluido", "Agua incluida", "Luz incluida", "Lavadora", "Estacionamiento"],
-    reglas: ["No mascotas", "No fumar", "No fiestas", "Máx. 2 personas"],
-    contacto: "55 1234 5678",
-    media: [
-        { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-        { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-        { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
-        { tipo: "video", src: require("../default_images/twt.mp4") },
-    ]
-}
-
-// Comentarios preestablecidos ksdhfsjf
+// Comentarios preestablecidos
 const COMENTARIOS_INICIALES = [
     { autor: "Ana G.", texto: "Muy buen lugar, limpio y tranquilo.", fecha: "12 de enero de 2025 a las 3:25 p.m." },
     { autor: "Carlos M.", texto: "Excelente ubicación, el anfitrión muy amable.", fecha: "3 de febrero de 2025 a las 8:46 a.m." },
@@ -41,21 +19,20 @@ const COMENTARIOS_INICIALES = [
 ]
 
 // ─ Tipos ─
-
 type Comentario = { autor: string, texto: string, fecha: string }
 
 type Props = {
     visible: boolean
     onClose: () => void
+    inmueble?: any
 }
 
-
-// ─ Componente ─ ฅ^•ﻌ•^ฅ hola guapuritas
-
-const InmuebleScreen = ({ visible, onClose }: Props) => {
+// ─ Componente ─
+const InmuebleScreen = ({ visible, onClose, inmueble }: Props) => {
 
     const insets = useSafeAreaInsets()
     const scrollRef = useRef<ScrollView>(null)
+    const playerRef = useRef<any>(null)
 
     const [favorito, setFavorito] = useState(false)
     const [imagenActual, setImagenActual] = useState(0)
@@ -63,51 +40,124 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
     const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIALES)
     const [nuevoComentario, setNuevoComentario] = useState("")
 
-    const player = useVideoPlayer(
-        PROPIEDAD.media[imagenActual].tipo === "video" ? PROPIEDAD.media[imagenActual].src : null
-    )
+    // 👇 Validación después de TODOS los hooks, pero antes de usar hooks condicionales
+    const esVideo = inmueble?.media?.[imagenActual]?.tipo === "video"
+    const videoSource = esVideo ? inmueble?.media?.[imagenActual]?.src : null
 
-    // Poder agregar comentarios
+    // Solo crear el player si hay video y el modal está visible
+    const player = useVideoPlayer(videoSource, player => {
+        if (player && videoSource && visible) {
+            player.loop = true
+        }
+    })
+
+    // Limpiar player cuando se cierra el modal
+    useEffect(() => {
+        if (!visible && player) {
+            try {
+                player.pause()
+            } catch (e) {
+                // Ignorar error al limpiar
+            }
+        }
+    }, [visible, player])
+
+    // Manejar el video cuando cambia el índice
+    useEffect(() => {
+        if (!visible) return
+        
+        if (esVideo && player && videoSource) {
+            try {
+                player.play()
+            } catch (e) {
+                console.log("Error al reproducir video:", e)
+            }
+        } else if (player) {
+            try {
+                player.pause()
+            } catch (e) {
+                // Ignorar
+            }
+        }
+        
+        return () => {
+            if (player) {
+                try {
+                    player.pause()
+                } catch (e) {
+                    // Ignorar
+                }
+            }
+        }
+    }, [imagenActual, esVideo, player, videoSource, visible])
+
+    // Si no hay inmueble, no mostrar nada
+    if (!inmueble) return null
+
     const agregarComentario = () => {
         if (nuevoComentario.trim() === "") return
         const fecha = new Date().toLocaleDateString('es-MX', {
-            minute: 'numeric',
-            hour: 'numeric',
             day: 'numeric',
             month: 'long',
-            year: 'numeric'
+            year: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric'
         })
         setComentarios([{ autor: "Tú", texto: nuevoComentario, fecha }, ...comentarios])
         setNuevoComentario("")
     }
 
+    const renderMedia = (item, index) => {
+        if (item.tipo === "imagen") {
+            return (
+                <Image 
+                    key={index} 
+                    source={item.src} 
+                    style={styles.imagenPrincipal}
+                    resizeMode="cover"
+                />
+            )
+        } else {
+            // Solo mostrar VideoView si el video es el actual y el modal está visible
+            if (index === imagenActual && visible && videoSource) {
+                return (
+                    <VideoView
+                        key={index}
+                        player={player}
+                        style={styles.imagenPrincipal}
+                        contentFit="cover"
+                        nativeControls
+                    />
+                )
+            } else {
+                // Placeholder mientras no está activo
+                return (
+                    <View key={index} style={[styles.imagenPrincipal, styles.videoPlaceholder]}>
+                        <MaterialCommunityIcons name="play-circle" size={50} color="#fff" />
+                        <Text style={styles.videoPlaceholderText}>Video preview</Text>
+                    </View>
+                )
+            }
+        }
+    }
+
     return(
-
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-
             <View style={[styles.container, { paddingTop: insets.top}]}>
-
                 <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-
                     {/* Galeria */}
                     <View style={styles.galeriaContainer}>
-
-                        <ScrollView ref={scrollRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={(e) => {
-                            const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width)
-                            setImagenActual(index)
-                        }}>
-                            {PROPIEDAD.media.map((item, i) => (
-                                item.tipo === "imagen" ? (
-                                    <Image key={i} source={item.src} style={styles.imagenPrincipal}/>
-                                ) : (
-                                    <VideoView
-                                    key={i}
-                                    player={player}
-                                    style={styles.imagenPrincipal}
-                                    allowsFullscreen
-                                    allowsPictureInPicture/>
-                                )
-                            ))}
+                        <ScrollView 
+                            ref={scrollRef} 
+                            horizontal 
+                            pagingEnabled 
+                            showsHorizontalScrollIndicator={false} 
+                            onMomentumScrollEnd={(e) => {
+                                const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width)
+                                setImagenActual(index)
+                            }}
+                        >
+                            {inmueble.media?.map((item, i) => renderMedia(item, i))}
                         </ScrollView>
 
                         {/* Boton de cerrar */}
@@ -117,59 +167,56 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
 
                         {/* Boton de favorito */}
                         <TouchableOpacity style={styles.btnFavorito} onPress={() => setFavorito(!favorito)}>
-                            <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}
-                            />
+                            <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}/>
                         </TouchableOpacity>
 
-                        {/* Miniautas */}
-                        <View style={styles.miniaturas}>
-                            {PROPIEDAD.media.map((item, i) => (
-                                <TouchableOpacity key={i} onPress={() => {
-                                    setImagenActual(i)
-                                    scrollRef.current?.scrollTo({ x: i * Dimensions.get('window').width, animated: true })
-                                }}>
-                                    {item.tipo === "imagen" ? (
-                                        <Image source={item.src} style={[styles.miniatura, imagenActual === i && styles.miniaturaActiva]}/>
-                                    ) : (
-                                        <View style={[styles.miniatura, styles.miniaturaVideo, imagenActual === i && styles.miniaturaActiva]}>
-                                            <MaterialCommunityIcons name="play-circle" size={28} color="#fff"/>
-                                        </View>
-                                    )}
-                                    
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
+                        {/* Miniaturas */}
+                        {inmueble.media?.length > 1 && (
+                            <View style={styles.miniaturas}>
+                                {inmueble.media.map((item, i) => (
+                                    <TouchableOpacity key={i} onPress={() => {
+                                        setImagenActual(i)
+                                        scrollRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true })
+                                    }}>
+                                        {item.tipo === "imagen" ? (
+                                            <Image source={item.src} style={[styles.miniatura, imagenActual === i && styles.miniaturaActiva]}/>
+                                        ) : (
+                                            <View style={[styles.miniatura, styles.miniaturaVideo, imagenActual === i && styles.miniaturaActiva]}>
+                                                <MaterialCommunityIcons name="play-circle" size={28} color="#fff"/>
+                                            </View>
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
                     </View>
 
                     {/* Informacion Principal */}
                     <View style={styles.info}>
-
-                        {/* Titulo y calificaciones jsjs */}
-                        <Text style={styles.titulo}>{PROPIEDAD.titulo}</Text>
+                        {/* Titulo */}
+                        <Text style={styles.titulo}>{inmueble.titulo}</Text>
                         
+                        {/* Calificaciones */}
                         <View style={styles.calificacionContainer}>
                             <View style={styles.calificacionItem}>
-                                <Text style={styles.calificacionNumero}>{PROPIEDAD.calificacion}</Text>
+                                <Text style={styles.calificacionNumero}>{inmueble.calificacion}</Text>
                                 <View style={styles.estrellas}>
-                                    {[1, 2 ,3 ,4 ,5].map((i)=>(
+                                    {[1, 2, 3, 4, 5].map((i)=>(
                                         <TouchableOpacity key={i} onPress={() => setMiCalificacion(i)}>
                                             <MaterialCommunityIcons
-                                            name={i <= miCalificacion ? "star" : "star-outline"}
-                                            size={25}
-                                            color="#f39c12"/>
+                                                name={i <= miCalificacion ? "star" : "star-outline"}
+                                                size={25}
+                                                color="#f39c12"/>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
                             </View>
 
                             <View style={styles.calificacionItem}>
-                                <Text style={styles.calificacionNumero}>{PROPIEDAD.opiniones}</Text>
+                                <Text style={styles.calificacionNumero}>{inmueble.opiniones}</Text>
                                 <Text style={styles.opinionesLabel}>opiniones</Text>
                             </View>
-
                         </View>
-
 
                         <View style={styles.divider}/>
 
@@ -178,7 +225,7 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                             <Image source={ANFITRION} style={styles.avatarImagen}/>
                             <View>
                                 <Text style={styles.anfitrionLabel}>Anfitrión</Text>
-                                <Text style={styles.anfitrionNombre}>{PROPIEDAD.anfitrion}</Text>
+                                <Text style={styles.anfitrionNombre}>{inmueble.anfitrion}</Text>
                             </View>
                         </View>
 
@@ -187,20 +234,20 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                         {/* Ubicacion */}
                         <View style={styles.seccion}>
                             <MaterialCommunityIcons name="map-marker" size={18} color="#205EA6" />
-                            <Text style={styles.seccionTexto}>{PROPIEDAD.ubicacion}</Text>
+                            <Text style={styles.seccionTexto}>{inmueble.ubicacion}</Text>
                         </View>
 
                         <View style={styles.divider}/>
 
                         {/* Descripción */}
-                        <Text style={styles.descripcion}>{PROPIEDAD.descripcion}</Text>
+                        <Text style={styles.descripcion}>{inmueble.descripcion}</Text>
                         
                         <View style={styles.divider}/>
 
                         {/* Servicios */}
                         <Text style={styles.subtitulo}>Servicios incluidos</Text>
                         <View style={styles.tags}>
-                            {PROPIEDAD.servicios.map((s, i) => (
+                            {inmueble.servicios?.map((s, i) => (
                                 <View key={i} style={styles.tag}>
                                     <Text style={styles.tagTexto}>{s}</Text>
                                 </View>
@@ -212,7 +259,7 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                         {/* Reglas */}
                         <Text style={styles.subtitulo}>Reglas de la casa</Text>
                         <View style={styles.tags}>
-                            {PROPIEDAD.reglas.map((r, i) => (
+                            {inmueble.reglas?.map((r, i) => (
                                 <View key={i} style={[styles.tag, styles.tagRegla]}>
                                     <Text style={[styles.tagTexto, styles.tagTextoRegla]}>{r}</Text>
                                 </View>
@@ -224,43 +271,37 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                         {/* Nuevo comentario */}
                         <View style={styles.inputComentarioContainer}>
                             <TextInput
-                            style={styles.inputComentario}
-                            placeholder="Escribe tu comentario..."
-                            placeholderTextColor="#aaa"
-                            value={nuevoComentario}
-                            onChangeText={setNuevoComentario}
-                            multiline/>
+                                style={styles.inputComentario}
+                                placeholder="Escribe tu comentario..."
+                                placeholderTextColor="#aaa"
+                                value={nuevoComentario}
+                                onChangeText={setNuevoComentario}
+                                multiline/>
                             <TouchableOpacity style={styles.btnEnviar} onPress={agregarComentario}>
                                 <MaterialCommunityIcons name="send" size={20} color="#fff"/>
                             </TouchableOpacity>
                         </View>
 
-                        {/* Comentarios predefinidos */}
+                        {/* Comentarios */}
                         {comentarios.map((c, i) => (
                             <View key={i} style={styles.comentario}>
                                 <Image source={ANFITRION} style={styles.comentarioAvatar}/>
-                                <View>
-                                    <MaterialCommunityIcons name="account" size={20} color="#fff"/>
-                                </View>
-
                                 <View style={{flex: 1}}>
-                                    <View style={{ flexDirection: "column", justifyContent: "space-between" }}>
+                                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                                         <Text style={styles.comentarioAutor}>{c.autor}</Text>
                                         <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
                                     </View>
                                     <Text style={styles.comentarioTexto}>{c.texto}</Text>
                                 </View>
-
                             </View>
                         ))}
                     </View>
-
                 </ScrollView>
 
                 {/* Footer */}
                 <View style={styles.footer}>
                     <View>
-                        <Text style={styles.footerPrecio}>${PROPIEDAD.precio.toLocaleString('es-MX')}</Text>
+                        <Text style={styles.footerPrecio}>${inmueble.precio.toLocaleString('es-MX')}</Text>
                         <Text style={styles.footerMes}>/ mes</Text>
                     </View>
                     <TouchableOpacity style={styles.btnContacto}>
@@ -268,9 +309,7 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                         <Text style={styles.btnContactoTexto}>Contactar</Text>
                     </TouchableOpacity>
                 </View>
-
             </View>
-
         </Modal>
     )
 }
@@ -278,9 +317,7 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
 export default InmuebleScreen
 
 // ─ Estilos ─
-
 const styles = StyleSheet.create({
-
     container: {
         flex: 1,
         backgroundColor: "#fff",
@@ -292,6 +329,16 @@ const styles = StyleSheet.create({
         width: SCREEN_WIDTH,
         height: SCREEN_HEIGHT * 0.38,
         resizeMode: "cover",
+    },
+    videoPlaceholder: {
+        backgroundColor: "#1a1a2e",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    videoPlaceholderText: {
+        color: "#fff",
+        marginTop: 10,
+        fontSize: 12,
     },
     btnCerrar: {
         position: "absolute",
@@ -477,11 +524,6 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         color: "#1a1a2e",
     },
-    comentarioFecha: {
-        fontSize: 11,
-        color: "#aaa",
-        marginBottom: 2,
-    },
     comentarioTexto: {
         fontSize: 14,
         color: "#666",
@@ -519,5 +561,4 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         fontSize: 15,
     },
-
 })

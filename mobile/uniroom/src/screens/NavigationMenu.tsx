@@ -22,6 +22,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from "@react-navigation/stack" // npm install @react-navigation/stack
 import MisInmuebles from "./MisInmuebles"
 import Upload_Renta from "./Upload_Renta"
+import HousingMapScreen from "./HousingMapScreen";
 
 const InmuebleStack = createStackNavigator()
 
@@ -68,8 +69,10 @@ const Profile_Menu = () => {
 }
 
 const Tabs = [
-    {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: MapScreen},
-    {route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: MapRouteScreen},
+    {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: HousingMapScreen},
+    
+    //{route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: MapScreen},
+    //{route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: MapRouteScreen},
     //{route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
     
     // ruta provicional para los inmuebles
