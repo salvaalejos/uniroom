@@ -2,7 +2,7 @@
 Aparentemente utilizando image-picker no me deja poner la foto xd, pero ahorita queda xd
 ya quedo btw xd
 */
-import React, {useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
     StyleSheet,
@@ -23,7 +23,7 @@ import Constants from 'expo-constants';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 export default function RegisterScreen({ navigation, route }: any) {
     // Estados para los campos de texto

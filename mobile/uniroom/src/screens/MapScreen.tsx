@@ -218,9 +218,8 @@ const PROPIEDADES = [
   },
 ]
 
-const MapScreen = ({ navigation }: any) => {
+const MapScreen = ({ route, navigation }: any) => {
   const [modalVisible, setModalVisible] = useState(false)
-  const MapScreen = ({ route, navigation }: any) => {
   const [mapaListo, setMapaListo] = useState(false)
   const [cargando, setCargando] = useState(true)
   const cameraRef = useRef(null)
@@ -297,13 +296,13 @@ const MapScreen = ({ navigation }: any) => {
             </View>
           </Mapbox.PointAnnotation>
         ))}
-      </View>
+      </Mapbox.MapView>
+
       <InmuebleScreen
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         navigation={navigation}
       />
-      </Mapbox.MapView>
     </View>
   )
 }

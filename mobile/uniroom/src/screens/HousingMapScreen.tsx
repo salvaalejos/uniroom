@@ -8,7 +8,7 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import PropertyDetailModal from './PropertyDetailModal';
 import { PROPIEDADES, type Propiedad } from '../data/propiedades';
-import { getNearbyRoutesDetails, type RouteDetail } from '../services/routePlanner';
+import { getNearbyRoutesDetails, planRouteToSchool, type RouteDetail } from '../services/routePlanner';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 Mapbox.setAccessToken(MAPBOX_TOKEN!);
@@ -19,6 +19,7 @@ const TAB_BAR_HEIGHT = 70;
 const BOTTOM_SPACING = TAB_BAR_HEIGHT + 16;
 
 export default function HousingMapScreen() {
+    // ... rest of state declarations ...
   const [modo, setModo] = useState<'buscando' | 'viviendo'>('buscando');
   const [propiedadRentada, setPropiedadRentada] = useState<Propiedad | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -93,9 +94,9 @@ export default function HousingMapScreen() {
   const cargarRuta = useCallback(async (origen: { lat: number; lng: number }) => {
     setCargandoRuta(true);
     try {
-      const result = await import('../services/routePlanner').then(m => m.planRouteToSchool(origen.lat, origen.lng));
+      const result = await planRouteToSchool(origen.lat, origen.lng);
       setPlannedRoute(result);
-      const detalles = await import('../services/routePlanner').then(m => m.getNearbyRoutesDetails(origen.lat, origen.lng));
+      const detalles = await getNearbyRoutesDetails(origen.lat, origen.lng);
       setRoutesList(detalles);
     } catch (error) {
       console.error(error);

@@ -14,7 +14,7 @@ import Constants from 'expo-constants';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 type AuthenticatedUser = {
     name: string;

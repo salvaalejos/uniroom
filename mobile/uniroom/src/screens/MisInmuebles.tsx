@@ -217,11 +217,8 @@ const MisInmuebles = () => {
                                         Eliminar
                                     </Text>
                                 </TouchableOpacity>
-
                             </View>
-
                         )}
-
                     </View>
                 ))}
 
@@ -260,7 +257,6 @@ export default MisInmuebles
 // ---- Estilos ----
 
 const styles = StyleSheet.create({
-
     container: {
         flex: 1,
         backgroundColor: "#f5f7fa",
@@ -278,6 +274,7 @@ const styles = StyleSheet.create({
         shadowColor: "#000",
         shadowOpacity: 0.2,
         shadowRadius: 8,
+    },
     header: {
         marginTop: 1,
         flexDirection: "row",

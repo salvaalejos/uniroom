@@ -21,7 +21,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from "@react-navigation/stack"
 
 // agendar cita de vivienda
-import MapScreen from "./MapScreen"
 import AgendarCita from "./AgendarCita";
 // Para crear inmuebles sjkfhdsf
 import MisInmuebles from "./MisInmuebles"

@@ -1,11 +1,10 @@
 // ─ Importes ─
-import { View, Text, TextInput, Image, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions } from "react-native"
+import { View, Text, TextInput, Image, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions, Animated } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState, useRef, useEffect } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
-import { BlurView } from "expo-blur" // para que se vea bomnito
-import { Animated } from "react-native"
+import { BlurView } from "expo-blur"
 import { useNavigation } from "@react-navigation/native"
 
 // ─ Constantes ─
@@ -24,154 +23,71 @@ const COMENTARIOS_INICIALES = [
 // ─ Tipos ─
 type Comentario = { autor: string, texto: string, fecha: string }
 
-type Props = {
-    visible: boolean
-    onClose: () => void
-    navigation: any
-    inmueble?: any
-    token?: string
-}
-
 // ─ Componente ─
 const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: propInmueble, token: propToken, route }: any) => {
-
     const navigation = useNavigation<any>()
-
-const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
-    // Obtener parámetros de navegación o de props
+    const insets = useSafeAreaInsets()
+    
+    // 1. Obtener parámetros unificados
     const inmueble = route?.params?.inmueble || propInmueble
     const token = route?.params?.token || propToken
-    const visible = route?.params ? true : propVisible
-    const onClose = route?.params ? () => navigation.goBack() : propOnClose
+    const isModal = !route?.params
+    const visible = isModal ? propVisible : true
+    const onClose = isModal ? propOnClose : () => navigation.goBack()
 
-    const insets = useSafeAreaInsets()
+    // 2. Todos los Hooks de Estado y Refs al principio
+    const [favorito, setFavorito] = useState(false)
+    const [imagenActual, setImagenActual] = useState(0)
+    const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIALES)
+    const [nuevoComentario, setNuevoComentario] = useState("")
+    const [modalTarifaVisible, setModalTarifaVisible] = useState(false)
+    
     const scrollRef = useRef<ScrollView>(null)
-    const playerRef = useRef<any>(null)
+    const scrollY = useRef(new Animated.Value(0)).current
 
-    // 👇 Validación después de TODOS los hooks, pero antes de usar hooks condicionales
+    // 3. Lógica de Video
     const esVideo = inmueble?.media?.[imagenActual]?.tipo === "video"
     const videoSource = esVideo ? inmueble?.media?.[imagenActual]?.src : null
 
-    // Solo crear el player si hay video y el modal está visible
-    const player = useVideoPlayer(videoSource, player => {
-        if (player && videoSource && visible) {
-            player.loop = true
+    const player = useVideoPlayer(videoSource, p => {
+        if (p && videoSource && visible) {
+            p.loop = true
+            p.play()
         }
     })
 
-    // Limpiar player cuando se cierra el modal
     useEffect(() => {
         if (!visible && player) {
-            try {
-                player.pause()
-            } catch (e) {
-                // Ignorar error al limpiar
-            }
+            player.pause()
         }
     }, [visible, player])
 
-    // Manejar el video cuando cambia el índice
     useEffect(() => {
-        if (!visible) return
+        if (!visible || !player) return
         
-        if (esVideo && player && videoSource) {
-            try {
-                player.play()
-            } catch (e) {
-                console.log("Error al reproducir video:", e)
-            }
-        } else if (player) {
-            try {
-                player.pause()
-            } catch (e) {
-                // Ignorar
-            }
-        }
-        
-        return () => {
-            if (player) {
-                try {
-                    player.pause()
-                } catch (e) {
-                    // Ignorar
-                }
-            }
+        if (esVideo && videoSource) {
+            player.play()
+        } else {
+            player.pause()
         }
     }, [imagenActual, esVideo, player, videoSource, visible])
 
-    // Si no hay inmueble, no mostrar nada
-    if (!inmueble) return null
-
-    const scrollY = useRef(new Animated.Value(0)).current
-    // Opacity: 0 cuando está arriba, 1 cuando pasa la imagen
+    // 4. Animaciones de Header
     const headerOpacity = scrollY.interpolate({
-        inputRange: [SCREEN_HEIGHT * 0.25, SCREEN_HEIGHT * 0.35],
+        inputRange: [SCREEN_HEIGHT * 0.2, SCREEN_HEIGHT * 0.3],
         outputRange: [0, 1],
         extrapolate: "clamp"
     })
 
-    const [favorito, setFavorito] = useState(false)
-    const [imagenActual, setImagenActual] = useState(0)
-    const [miCalificacion, setMiCalificacion] = useState(0)
-    const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIALES)
-    const [nuevoComentario, setNuevoComentario] = useState("")
-    const [modalTarifaVisible, setModalTarifaVisible] = useState(false)
+    const buttonsOpacity = scrollY.interpolate({
+        inputRange: [SCREEN_HEIGHT * 0.2, SCREEN_HEIGHT * 0.3],
+        outputRange: [1, 0],
+        extrapolate: "clamp"
+    })
 
-    const agregarComentario = () => {
-        if (nuevoComentario.trim() === "") return
-        const fecha = new Date().toLocaleDateString('es-MX', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: 'numeric'
-        })
-        setComentarios([{ autor: "Tú", texto: nuevoComentario, fecha }, ...comentarios])
-        setNuevoComentario("")
-    }
+    if (!inmueble) return null
 
-    return(
-
-        <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-
-            <View style={[styles.container, { paddingTop: insets.top}]}>
-
-                {/* Header */}
-                <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
-
-                    <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill}/>
-
-                    {/* Boton de cerrar */}
-                    <TouchableOpacity style={styles.btnCerrar} onPress={onClose}>
-                        <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
-                    </TouchableOpacity>
-                    {/* Boton de favorito */}
-                    <TouchableOpacity style={styles.btnFavorito} onPress={() => setFavorito(!favorito)}>
-                        <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}/>
-                    </TouchableOpacity>
-
-                </Animated.View>
-
-                {/* Botones visibles (cuando header esta oculto) */}
-                <Animated.View style={[styles.botonesFlotantes, { opacity: headerOpacity.interpolate({inputRange: [0, 1], outputRange: [1, 0]})}]}>
-
-                    {/* Boton de cerrar */}
-                    <TouchableOpacity style={styles.btnCerrar} onPress={onClose}>
-                        <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
-                    </TouchableOpacity>
-                    {/* Boton de favorito */}
-                    <TouchableOpacity style={styles.btnFavorito} onPress={() => setFavorito(!favorito)}>
-                        <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}/>
-                    </TouchableOpacity>
-
-                </Animated.View>
-
-
-                <ScrollView bounces={false} showsVerticalScrollIndicator={false} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })} scrollEventThrottle={16}>
-
-                    {/* Galeria */}
-                    <View style={styles.galeriaContainer}>
-    const renderMedia = (item, index) => {
+    const renderMedia = (item: any, index: number) => {
         if (item.tipo === "imagen") {
             return (
                 <Image 
@@ -181,52 +97,52 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
                     resizeMode="cover"
                 />
             )
-        } else {
-            // Solo mostrar VideoView si el video es el actual y es visible
-            if (index === imagenActual && visible && videoSource) {
-                return (
-                    <VideoView
-                        key={index}
-                        player={player}
-                        style={styles.imagenPrincipal}
-                        contentFit="cover"
-                        nativeControls
-                    />
-                )
-            } else {
-                // Placeholder mientras no está activo
-                return (
-                    <View key={index} style={[styles.imagenPrincipal, styles.videoPlaceholder]}>
-                        <MaterialCommunityIcons name="play-circle" size={50} color="#fff" />
-                        <Text style={styles.videoPlaceholderText}>Video preview</Text>
-                    </View>
-                )
-            }
         }
+        
+        return (
+            <View key={index} style={styles.imagenPrincipal}>
+                <View style={[StyleSheet.absoluteFill, styles.videoPlaceholder]}>
+                    <MaterialCommunityIcons name="play-circle" size={80} color="rgba(255,255,255,0.8)" />
+                    <Text style={{ color: '#fff', marginTop: 10, fontWeight: '600' }}>Vista previa de video</Text>
+                </View>
+            </View>
+        )
     }
 
-    return(
+    const content = (
         <View style={styles.container}>
-            {/* Botones estáticos superiores */}
-            <TouchableOpacity 
-                style={[styles.btnCerrar, { top: insets.top + 16 }]} 
-                onPress={onClose}
-            >
-                <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
-            </TouchableOpacity>
+            {/* Header Animado (Fondo Blur) */}
+            <Animated.View style={[styles.header, { opacity: headerOpacity, paddingTop: insets.top + 10 }]}>
+                <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill}/>
+                <Text style={styles.headerTitle} numberOfLines={1}>{inmueble.titulo}</Text>
+            </Animated.View>
 
-            <TouchableOpacity 
-                style={[styles.btnFavorito, { top: insets.top + 16 }]} 
-                onPress={() => setFavorito(!favorito)}
-            >
-                <MaterialCommunityIcons 
-                    name={favorito ? "heart" : "heart-outline"} 
-                    size={26} 
-                    color={favorito ? "#e74c3c" : "#1a1a2e"}
-                />
-            </TouchableOpacity>
+            {/* Botones Flotantes Superiores */}
+            <Animated.View style={[styles.botonesFlotantes, { top: insets.top + 10, opacity: buttonsOpacity }]}>
+                <TouchableOpacity style={styles.btnFlotante} onPress={onClose}>
+                    <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.btnFlotante} onPress={() => setFavorito(!favorito)}>
+                    <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}/>
+                </TouchableOpacity>
+            </Animated.View>
 
-            <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+            {/* Botones fijados para cuando el header es visible */}
+            <Animated.View style={[styles.botonesFlotantes, { top: insets.top + 10, opacity: headerOpacity, zIndex: 20 }]}>
+                <TouchableOpacity style={styles.btnCerrarHeader} onPress={onClose}>
+                    <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.btnFavoritoHeader} onPress={() => setFavorito(!favorito)}>
+                    <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}/>
+                </TouchableOpacity>
+            </Animated.View>
+
+            <ScrollView 
+                bounces={false} 
+                showsVerticalScrollIndicator={false}
+                onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+                scrollEventThrottle={16}
+            >
                 {/* Galeria */}
                 <View style={styles.galeriaContainer}>
                     <ScrollView 
@@ -235,17 +151,17 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
                         pagingEnabled 
                         showsHorizontalScrollIndicator={false} 
                         onMomentumScrollEnd={(e) => {
-                            const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width)
+                            const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
                             setImagenActual(index)
                         }}
                     >
-                        {inmueble.media?.map((item, i) => renderMedia(item, i))}
+                        {inmueble.media?.map((item: any, i: number) => renderMedia(item, i))}
                     </ScrollView>
 
                     {/* Miniaturas */}
                     {inmueble.media?.length > 1 && (
                         <View style={styles.miniaturas}>
-                            {inmueble.media.map((item, i) => (
+                            {inmueble.media.map((item: any, i: number) => (
                                 <TouchableOpacity key={i} onPress={() => {
                                     setImagenActual(i)
                                     scrollRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true })
@@ -254,7 +170,7 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
                                         <Image source={item.src} style={[styles.miniatura, imagenActual === i && styles.miniaturaActiva]}/>
                                     ) : (
                                         <View style={[styles.miniatura, styles.miniaturaVideo, imagenActual === i && styles.miniaturaActiva]}>
-                                            <MaterialCommunityIcons name="play-circle" size={28} color="#fff"/>
+                                            <MaterialCommunityIcons name="play-circle" size={24} color="#fff"/>
                                         </View>
                                     )}
                                 </TouchableOpacity>
@@ -265,37 +181,19 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
 
                 {/* Informacion Principal */}
                 <View style={styles.info}>
-                    {/* Titulo */}
                     <Text style={styles.titulo}>{inmueble.titulo}</Text>
                     
-                    {/* Calificaciones */}
                     <View style={styles.calificacionContainer}>
                         <View style={styles.calificacionItem}>
-                            <Text style={styles.calificacionNumero}>{inmueble.calificacion} <MaterialCommunityIcons
-                                            name={"star"}
-                                            size={25}
-                                            color="#f39c12"/></Text>
-                            {/* <View style={styles.estrellas}>
-                                {[1, 2, 3, 4, 5].map((i)=>(
-                                    <TouchableOpacity key={i} onPress={() => setMiCalificacion(i)}>
-                                        <MaterialCommunityIcons
-                                            name={i <= miCalificacion ? "star" : "star-outline"}
-                                            size={25}
-                                            color="#f39c12"/>
-                                    </TouchableOpacity>
-                                ))}
-                            </View> */}
-                        </View>
-
-                        <View style={styles.calificacionItem}>
-                            <Text style={styles.calificacionNumero}>{inmueble.opiniones}</Text>
-                            <Text style={styles.opinionesLabel}>opiniones</Text>
+                            <Text style={styles.calificacionNumero}>
+                                {inmueble.calificacion} <MaterialCommunityIcons name="star" size={22} color="#f39c12"/>
+                            </Text>
+                            <Text style={styles.opinionesLabel}>{inmueble.opiniones} opiniones</Text>
                         </View>
                     </View>
 
                     <View style={styles.divider}/>
 
-                    {/* Anfitrion */}
                     <View style={styles.anfitrionRow}>
                         <Image source={ANFITRION} style={styles.avatarImagen}/>
                         <View>
@@ -306,7 +204,6 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
 
                     <View style={styles.divider}/>
 
-                    {/* Ubicacion */}
                     <View style={styles.seccion}>
                         <MaterialCommunityIcons name="map-marker" size={18} color="#205EA6" />
                         <Text style={styles.seccionTexto}>{inmueble.ubicacion}</Text>
@@ -314,46 +211,13 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
 
                     <View style={styles.divider}/>
 
-                    {/* Descripción */}
                     <Text style={styles.descripcion}>{inmueble.descripcion}</Text>
                     
                     <View style={styles.divider}/>
 
-                        {/* Tipo */}
-                        <Text style={styles.subtitulo}>Tipo de vivienda</Text>
-                        <View style={styles.tags}>
-                                <View style={styles.tag}>
-                                    <Text style={styles.tagTexto}>Casa</Text>
-                                </View>
-                        </View>
-
-                        <View style={styles.divider}/>
-
-                        {/* Servicios */}
-                        <Text style={styles.subtitulo}>Servicios incluidos</Text>
-                        <View style={styles.tags}>
-                            {PROPIEDAD.servicios.map((s, i) => (
-                                <View key={i} style={styles.tag}>
-                                    <Text style={styles.tagTexto}>{s}</Text>
-                                </View>
-                            ))}
-                        </View>
-                        
-                        <View style={styles.divider}/>
-
-                        {/* Reglas */}
-                        <Text style={styles.subtitulo}>Reglas de la vivienda</Text>
-                        <View style={styles.tags}>
-                            {PROPIEDAD.reglas.map((r, i) => (
-                                <View key={i} style={[styles.tag, styles.tagRegla]}>
-                                    <Text style={[styles.tagTexto, styles.tagTextoRegla]}>{r}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    {/* Servicios */}
                     <Text style={styles.subtitulo}>Servicios incluidos</Text>
                     <View style={styles.tags}>
-                        {inmueble.servicios?.map((s, i) => (
+                        {inmueble.servicios?.map((s: string, i: number) => (
                             <View key={i} style={styles.tag}>
                                 <Text style={styles.tagTexto}>{s}</Text>
                             </View>
@@ -362,70 +226,23 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
                     
                     <View style={styles.divider}/>
 
-                    {/* Reglas */}
                     <Text style={styles.subtitulo}>Reglas de la casa</Text>
                     <View style={styles.tags}>
-                        {inmueble.reglas?.map((r, i) => (
+                        {inmueble.reglas?.map((r: string, i: number) => (
                             <View key={i} style={[styles.tag, styles.tagRegla]}>
                                 <Text style={[styles.tagTexto, styles.tagTextoRegla]}>{r}</Text>
                             </View>
                         ))}
                     </View>
 
-                    <View style={styles.divider}/>
-
-                    {/* Nuevo comentario */}
-                    {/* <View style={styles.inputComentarioContainer}>
-                        <TextInput
-                            style={styles.inputComentario}
-                            placeholder="Escribe tu comentario..."
-                            placeholderTextColor="#aaa"
-                            value={nuevoComentario}
-                            onChangeText={setNuevoComentario}
-                            multiline/>
-                        <TouchableOpacity style={styles.btnEnviar} onPress={agregarComentario}>
-                            <MaterialCommunityIcons name="send" size={20} color="#fff"/>
-                        </TouchableOpacity>
-                    </View> */}
-
-                    {/* Comentarios */}
-                    {/* {comentarios.map((c, i) => (
-                        <View key={i} style={styles.comentario}>
-                            <Image source={ANFITRION} style={styles.comentarioAvatar}/>
-                            <View style={{flex: 1}}>
-                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                                    <Text style={styles.comentarioAutor}>{c.autor}</Text>
-                                    <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
-                                </View>
-                                <Text style={styles.comentarioTexto}>{c.texto}</Text>
-                            </View>
-                        ))}
-                    </View>
-
-                </ScrollView>
-
-                {/* Footer */}
-                <View style={styles.footer}>
-                    <View>
-                        <Text style={styles.footerPrecio}>${PROPIEDAD.precio.toLocaleString('es-MX')}</Text>
-                        <Text style={styles.footerMes}>/ mes</Text>
-                    </View>
-
-                    <TouchableOpacity
-                        style={styles.btnContacto}
-                        onPress={() => {
-                            onClose()
-                            navigation.navigate("AgendarCita")}}>
-                        <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
-                        <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
-                    </TouchableOpacity>
+                    <View style={{ height: 100 }} />
                 </View>
             </ScrollView>
 
             {/* Footer */}
-            <View style={styles.footer}>
+            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
                 <View>
-                    <Text style={styles.footerPrecio}>${inmueble.precio.toLocaleString('es-MX')}</Text>
+                    <Text style={styles.footerPrecio}>${inmueble.precio?.toLocaleString('es-MX')}</Text>
                     <Text style={styles.footerMes}>/ mes</Text>
                 </View>
                 <TouchableOpacity style={styles.btnContacto} onPress={() => setModalTarifaVisible(true)}>
@@ -434,7 +251,7 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
                 </TouchableOpacity>
             </View>
 
-            {/* Modal de Tarifa de Servicio (Mantenemos este como modal interno) */}
+            {/* Modal de Tarifa */}
             <Modal visible={modalTarifaVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
@@ -447,7 +264,7 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
                             style={styles.btnPagar} 
                             onPress={() => {
                                 setModalTarifaVisible(false);
-                                navigation.navigate("PaymentScreen", { token: token }); // Redirige a la pantalla de pagos
+                                navigation.navigate("PaymentScreen", { token: token });
                             }}
                         >
                             <Text style={styles.btnPagarTexto}>Entendido, proceder al pago</Text>
@@ -460,92 +277,95 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
             </Modal>
         </View>
     )
+
+    if (isModal) {
+        return (
+            <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+                {content}
+            </Modal>
+        )
+    }
+
+    return content
 }
 
 export default InmuebleScreen
 
-// ─ Estilos ─
 const styles = StyleSheet.create({
-
+    container: {
+        flex: 1,
+        backgroundColor: "#fff",
+    },
     header: {
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 10,
+        zIndex: 15,
+        height: 100,
         flexDirection: "row",
         alignItems: "center",
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        paddingTop: 65,
-        overflow: "hidden",
+        justifyContent: "center",
+        paddingHorizontal: 60,
+    },
+    headerTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#1a1a2e",
     },
     botonesFlotantes: {
         position: "absolute",
-        top: 0,
         left: 0,
         right: 0,
-        zIndex: 10,
+        zIndex: 20,
         flexDirection: "row",
         justifyContent: "space-between",
+        paddingHorizontal: 16,
     },
-    container: {
-        flex: 1,
-        backgroundColor: "#fff",
+    btnFlotante: {
+        backgroundColor: "rgba(255,255,255,0.9)",
+        borderRadius: 20,
+        padding: 8,
+        elevation: 4,
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    btnCerrarHeader: {
+        padding: 8,
+    },
+    btnFavoritoHeader: {
+        padding: 8,
     },
     galeriaContainer: {
-        position: "relative",
+        width: SCREEN_WIDTH,
+        height: SCREEN_HEIGHT * 0.4,
     },
     imagenPrincipal: {
         width: SCREEN_WIDTH,
-        height: SCREEN_HEIGHT * 0.38,
-        resizeMode: "cover",
+        height: SCREEN_HEIGHT * 0.4,
+        backgroundColor: "#eee",
     },
     videoPlaceholder: {
         backgroundColor: "#1a1a2e",
         justifyContent: "center",
         alignItems: "center",
     },
-    videoPlaceholderText: {
-        color: "#fff",
-        marginTop: 10,
-        fontSize: 12,
-    },
-    btnCerrar: {
-        position: "absolute",
-        left: 16,
-        backgroundColor: "#fff",
-        borderRadius: 20,
-        padding: 6,
-        elevation: 5,
-        zIndex: 10,
-        shadowColor: "#000",
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-    },
-    btnFavorito: {
-        position: "absolute",
-        right: 16,
-        backgroundColor: "#fff",
-        borderRadius: 20,
-        padding: 6,
-        elevation: 5,
-        zIndex: 10,
-        shadowColor: "#000",
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-    },
     miniaturas: {
         flexDirection: "row",
+        position: "absolute",
+        bottom: 15,
+        alignSelf: "center",
+        backgroundColor: "rgba(255,255,255,0.7)",
+        padding: 6,
+        borderRadius: 12,
         gap: 8,
-        padding: 12,
-        backgroundColor: "#f5f5f5",
     },
     miniatura: {
-        width: 60,
-        height: 50,
-        borderRadius: 8,
-        opacity: 0.6,
+        width: 40,
+        height: 30,
+        borderRadius: 4,
+        opacity: 0.5,
     },
     miniaturaVideo: {
         backgroundColor: "#1a1a2e",
@@ -554,46 +374,46 @@ const styles = StyleSheet.create({
     },
     miniaturaActiva: {
         opacity: 1,
-        borderWidth: 2,
+        borderWidth: 1.5,
         borderColor: "#205EA6",
-        borderRadius: 8,
     },
     info: {
         padding: 20,
+        backgroundColor: "#fff",
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        marginTop: -20,
     },
     titulo: {
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: "800",
         color: "#1a1a2e",
-        marginBottom: 8,
+        marginBottom: 10,
     },
     calificacionContainer: {
         flexDirection: "row",
-        justifyContent: "space-around",
         alignItems: "center",
-        paddingVertical: 8,
+        marginBottom: 10,
     },
     calificacionItem: {
+        flexDirection: "row",
         alignItems: "center",
-        gap: 4,
+        gap: 8,
     },
     calificacionNumero: {
-        fontSize: 26,
-        fontWeight: "800",
+        fontSize: 20,
+        fontWeight: "700",
         color: "#1a1a2e",
-    },
-    estrellas: {
-        flexDirection: "row",
-        gap: 2,
     },
     opinionesLabel: {
         fontSize: 14,
-        color: "#1a1a2e",
+        color: "#666",
+        textDecorationLine: "underline",
     },
     divider: {
         height: 1,
-        backgroundColor: "#eee",
-        marginVertical: 16,
+        backgroundColor: "#f0f0f0",
+        marginVertical: 20,
     },
     anfitrionRow: {
         flexDirection: "row",
@@ -601,40 +421,39 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     avatarImagen: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
     },
     anfitrionLabel: {
         fontSize: 12,
         color: "#888",
     },
     anfitrionNombre: {
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: "700",
         color: "#1a1a2e",
     },
     seccion: {
         flexDirection: "row",
-        gap: 8,
-        alignItems: "flex-start",
+        gap: 10,
     },
     seccionTexto: {
         flex: 1,
-        fontSize: 14,
+        fontSize: 15,
         color: "#444",
-        lineHeight: 20,
-    },
-    descripcion: {
-        fontSize: 14,
-        color: "#555",
         lineHeight: 22,
     },
+    descripcion: {
+        fontSize: 15,
+        color: "#555",
+        lineHeight: 24,
+    },
     subtitulo: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: "700",
         color: "#1a1a2e",
-        marginBottom: 10,
+        marginBottom: 12,
     },
     tags: {
         flexDirection: "row",
@@ -642,13 +461,13 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     tag: {
-        backgroundColor: "#EEF4FF",
+        backgroundColor: "#F0F4F8",
         borderRadius: 20,
-        paddingVertical: 6,
-        paddingHorizontal: 14,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
     },
     tagTexto: {
-        fontSize: 13,
+        fontSize: 14,
         color: "#205EA6",
         fontWeight: "600",
     },
@@ -658,59 +477,22 @@ const styles = StyleSheet.create({
     tagTextoRegla: {
         color: "#b83e31",
     },
-    inputComentarioContainer: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        gap: 10,
-        marginBottom: 20,
-    },
-    inputComentario: {
-        flex: 1,
-        backgroundColor: "#f5f5f5",
-        borderRadius: 12,
-        padding: 12,
-        fontSize: 14,
-        color: "#1a1a2e",
-    },
-    btnEnviar: {
-        backgroundColor: "#205EA6",
-        borderRadius: 25,
-        padding: 15,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    comentario: {
-        flexDirection: "row",
-        gap: 10,
-        marginBottom: 20,
-        alignItems: "flex-start",
-    },
-    comentarioAvatar: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-    },
-    comentarioAutor: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#1a1a2e",
-    },
-    comentarioTexto: {
-        fontSize: 14,
-        color: "#666",
-        marginTop: 2,
-    },
     footer: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 16,
+        paddingHorizontal: 20,
+        paddingTop: 15,
         borderTopWidth: 1,
-        borderTopColor: "#eee",
+        borderTopColor: "#f0f0f0",
         backgroundColor: "#fff",
     },
     footerPrecio: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: "800",
         color: "#1a1a2e",
     },
@@ -721,40 +503,36 @@ const styles = StyleSheet.create({
     btnContacto: {
         flexDirection: "row",
         backgroundColor: "#205EA6",
-        borderRadius: 24,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
+        borderRadius: 25,
+        paddingVertical: 14,
+        paddingHorizontal: 28,
         alignItems: "center",
         gap: 8,
+        elevation: 4,
     },
     btnContactoTexto: {
         color: "#fff",
         fontWeight: "700",
-        fontSize: 15,
+        fontSize: 16,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(0,0,0,0.5)",
+        backgroundColor: "rgba(0,0,0,0.6)",
         justifyContent: "center",
         alignItems: "center",
         padding: 24,
     },
     modalCard: {
         backgroundColor: "#fff",
-        borderRadius: 24,
-        padding: 32,
+        borderRadius: 28,
+        padding: 30,
         alignItems: "center",
         width: "100%",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 20,
-        elevation: 10,
     },
     modalTitle: {
         fontSize: 22,
         fontWeight: "bold",
-        color: "#0F2C4F",
+        color: "#1a1a2e",
         marginBottom: 12,
     },
     modalText: {
@@ -768,9 +546,9 @@ const styles = StyleSheet.create({
         backgroundColor: "#205EA6",
         width: "100%",
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 14,
         alignItems: "center",
-        marginBottom: 12,
+        marginBottom: 10,
     },
     btnPagarTexto: {
         color: "#fff",
@@ -778,11 +556,10 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     btnCancelar: {
-        padding: 12,
+        padding: 10,
     },
     btnCancelarTexto: {
-        color: "#888",
+        color: "#999",
         fontWeight: "600",
-        fontSize: 15,
     }
 })
