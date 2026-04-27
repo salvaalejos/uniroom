@@ -9,7 +9,9 @@ import {
     TouchableOpacity,
     SafeAreaView,
     Alert,
-    ActivityIndicator
+    ActivityIndicator,
+    Modal,
+    FlatList
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -21,6 +23,10 @@ const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000
 export default function ProfileScreen({ navigation, route }: any) {
     const [userData, setUserData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [showTransactions, setShowTransactions] = useState(false);
+    const [loadingTransactions, setLoadingTransactions] = useState(false);
+
     const userId = route.params?.userId;
     const token = route.params?.token;
     console.log(userId)
@@ -43,6 +49,24 @@ export default function ProfileScreen({ navigation, route }: any) {
         })
     );
     }
+
+    const fetchTransactions = async () => {
+        try {
+            setLoadingTransactions(true);
+            setShowTransactions(true);
+            const response = await fetch(`${API_BASE_URL}/users/${userId}/transactions`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setTransactions(data);
+            }
+        } catch (error) {
+            Alert.alert("Error", "No se pudo cargar el historial.");
+        } finally {
+            setLoadingTransactions(false);
+        }
+    };
 
     const getUserData = async () => {
         try {
@@ -145,6 +169,15 @@ export default function ProfileScreen({ navigation, route }: any) {
                     <MaterialCommunityIcons name='format-paint' size={24} color={"#FFFFFF"}/>
                     <Text style={styles.editButtonText}>Temas de colores (Pendiente) </Text>
                 </TouchableOpacity> */}
+
+                <TouchableOpacity 
+                    style={styles.editButton}
+                    onPress={fetchTransactions}
+                >
+                    <MaterialCommunityIcons name="receipt" size={24} color="#FFFFFF" />
+                    <Text style={styles.editButtonText}>Historial de Pagos</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity 
                     style={styles.editButton}>
                     <MaterialCommunityIcons name="star" size={24} color="#FFFFFF" />
@@ -157,6 +190,62 @@ export default function ProfileScreen({ navigation, route }: any) {
                     <Text style={styles.editButtonText}>Cerrar Sesión</Text>
                 </TouchableOpacity>
             </ScrollView>
+
+            {/* Modal de Historial de Transacciones */}
+            <Modal
+                visible={showTransactions}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowTransactions(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Historial de Pagos</Text>
+                            <TouchableOpacity onPress={() => setShowTransactions(false)}>
+                                <MaterialCommunityIcons name="close" size={24} color="#0F2C4F" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        {loadingTransactions ? (
+                            <ActivityIndicator size="large" color="#205EA6" style={{ margin: 20 }} />
+                        ) : transactions.length === 0 ? (
+                            <Text style={styles.noTransactionsText}>No tienes transacciones registradas.</Text>
+                        ) : (
+                            <FlatList
+                                data={transactions}
+                                keyExtractor={(item) => item.id_transaccion}
+                                showsVerticalScrollIndicator={false}
+                                renderItem={({ item }) => (
+                                    <View style={styles.transactionCard}>
+                                        <View style={styles.transactionHeader}>
+                                            <Text style={styles.transactionDate}>
+                                                {new Date(item.fecha_creacion).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                            </Text>
+                                            <View style={[
+                                                styles.statusBadge, 
+                                                { backgroundColor: item.estado === 'approved' ? '#EAFAF1' : '#FDEDEC' }
+                                            ]}>
+                                                <Text style={[
+                                                    styles.statusText,
+                                                    { color: item.estado === 'approved' ? '#27AE60' : '#E74C3C' }
+                                                ]}>
+                                                    {item.estado === 'approved' ? 'Aprobado' : item.estado}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <Text style={styles.transactionAmount}>${parseFloat(item.monto).toFixed(2)} MXN</Text>
+                                        <Text style={styles.transactionDesc}>{item.descripcion}</Text>
+                                        {item.payment_id && (
+                                            <Text style={styles.transactionId}>MP ID: {item.payment_id}</Text>
+                                        )}
+                                    </View>
+                                )}
+                            />
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -269,4 +358,78 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginLeft: 10,
     },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 25,
+        borderTopRightRadius: 25,
+        height: '70%',
+        padding: 20,
+        paddingBottom: 40,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#0F2C4F',
+    },
+    noTransactionsText: {
+        textAlign: 'center',
+        color: '#7F8C8D',
+        marginTop: 30,
+        fontSize: 16,
+    },
+    transactionCard: {
+        backgroundColor: '#F8F9F9',
+        padding: 15,
+        borderRadius: 12,
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: '#EAECEE',
+    },
+    transactionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    transactionDate: {
+        color: '#7F8C8D',
+        fontSize: 14,
+        textTransform: 'capitalize',
+    },
+    statusBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    statusText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+    },
+    transactionAmount: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#0F2C4F',
+        marginBottom: 5,
+    },
+    transactionDesc: {
+        fontSize: 14,
+        color: '#2E4053',
+        marginBottom: 5,
+    },
+    transactionId: {
+        fontSize: 12,
+        color: '#95A5A6',
+    }
 });
