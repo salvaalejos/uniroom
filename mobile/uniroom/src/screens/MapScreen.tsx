@@ -1,6 +1,6 @@
 import { View, Image, StyleSheet, TouchableOpacity, Text, Dimensions } from "react-native"
 import { useState } from "react"
-import InmuebleScreen from "./InmuebleScreen" // ajusta el path si es diferente
+import InmuebleScreen from "./InmuebleScreen"
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const MAP_SIZE = SCREEN_WIDTH
@@ -18,7 +18,7 @@ const PROPIEDADES = [
   { id: 10, precio: 2900, x: 0.60, y: 0.78 },
 ]
 
-const MapScreen = () => {
+const MapScreen = ({ navigation }: any) => {
   const [modalVisible, setModalVisible] = useState(false)
 
   return (
@@ -48,6 +48,7 @@ const MapScreen = () => {
       <InmuebleScreen
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
+        navigation={navigation}
       />
     </View>
   )

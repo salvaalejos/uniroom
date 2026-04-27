@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState, useRef } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
-
+import { BlurView } from "expo-blur" // para que se vea bomnito
+import { Animated } from "react-native"
 
 // ─ Constantes ─
 
@@ -47,15 +48,24 @@ type Comentario = { autor: string, texto: string, fecha: string }
 type Props = {
     visible: boolean
     onClose: () => void
+    navigation: any
 }
 
 
 // ─ Componente ─ ฅ^•ﻌ•^ฅ hola guapuritas
 
-const InmuebleScreen = ({ visible, onClose }: Props) => {
+const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
 
     const insets = useSafeAreaInsets()
     const scrollRef = useRef<ScrollView>(null)
+
+    const scrollY = useRef(new Animated.Value(0)).current
+    // Opacity: 0 cuando está arriba, 1 cuando pasa la imagen
+    const headerOpacity = scrollY.interpolate({
+        inputRange: [SCREEN_HEIGHT * 0.25, SCREEN_HEIGHT * 0.35],
+        outputRange: [0, 1],
+        extrapolate: "clamp"
+    })
 
     const [favorito, setFavorito] = useState(false)
     const [imagenActual, setImagenActual] = useState(0)
@@ -87,7 +97,38 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
 
             <View style={[styles.container, { paddingTop: insets.top}]}>
 
-                <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+                {/* Header */}
+                <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
+
+                    <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill}/>
+
+                    {/* Boton de cerrar */}
+                    <TouchableOpacity style={styles.btnCerrar} onPress={onClose}>
+                        <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
+                    </TouchableOpacity>
+                    {/* Boton de favorito */}
+                    <TouchableOpacity style={styles.btnFavorito} onPress={() => setFavorito(!favorito)}>
+                        <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}/>
+                    </TouchableOpacity>
+
+                </Animated.View>
+
+                {/* Botones visibles (cuando header esta oculto) */}
+                <Animated.View style={[styles.botonesFlotantes, { opacity: headerOpacity.interpolate({inputRange: [0, 1], outputRange: [1, 0]})}]}>
+
+                    {/* Boton de cerrar */}
+                    <TouchableOpacity style={styles.btnCerrar} onPress={onClose}>
+                        <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
+                    </TouchableOpacity>
+                    {/* Boton de favorito */}
+                    <TouchableOpacity style={styles.btnFavorito} onPress={() => setFavorito(!favorito)}>
+                        <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}/>
+                    </TouchableOpacity>
+
+                </Animated.View>
+
+
+                <ScrollView bounces={false} showsVerticalScrollIndicator={false} onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })} scrollEventThrottle={16}>
 
                     {/* Galeria */}
                     <View style={styles.galeriaContainer}>
@@ -110,16 +151,7 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                             ))}
                         </ScrollView>
 
-                        {/* Boton de cerrar */}
-                        <TouchableOpacity style={styles.btnCerrar} onPress={onClose}>
-                            <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
-                        </TouchableOpacity>
-
-                        {/* Boton de favorito */}
-                        <TouchableOpacity style={styles.btnFavorito} onPress={() => setFavorito(!favorito)}>
-                            <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}
-                            />
-                        </TouchableOpacity>
+                        
 
                         {/* Miniautas */}
                         <View style={styles.miniaturas}>
@@ -197,6 +229,16 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                         
                         <View style={styles.divider}/>
 
+                        {/* Tipo */}
+                        <Text style={styles.subtitulo}>Tipo de vivienda</Text>
+                        <View style={styles.tags}>
+                                <View style={styles.tag}>
+                                    <Text style={styles.tagTexto}>Casa</Text>
+                                </View>
+                        </View>
+
+                        <View style={styles.divider}/>
+
                         {/* Servicios */}
                         <Text style={styles.subtitulo}>Servicios incluidos</Text>
                         <View style={styles.tags}>
@@ -210,7 +252,7 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                         <View style={styles.divider}/>
 
                         {/* Reglas */}
-                        <Text style={styles.subtitulo}>Reglas de la casa</Text>
+                        <Text style={styles.subtitulo}>Reglas de la vivienda</Text>
                         <View style={styles.tags}>
                             {PROPIEDAD.reglas.map((r, i) => (
                                 <View key={i} style={[styles.tag, styles.tagRegla]}>
@@ -263,9 +305,14 @@ const InmuebleScreen = ({ visible, onClose }: Props) => {
                         <Text style={styles.footerPrecio}>${PROPIEDAD.precio.toLocaleString('es-MX')}</Text>
                         <Text style={styles.footerMes}>/ mes</Text>
                     </View>
-                    <TouchableOpacity style={styles.btnContacto}>
+
+                    <TouchableOpacity
+                        style={styles.btnContacto}
+                        onPress={() => {
+                            onClose()
+                            navigation.navigate("AgendarCita")}}>
                         <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
-                        <Text style={styles.btnContactoTexto}>Contactar</Text>
+                        <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -281,6 +328,28 @@ export default InmuebleScreen
 
 const styles = StyleSheet.create({
 
+    header: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        paddingTop: 65,
+        overflow: "hidden",
+    },
+    botonesFlotantes: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        flexDirection: "row",
+        justifyContent: "space-between",
+    },
     container: {
         flex: 1,
         backgroundColor: "#fff",

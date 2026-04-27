@@ -5,6 +5,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Video, ResizeMode } from 'expo-av' // npx expo install expo-av
+import { Calendar } from 'react-native-calendars'
 
 // ─── Constantes ───
 
@@ -13,12 +14,18 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window')
 // servicios provicionales skhfjsdfd
 const SERVICIOS_OPCIONES = ["WiFi", "Agua", "Luz", "Gas", "Lavadora", "Estacionamiento", "Amueblado"]
 const REGLAS_OPCIONES = ["No mascotas", "No fumar", "No fiestas", "Solo estudiantes", "No visitas"]
+const TIPOS_INMUEBLE = ["Cuarto", "Departamento", "Casa", "Estudio", "Loft"]
 
 // ─── Tipos ───
 
 type Media = {
     uri: string
     tipo: "foto" | "video"
+}
+
+type HorarioVisita = {
+    fecha: string
+    horas: string[]
 }
 
 type Formulario = {
@@ -30,6 +37,10 @@ type Formulario = {
     reglas: string[]
     medios: Media[]
     estado: "pendiente" | "publicado"
+    tipoInmueble: string
+    latitud: string
+    longitud: string
+    horariosVisita: HorarioVisita[]
 }
 
 // ─── Componente ───
@@ -51,10 +62,17 @@ const Lessor_Renthouse = () => {
         servicios: inmuebleExistente?.servicios ?? [],
         reglas: inmuebleExistente?.reglas ?? [],
         medios: inmuebleExistente?.foto ? [{ uri: inmuebleExistente.foto, tipo: "foto" }] : [],
-        estado: inmuebleExistente?.estado ?? "pendiente"
+        estado: inmuebleExistente?.estado ?? "pendiente",
+        tipoInmueble: inmuebleExistente?.tipo_inmueble ?? "",
+        latitud: inmuebleExistente?.direccion_latitud?.toString() ?? "19.7060",
+        longitud: inmuebleExistente?.direccion_longitud?.toString() ?? "-101.1950",
+        horariosVisita: [],
     })
 
     const [previsualizando, setPrevisualizando] = useState(false)
+    const [modalFechas, setModalFechas] = useState(false)
+    const [fechaActivaVisita, setFechaActivaVisita] = useState<string | null>(null)
+    const [nuevaHora, setNuevaHora] = useState("")
 
     // ── Fotos ──
     const agregarMedia = async (tipo: "foto" | "video") => {
@@ -89,6 +107,49 @@ const Lessor_Renthouse = () => {
         }))
     }
 
+    const agregarFechaVisita = (dateString: string) => {
+        setFechaActivaVisita(dateString)
+        const yaExiste = form.horariosVisita.find(h => h.fecha === dateString)
+        if (!yaExiste) {
+            setForm(f => ({
+                ...f,
+                horariosVisita: [...f.horariosVisita, { fecha: dateString, horas: [] }]
+            }))
+        }
+    }
+
+    const agregarHoraAFecha = (fecha: string, hora: string) => {
+        if (!hora.match(/^\d{2}:\d{2}$/)) return
+        setForm(f => ({
+            ...f,
+            horariosVisita: f.horariosVisita.map(h =>
+                h.fecha === fecha && !h.horas.includes(hora)
+                    ? { ...h, horas: [...h.horas, hora].sort() }
+                    : h
+            )
+        }))
+        setNuevaHora("")
+    }
+
+    const eliminarHora = (fecha: string, hora: string) => {
+        setForm(f => ({
+            ...f,
+            horariosVisita: f.horariosVisita.map(h =>
+                h.fecha === fecha
+                    ? { ...h, horas: h.horas.filter(hr => hr !== hora) }
+                    : h
+            ).filter(h => !(h.fecha === fecha && h.horas.length === 0) || fechaActivaVisita === fecha)
+        }))
+    }
+
+    const eliminarFechaVisita = (fecha: string) => {
+        setForm(f => ({
+            ...f,
+            horariosVisita: f.horariosVisita.filter(h => h.fecha !== fecha)
+        }))
+        if (fechaActivaVisita === fecha) setFechaActivaVisita(null)
+    }
+
     // ── Validación ──
     const formularioValido = () => {
         return form.titulo.trim() !== "" &&
@@ -99,7 +160,7 @@ const Lessor_Renthouse = () => {
     }
 
     const publicar = () => {
-        // aquí después se conecta a la API
+        // aquí despues se conecta a la API dfbvgdfb
         Alert.alert(
             esEdicion ? "¡Cambios guardados!" : "¡Listo!",
             esEdicion ? "Tu inmueble fue actualizado." : "Tu propiedad fue enviada y está en revisión.",
@@ -184,7 +245,26 @@ const Lessor_Renthouse = () => {
                 />
             </View>
 
-            {/* ── Ubicación ── */}
+            {/* ── Tipo de inmueble ── */}
+            <View style={styles.seccion}>
+                <Text style={styles.label}>Tipo de inmueble <Text style={styles.requerido}>*</Text></Text>
+                <View style={styles.chips}>
+                    {TIPOS_INMUEBLE.map(tipo => {
+                        const activo = form.tipoInmueble === tipo
+                        return (
+                            <TouchableOpacity
+                                key={tipo}
+                                style={[styles.chip, activo && styles.chipActivo]}
+                                onPress={() => setForm(f => ({ ...f, tipoInmueble: tipo }))}
+                            >
+                                <Text style={[styles.chipTextoServicio, activo && styles.chipTextoActivo]}>{tipo}</Text>
+                            </TouchableOpacity>
+                        )
+                    })}
+                </View>
+            </View>
+
+            {/* ── Ubicación (mapa simulado) ── */}
             <View style={styles.seccion}>
                 <Text style={styles.label}>Ubicación <Text style={styles.requerido}>*</Text></Text>
                 <TextInput
@@ -194,6 +274,30 @@ const Lessor_Renthouse = () => {
                     value={form.ubicacion}
                     onChangeText={v => setForm(f => ({ ...f, ubicacion: v }))}
                 />
+                {/* Mapa simulado */}
+                <View style={styles.mapaContainer}>
+                    <View style={styles.mapaFondo}>
+                        {/* Cuadrícula simulada */}
+                        {[...Array(5)].map((_, i) => (
+                            <View key={`h${i}`} style={[styles.mapaLinea, styles.mapaLineaH, { top: `${20 * i}%` }]} />
+                        ))}
+                        {[...Array(5)].map((_, i) => (
+                            <View key={`v${i}`} style={[styles.mapaLinea, styles.mapaLineaV, { left: `${20 * i}%` }]} />
+                        ))}
+                        {/* Pin central */}
+                        <View style={styles.mapaPinWrapper}>
+                            <MaterialCommunityIcons name="map-marker" size={36} color="#205EA6" />
+                            <View style={styles.mapaPinSombra} />
+                        </View>
+                    </View>
+                    <View style={styles.mapaCoordsRow}>
+                        <MaterialCommunityIcons name="crosshairs-gps" size={14} color="#205EA6" />
+                        <Text style={styles.mapaCoordsTexto}>
+                            {parseFloat(form.latitud).toFixed(4)}, {parseFloat(form.longitud).toFixed(4)}
+                        </Text>
+                        <Text style={styles.mapaSimuladoLabel}>Mapa simulado</Text>
+                    </View>
+                </View>
             </View>
 
             {/* ── Precio ── */}
@@ -259,6 +363,134 @@ const Lessor_Renthouse = () => {
                     })}
                 </View>
             </View>
+
+            {/* ── Fechas disponibles para visita ── */}
+            <View style={styles.seccion}>
+                <Text style={styles.label}>Fechas disponibles para visita <Text style={styles.requerido}>*</Text></Text>
+                <Text style={styles.hint}>Selecciona los días y agrega horarios</Text>
+
+                <TouchableOpacity style={styles.btnAbrirCalendario} onPress={() => setModalFechas(true)}>
+                    <MaterialCommunityIcons name="calendar-plus" size={18} color="#205EA6" />
+                    <Text style={styles.btnAbrirCalendarioTexto}>Agregar fechas</Text>
+                </TouchableOpacity>
+
+                {/* Lista de fechas agregadas */}
+                {form.horariosVisita.length > 0 && (
+                    <View style={styles.fechasLista}>
+                        {form.horariosVisita.map(horario => (
+                            <View key={horario.fecha} style={[
+                                styles.fechaCard,
+                                fechaActivaVisita === horario.fecha && styles.fechaCardActiva
+                            ]}>
+                                <TouchableOpacity
+                                    style={styles.fechaCardHeader}
+                                    onPress={() => setFechaActivaVisita(
+                                        fechaActivaVisita === horario.fecha ? null : horario.fecha
+                                    )}
+                                >
+                                    <View style={styles.fechaCardHeaderIzq}>
+                                        <MaterialCommunityIcons name="calendar" size={16} color="#205EA6" />
+                                        <Text style={styles.fechaCardTexto}>
+                                            {new Date(horario.fecha + "T12:00:00").toLocaleDateString("es-MX", {
+                                                weekday: "short", day: "numeric", month: "short"
+                                            })}
+                                        </Text>
+                                        <View style={styles.fechaCardBadge}>
+                                            <Text style={styles.fechaCardBadgeTexto}>{horario.horas.length} hora(s)</Text>
+                                        </View>
+                                    </View>
+                                    <TouchableOpacity onPress={() => eliminarFechaVisita(horario.fecha)}>
+                                        <MaterialCommunityIcons name="close-circle-outline" size={20} color="#e74c3c" />
+                                    </TouchableOpacity>
+                                </TouchableOpacity>
+
+                                {/* Horas de esta fecha */}
+                                {fechaActivaVisita === horario.fecha && (
+                                    <View style={styles.fechaCardBody}>
+                                        <View style={styles.horasChips}>
+                                            {horario.horas.map(hora => (
+                                                <View key={hora} style={styles.horaChipArrendador}>
+                                                    <Text style={styles.horaChipTexto}>{hora}</Text>
+                                                    <TouchableOpacity onPress={() => eliminarHora(horario.fecha, hora)}>
+                                                        <MaterialCommunityIcons name="close" size={14} color="#205EA6" />
+                                                    </TouchableOpacity>
+                                                </View>
+                                            ))}
+                                        </View>
+                                        {/* Input para nueva hora */}
+                                        <View style={styles.horaInputRow}>
+                                            <TextInput
+                                                style={styles.horaInput}
+                                                placeholder="HH:MM  ej. 10:00"
+                                                placeholderTextColor="#aaa"
+                                                value={nuevaHora}
+                                                onChangeText={setNuevaHora}
+                                                keyboardType="numeric"
+                                                maxLength={5}
+                                            />
+                                            <TouchableOpacity
+                                                style={styles.horaInputBtn}
+                                                onPress={() => agregarHoraAFecha(horario.fecha, nuevaHora)}
+                                            >
+                                                <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+                        ))}
+                    </View>
+                )}
+            </View>
+
+            {/* Modal calendario para seleccionar fechas */}
+            <Modal visible={modalFechas} presentationStyle="pageSheet" onRequestClose={() => setModalFechas(false)} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalFechasContainer}>
+                        <View style={styles.modalFechasHeader}>
+                            <Text style={styles.modalFechasTitulo}>Selecciona días disponibles</Text>
+                            <TouchableOpacity
+                                style={styles.modalFechasBtnListo}
+                                onPress={() => setModalFechas(false)}
+                            >
+                                <Text style={styles.modalFechasBtnListoTexto}>Listo</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalFechasHint}>Toca los días en que permites visitas</Text>
+                        <Calendar
+                            onDayPress={(day) => agregarFechaVisita(day.dateString)}
+                            markingType="multi-dot"
+                            markedDates={Object.fromEntries(
+                                form.horariosVisita.map(h => [h.fecha, {
+                                    selected: true,
+                                    selectedColor: "#205EA6",
+                                    marked: h.horas.length > 0,
+                                    dotColor: "#5db682"
+                                }])
+                            )}
+                            minDate={new Date().toISOString().split("T")[0]}
+                            theme={{
+                                backgroundColor: "transparent",
+                                calendarBackground: "transparent",
+                                todayTextColor: "#205EA6",
+                                todayBackgroundColor: "#EEF4FF",
+                                arrowColor: "#205EA6",
+                                textDayFontWeight: "600",
+                                textMonthFontWeight: "800",
+                                textDayHeaderFontWeight: "700",
+                                //textDayHeaderColor: "#205EA6",
+                                dayTextColor: "#1a1a2e",
+                                textDisabledColor: "#ccc",
+                                monthTextColor: "#1a1a2e",
+                                textMonthFontSize: 16,
+                            }}
+                        />
+                        <Text style={styles.modalFechasLeyenda}>
+                            Día seleccionado
+                        </Text>
+                    </View>
+                </View>
+            </Modal>
 
             {/* ── Botón vista previa ── */}
             <TouchableOpacity
@@ -603,5 +835,219 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontWeight: "700",
         fontSize: 16,
+    },
+    // Mapita
+    mapaContainer: {
+        marginTop: 10,
+        borderRadius: 14,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+    },
+    mapaFondo: {
+        height: 160,
+        backgroundColor: "#e8f0fe",
+        position: "relative",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    mapaLinea: {
+        position: "absolute",
+        backgroundColor: "rgba(32,94,166,0.1)",
+    },
+    mapaLineaH: {
+        left: 0, right: 0, height: 1,
+    },
+    mapaLineaV: {
+        top: 0, bottom: 0, width: 1,
+    },
+    mapaPinWrapper: {
+        alignItems: "center",
+        zIndex: 2,
+    },
+    mapaPinSombra: {
+        width: 12,
+        height: 4,
+        backgroundColor: "rgba(0,0,0,0.2)",
+        borderRadius: 6,
+        marginTop: -4,
+    },
+    mapaCoordsRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        padding: 10,
+        backgroundColor: "#fff",
+    },
+    mapaCoordsTexto: {
+        fontSize: 12,
+        color: "#205EA6",
+        fontWeight: "600",
+        flex: 1,
+    },
+    mapaSimuladoLabel: {
+        fontSize: 11,
+        color: "#aaa",
+    },
+    // Fechas de visita
+    btnAbrirCalendario: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        borderWidth: 1.5,
+        borderColor: "#205EA6",
+        borderStyle: "dashed",
+        borderRadius: 12,
+        padding: 14,
+        justifyContent: "center",
+    },
+    btnAbrirCalendarioTexto: {
+        color: "#205EA6",
+        fontWeight: "700",
+        fontSize: 14,
+    },
+    fechasLista: {
+        marginTop: 12,
+        gap: 8,
+    },
+    fechaCard: {
+        backgroundColor: "#fff",
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: "#e0e0e0",
+        overflow: "hidden",
+    },
+    fechaCardActiva: {
+        borderColor: "#205EA6",
+    },
+    fechaCardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: 12,
+    },
+    fechaCardHeaderIzq: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        flex: 1,
+    },
+    fechaCardTexto: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#1a1a2e",
+        textTransform: "capitalize",
+    },
+    fechaCardBadge: {
+        backgroundColor: "#EEF4FF",
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+    },
+    fechaCardBadgeTexto: {
+        fontSize: 11,
+        color: "#205EA6",
+        fontWeight: "600",
+    },
+    fechaCardBody: {
+        borderTopWidth: 1,
+        borderTopColor: "#eef2ff",
+        padding: 12,
+        gap: 10,
+    },
+    horasChips: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+    },
+    horaChipArrendador: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        backgroundColor: "#EEF4FF",
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    horaChipTexto: {
+        fontSize: 13,
+        fontWeight: "700",
+        color: "#205EA6",
+    },
+    horaInputRow: {
+        flexDirection: "row",
+        gap: 8,
+        alignItems: "center",
+    },
+    horaInput: {
+        flex: 1,
+        backgroundColor: "#f7f9ff",
+        borderRadius: 10,
+        padding: 10,
+        fontSize: 14,
+        color: "#1a1a2e",
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+    },
+    horaInputBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        backgroundColor: "#205EA6",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    // Modal calendario
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.45)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+    },
+    modalFechasContainer: {
+        backgroundColor: "#fff",
+        borderRadius: 24,
+        padding: 28,
+        width: "90%",
+        gap: 12,
+        shadowColor: "#000",
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        height: "65%",
+    },
+    modalFechasHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 4,
+        paddingTop: 8,
+    },
+    modalFechasTitulo: {
+        fontSize: 18,
+        fontWeight: "800",
+        color: "#1a1a2e",
+    },
+    modalFechasBtnListo: {
+        backgroundColor: "#205EA6",
+        borderRadius: 12,
+        paddingHorizontal: 18,
+        paddingVertical: 8,
+    },
+    modalFechasBtnListoTexto: {
+        color: "#fff",
+        fontWeight: "700",
+        fontSize: 14,
+    },
+    modalFechasHint: {
+        fontSize: 13,
+        color: "#666",
+        marginBottom: 12,
+    },
+    modalFechasLeyenda: {
+        textAlign: "center",
+        fontSize: 12,
+        color: "#888",
+        marginTop: 16,
     },
 })
