@@ -1,5 +1,6 @@
 import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from "react-native"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
+import { useNavigationState } from "@react-navigation/native";
 import { useEffect, useRef, useState } from "react"
 import MapScreen from "./MapScreen"
 import MapRouteScreen from "./MapRouteScreen"
@@ -89,37 +90,40 @@ const LandlordTabs = [
 
 const TabButton = (props: any) => {
     const { item, onPress, accessibilityState } = props
-    const isFocused = useIsFocused()
-    
+    const activeRouteName = useNavigationState((state) => {
+        if (!state) return '';
+        return state.routeNames[state.index];
+    });
     // Combinamos useIsFocused con accessibilityState para mayor compatibilidad
     // Si estamos en la ruta correcta, React Navigation debería marcarnos como enfocados
-    const focused = accessibilityState?.selected ?? isFocused
+    const focused = activeRouteName === item.route;
     
     const viewRef = useRef<any>(null)
     const circleRef = useRef<any>(null)
     const textRef = useRef<any>(null)
     const iconRef = useRef<any>(null)
 
-    const circle1 = { 0: { scale: 0 }, 0.3: { scale: 0.9 }, 0.5: { scale: 0.3 }, 0.8: { scale: 0.7 }, 1: { scale: 1 } }
-    const circle2 = { 0: { scale: 1 }, 1: { scale: 0 } }
-    const animation1 = { 0: { scale: .5, translateY: 8 }, 0.92: { translateY: -34 }, 1: { scale: 1.2, translateY: -24 } }
-    const animation2 = { 0: { scale: 1.2, translateY: -24 }, 1: { scale: 1, translateY: 8 } }
-    const imageAnimation = {0: {rotate: "0deg"}, 1: {rotate: "360deg"}}
-    const imageAnimation2 = {0: {rotate: "360deg"}, 1: {rotate: "0deg"}}
+    const circle1 = { 0: { scale: 0 }, 0.3: { scale: 0.9 }, 0.5: { scale: 0.3 }, 0.8: { scale: 0.7 }, 1: { scale: 1 } };
+    const circle2 = { 0: { scale: 1 }, 1: { scale: 0 } };
+    const animation1 = { 0: { scale: .5, translateY: 8 }, 0.92: { translateY: -34 }, 1: { scale: 1.2, translateY: -24 } };
+    const animation2 = { 0: { scale: 1.2, translateY: -24 }, 1: { scale: 1, translateY: 8 } };
+    const imageAnimation = { 0: { rotate: "0deg" }, 1: { rotate: "360deg" } };
+    const imageAnimation2 = { 0: { rotate: "360deg" }, 1: { rotate: "0deg" } };
 
     useEffect(() => {
+        // Aseguramos que las referencias existan antes de animar
         if (focused && viewRef.current) {
-            viewRef.current.animate(animation1)
-            circleRef.current.animate(circle1)
-            textRef.current.transitionTo({ scale: 1 })
-            iconRef.current.animate(imageAnimation)
-        } else if (viewRef.current) {
-            viewRef.current.animate(animation2)
-            circleRef.current.animate(circle2)
-            textRef.current.transitionTo({ scale: 0 })
-            iconRef.current.animate(imageAnimation2)
+            viewRef.current.animate(animation1);
+            circleRef.current.animate(circle1);
+            textRef.current.transitionTo({ scale: 1 });
+            iconRef.current.animate(imageAnimation);
+        } else if (!focused && viewRef.current) { // Condición más estricta aquí
+            viewRef.current.animate(animation2);
+            circleRef.current.animate(circle2);
+            textRef.current.transitionTo({ scale: 0 });
+            iconRef.current.animate(imageAnimation2);
         }
-    }, [focused])
+    }, [focused]);
 
     return (
         <TouchableOpacity style={blue.navigation_menu_container} onPress={onPress} activeOpacity={1}>
@@ -204,8 +208,8 @@ export default function NavigationMenu({ route }: any) {
     return (
         <Tab.Navigator
             screenOptions={{
-                animation: "fade",
                 tabBarStyle: blue.tabBarStyle,
+                
             }}
         >
             {currentTabs.map((item) => (
@@ -215,7 +219,7 @@ export default function NavigationMenu({ route }: any) {
                     component={item.component}
                     initialParams={{ userId: userId, token: token }}
                     options={{
-                        headerShown: item.route !== 'ProfileTab' && item.route !== 'CuentaArrendador',
+                        headerShown: false,
                         headerTitle: item.label,
                         headerStyle: { backgroundColor: bluePrimaryColor },
                         headerTintColor: blueSecondColor,

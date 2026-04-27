@@ -114,12 +114,12 @@ const MisInmuebles = () => {
                     Mis inmuebles
                 </Text>
 
-                <TouchableOpacity style={styles.btnNuevo} onPress={nuevoInmueble}>
+                {/* <TouchableOpacity style={styles.btnNuevo} onPress={nuevoInmueble}>
                     <MaterialCommunityIcons name="plus" size={22} color="#fff"/>
                     <Text style={styles.btnNuevoTexto}>
                         Nuevo
                     </Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
 
             </View>
 
@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#f5f7fa",
     },
     header: {
+        marginTop: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
@@ -269,7 +270,7 @@ const styles = StyleSheet.create({
         borderBottomColor: "#eee",
     },
     titulo: {
-        fontSize: 22,
+        fontSize: 25,
         fontWeight: "800",
         color: "#1a1a2e",
     },

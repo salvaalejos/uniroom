@@ -54,8 +54,8 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa', paddingHorizontal: 16, paddingTop: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, color: '#1a1a2e' },
+  container: { flex: 1, backgroundColor: '#f8f9fa', paddingHorizontal: 16, paddingTop: 20, marginTop: 25 },
+  title: { fontSize: 25, fontWeight: 'bold', marginBottom: 16, color: '#1a1a2e' },
   card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, elevation: 2 },
   property: { fontSize: 18, fontWeight: '600', marginBottom: 4 },
   date: { fontSize: 14, color: '#555', marginBottom: 4 },

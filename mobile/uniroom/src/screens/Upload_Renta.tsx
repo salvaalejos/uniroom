@@ -112,9 +112,9 @@ const Lessor_Renthouse = () => {
 
             {/* ── Header ── */}
             <View style={styles.headerRow}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
+                {/* <TouchableOpacity onPress={() => navigation.goBack()}>
                     <MaterialCommunityIcons name="chevron-left" size={30} color="#1a1a2e" />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
                 <Text style={styles.titulo}>{esEdicion ? "Editar inmueble" : "Nueva publicación"}</Text>
             </View>
 
@@ -365,6 +365,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#f5f7fa",
     },
     headerRow: {
+        marginTop: 20,
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
         paddingBottom: 4,
     },
     titulo: {
-        fontSize: 22,
+        fontSize: 25,
         fontWeight: "800",
         color: "#1a1a2e",
     },

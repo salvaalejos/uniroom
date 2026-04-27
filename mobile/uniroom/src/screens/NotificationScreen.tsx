@@ -447,7 +447,7 @@ export default function NotificationScreen() {
 
 const styles = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: "#f8f9fa", paddingHorizontal: 16, paddingTop: 40 },
-  encabezadoPrincipal: { fontSize: 24, fontWeight: "bold", marginBottom: 16, color: "#1a1a1a" },
+  encabezadoPrincipal: { fontSize: 25, fontWeight: "bold", marginBottom: 16, color: "#1a1a1a" },
   tarjeta: { backgroundColor: "#ffffff", padding: 14, borderRadius: 8, marginBottom: 10, borderBottomWidth: 1, borderColor: "#eee" },
   tarjetaNoLeida: { backgroundColor: "#f0f7ff", borderLeftWidth: 3, borderLeftColor: "#205EA6" },
   encabezadoTarjeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   remitenteLista: { fontSize: 14, color: "#495057", marginTop: 2 },
   mensajeResumen: { fontSize: 14, color: "#6c757d", marginTop: 6 },
   botonFlotanteCircular: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#205EA6', padding: 16, borderRadius: 30, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
-  contenedorEncabezado: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 50, marginBottom: 10 },
+  contenedorEncabezado: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 6, marginBottom: 10 },
   imagenBorrar: { width: 30, height: 30 },
   contenedorEliminarSwipe: { backgroundColor: '#ff0056', justifyContent: 'center', alignItems: 'center', width: 80, height: '90%', marginTop: 5, borderRadius: 10, marginLeft: 10 },
   contenedorModal: { flex: 1, backgroundColor: "#fff" },

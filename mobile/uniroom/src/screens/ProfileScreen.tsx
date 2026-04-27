@@ -104,8 +104,8 @@ export default function ProfileScreen({ navigation, route }: any) {
                     <Image source={imagenPerfil} style={styles.profilePic} />
                     <Text style={styles.userName}>{userData.nombre + " " + userData.apellidos}</Text>
                     <View style={styles.ratingBadge}>
+                        <Text style={styles.ratingText}>{userData.rating > 0 ? userData.rating : "0"}</Text>
                         <Ionicons name="star" size={16} color="#FFD700" />
-                        <Text style={styles.ratingText}>{userData.rating}</Text>
                     </View>
                 </View>
 
@@ -174,12 +174,12 @@ const styles = StyleSheet.create({
     header: {
         alignItems: 'center',
         marginBottom: 30,
-        marginTop: 20,
+        marginTop: 70,
     },
     profilePic: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
+        width: 150,
+        height: 150,
+        borderRadius: 100,
         borderWidth: 4,
         borderColor: '#FFFFFF',
         marginBottom: 15,
@@ -200,7 +200,8 @@ const styles = StyleSheet.create({
     },
     ratingText: {
         color: '#FFFFFF',
-        marginLeft: 5,
+        marginLeft: 0,
+        marginRight: 5,
         fontWeight: 'bold',
     },
     card: {
