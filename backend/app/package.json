@@ -9,7 +9,6 @@
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/jwt": "^1.4.1",
     "@elysiajs/static": "^1.4.10",
-    "@prisma/client": "5.22.0",
     "elysia": "latest",
     "jsonwebtoken": "^9.0.3",
     "jwt": "^0.2.0",
