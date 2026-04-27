@@ -10,6 +10,10 @@ backend/node_modules/
 .env
 backend/.env
 backend/app/.env
+<<<<<<< HEAD
+=======
+mobile/uniroom/.env
+>>>>>>> Said_SecondBranch
 
 # IDEs
 .idea/
@@ -18,4 +22,8 @@ backend/app/.env
 # Logs y Temporales
 *.log
 test_register.json
+<<<<<<< HEAD
 .env
+=======
+.env
+>>>>>>> Said_SecondBranch
