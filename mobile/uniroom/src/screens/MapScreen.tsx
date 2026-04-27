@@ -3,7 +3,6 @@ import { View, StyleSheet, TouchableOpacity, Text, Dimensions, ActivityIndicator
 import { useState, useEffect, useRef, useCallback } from "react"
 import Mapbox from "@rnmapbox/maps"
 import * as Location from "expo-location"
-import InmuebleScreen from "./InmuebleScreen"
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
 Mapbox.setAccessToken(MAPBOX_TOKEN)
@@ -218,9 +217,7 @@ const PROPIEDADES = [
   },
 ]
 
-const MapScreen = ({ route }: any) => {
-  const [modalVisible, setModalVisible] = useState(false)
-  const [inmuebleSeleccionado, setInmuebleSeleccionado] = useState(null)
+const MapScreen = ({ route, navigation }: any) => {
   const [mapaListo, setMapaListo] = useState(false)
   const [cargando, setCargando] = useState(true)
   const cameraRef = useRef(null)
@@ -248,8 +245,10 @@ const MapScreen = ({ route }: any) => {
 
   const abrirDetalle = (propiedad: any) => {
     console.log("Abriendo detalle de:", propiedad.titulo)
-    setInmuebleSeleccionado(propiedad)
-    setModalVisible(true)
+    navigation.navigate("InmuebleScreen", { 
+      inmueble: propiedad,
+      token: route?.params?.token 
+    })
   }
 
   if (cargando) {
@@ -260,7 +259,6 @@ const MapScreen = ({ route }: any) => {
       </View>
     )
   }
-  const token = route?.params?.token;
 
   return (
     <View style={styles.container}>
@@ -297,12 +295,6 @@ const MapScreen = ({ route }: any) => {
           </Mapbox.PointAnnotation>
         ))}
       </Mapbox.MapView>
-
-      <InmuebleScreen
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        token={token}
-      />
     </View>
   )
 }

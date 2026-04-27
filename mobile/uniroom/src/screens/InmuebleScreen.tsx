@@ -30,20 +30,19 @@ type Props = {
 }
 
 // ─ Componente ─
-const InmuebleScreen = ({ visible, onClose, inmueble }: Props) => {
+const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: propInmueble, token: propToken, route }: any) => {
+
+    const navigation = useNavigation<any>()
+
+    // Obtener parámetros de navegación o de props
+    const inmueble = route?.params?.inmueble || propInmueble
+    const token = route?.params?.token || propToken
+    const visible = route?.params ? true : propVisible
+    const onClose = route?.params ? () => navigation.goBack() : propOnClose
 
     const insets = useSafeAreaInsets()
     const scrollRef = useRef<ScrollView>(null)
     const playerRef = useRef<any>(null)
-
-    const [favorito, setFavorito] = useState(false)
-    const [imagenActual, setImagenActual] = useState(0)
-    const [miCalificacion, setMiCalificacion] = useState(0)
-    const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIALES)
-    const [nuevoComentario, setNuevoComentario] = useState("")
-    const [modalTarifaVisible, setModalTarifaVisible] = useState(false)
-
-    const navigation = useNavigation<any>()
 
     // 👇 Validación después de TODOS los hooks, pero antes de usar hooks condicionales
     const esVideo = inmueble?.media?.[imagenActual]?.tipo === "video"
@@ -99,6 +98,13 @@ const InmuebleScreen = ({ visible, onClose, inmueble }: Props) => {
     // Si no hay inmueble, no mostrar nada
     if (!inmueble) return null
 
+    const [favorito, setFavorito] = useState(false)
+    const [imagenActual, setImagenActual] = useState(0)
+    const [miCalificacion, setMiCalificacion] = useState(0)
+    const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIALES)
+    const [nuevoComentario, setNuevoComentario] = useState("")
+    const [modalTarifaVisible, setModalTarifaVisible] = useState(false)
+
     const agregarComentario = () => {
         if (nuevoComentario.trim() === "") return
         const fecha = new Date().toLocaleDateString('es-MX', {
@@ -123,7 +129,7 @@ const InmuebleScreen = ({ visible, onClose, inmueble }: Props) => {
                 />
             )
         } else {
-            // Solo mostrar VideoView si el video es el actual y el modal está visible
+            // Solo mostrar VideoView si el video es el actual y es visible
             if (index === imagenActual && visible && videoSource) {
                 return (
                     <VideoView
@@ -147,202 +153,210 @@ const InmuebleScreen = ({ visible, onClose, inmueble }: Props) => {
     }
 
     return(
-        <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-            <View style={[styles.container, { paddingTop: insets.top}]}>
-                <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-                    {/* Galeria */}
-                    <View style={styles.galeriaContainer}>
-                        <ScrollView 
-                            ref={scrollRef} 
-                            horizontal 
-                            pagingEnabled 
-                            showsHorizontalScrollIndicator={false} 
-                            onMomentumScrollEnd={(e) => {
-                                const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width)
-                                setImagenActual(index)
-                            }}
-                        >
-                            {inmueble.media?.map((item, i) => renderMedia(item, i))}
-                        </ScrollView>
+        <View style={styles.container}>
+            {/* Botones estáticos superiores */}
+            <TouchableOpacity 
+                style={[styles.btnCerrar, { top: insets.top + 16 }]} 
+                onPress={onClose}
+            >
+                <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
+            </TouchableOpacity>
 
-                        {/* Boton de cerrar */}
-                        <TouchableOpacity style={styles.btnCerrar} onPress={onClose}>
-                            <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
-                        </TouchableOpacity>
+            <TouchableOpacity 
+                style={[styles.btnFavorito, { top: insets.top + 16 }]} 
+                onPress={() => setFavorito(!favorito)}
+            >
+                <MaterialCommunityIcons 
+                    name={favorito ? "heart" : "heart-outline"} 
+                    size={26} 
+                    color={favorito ? "#e74c3c" : "#1a1a2e"}
+                />
+            </TouchableOpacity>
 
-                        {/* Boton de favorito */}
-                        <TouchableOpacity style={styles.btnFavorito} onPress={() => setFavorito(!favorito)}>
-                            <MaterialCommunityIcons name={favorito ? "heart" : "heart-outline"} size={26} color={favorito ? "#e74c3c" : "#1a1a2e"}/>
-                        </TouchableOpacity>
+            <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+                {/* Galeria */}
+                <View style={styles.galeriaContainer}>
+                    <ScrollView 
+                        ref={scrollRef} 
+                        horizontal 
+                        pagingEnabled 
+                        showsHorizontalScrollIndicator={false} 
+                        onMomentumScrollEnd={(e) => {
+                            const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width)
+                            setImagenActual(index)
+                        }}
+                    >
+                        {inmueble.media?.map((item, i) => renderMedia(item, i))}
+                    </ScrollView>
 
-                        {/* Miniaturas */}
-                        {inmueble.media?.length > 1 && (
-                            <View style={styles.miniaturas}>
-                                {inmueble.media.map((item, i) => (
-                                    <TouchableOpacity key={i} onPress={() => {
-                                        setImagenActual(i)
-                                        scrollRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true })
-                                    }}>
-                                        {item.tipo === "imagen" ? (
-                                            <Image source={item.src} style={[styles.miniatura, imagenActual === i && styles.miniaturaActiva]}/>
-                                        ) : (
-                                            <View style={[styles.miniatura, styles.miniaturaVideo, imagenActual === i && styles.miniaturaActiva]}>
-                                                <MaterialCommunityIcons name="play-circle" size={28} color="#fff"/>
-                                            </View>
-                                        )}
+                    {/* Miniaturas */}
+                    {inmueble.media?.length > 1 && (
+                        <View style={styles.miniaturas}>
+                            {inmueble.media.map((item, i) => (
+                                <TouchableOpacity key={i} onPress={() => {
+                                    setImagenActual(i)
+                                    scrollRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true })
+                                }}>
+                                    {item.tipo === "imagen" ? (
+                                        <Image source={item.src} style={[styles.miniatura, imagenActual === i && styles.miniaturaActiva]}/>
+                                    ) : (
+                                        <View style={[styles.miniatura, styles.miniaturaVideo, imagenActual === i && styles.miniaturaActiva]}>
+                                            <MaterialCommunityIcons name="play-circle" size={28} color="#fff"/>
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+                </View>
+
+                {/* Informacion Principal */}
+                <View style={styles.info}>
+                    {/* Titulo */}
+                    <Text style={styles.titulo}>{inmueble.titulo}</Text>
+                    
+                    {/* Calificaciones */}
+                    <View style={styles.calificacionContainer}>
+                        <View style={styles.calificacionItem}>
+                            <Text style={styles.calificacionNumero}>{inmueble.calificacion} <MaterialCommunityIcons
+                                            name={"star"}
+                                            size={25}
+                                            color="#f39c12"/></Text>
+                            {/* <View style={styles.estrellas}>
+                                {[1, 2, 3, 4, 5].map((i)=>(
+                                    <TouchableOpacity key={i} onPress={() => setMiCalificacion(i)}>
+                                        <MaterialCommunityIcons
+                                            name={i <= miCalificacion ? "star" : "star-outline"}
+                                            size={25}
+                                            color="#f39c12"/>
                                     </TouchableOpacity>
                                 ))}
-                            </View>
-                        )}
+                            </View> */}
+                        </View>
+
+                        <View style={styles.calificacionItem}>
+                            <Text style={styles.calificacionNumero}>{inmueble.opiniones}</Text>
+                            <Text style={styles.opinionesLabel}>opiniones</Text>
+                        </View>
                     </View>
 
-                    {/* Informacion Principal */}
-                    <View style={styles.info}>
-                        {/* Titulo */}
-                        <Text style={styles.titulo}>{inmueble.titulo}</Text>
-                        
-                        {/* Calificaciones */}
-                        <View style={styles.calificacionContainer}>
-                            <View style={styles.calificacionItem}>
-                                <Text style={styles.calificacionNumero}>{inmueble.calificacion}</Text>
-                                <View style={styles.estrellas}>
-                                    {[1, 2, 3, 4, 5].map((i)=>(
-                                        <TouchableOpacity key={i} onPress={() => setMiCalificacion(i)}>
-                                            <MaterialCommunityIcons
-                                                name={i <= miCalificacion ? "star" : "star-outline"}
-                                                size={25}
-                                                color="#f39c12"/>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </View>
+                    <View style={styles.divider}/>
 
-                            <View style={styles.calificacionItem}>
-                                <Text style={styles.calificacionNumero}>{inmueble.opiniones}</Text>
-                                <Text style={styles.opinionesLabel}>opiniones</Text>
-                            </View>
+                    {/* Anfitrion */}
+                    <View style={styles.anfitrionRow}>
+                        <Image source={ANFITRION} style={styles.avatarImagen}/>
+                        <View>
+                            <Text style={styles.anfitrionLabel}>Anfitrión</Text>
+                            <Text style={styles.anfitrionNombre}>{inmueble.anfitrion}</Text>
                         </View>
+                    </View>
 
-                        <View style={styles.divider}/>
+                    <View style={styles.divider}/>
 
-                        {/* Anfitrion */}
-                        <View style={styles.anfitrionRow}>
-                            <Image source={ANFITRION} style={styles.avatarImagen}/>
-                            <View>
-                                <Text style={styles.anfitrionLabel}>Anfitrión</Text>
-                                <Text style={styles.anfitrionNombre}>{inmueble.anfitrion}</Text>
-                            </View>
-                        </View>
+                    {/* Ubicacion */}
+                    <View style={styles.seccion}>
+                        <MaterialCommunityIcons name="map-marker" size={18} color="#205EA6" />
+                        <Text style={styles.seccionTexto}>{inmueble.ubicacion}</Text>
+                    </View>
 
-                        <View style={styles.divider}/>
+                    <View style={styles.divider}/>
 
-                        {/* Ubicacion */}
-                        <View style={styles.seccion}>
-                            <MaterialCommunityIcons name="map-marker" size={18} color="#205EA6" />
-                            <Text style={styles.seccionTexto}>{inmueble.ubicacion}</Text>
-                        </View>
+                    {/* Descripción */}
+                    <Text style={styles.descripcion}>{inmueble.descripcion}</Text>
+                    
+                    <View style={styles.divider}/>
 
-                        <View style={styles.divider}/>
-
-                        {/* Descripción */}
-                        <Text style={styles.descripcion}>{inmueble.descripcion}</Text>
-                        
-                        <View style={styles.divider}/>
-
-                        {/* Servicios */}
-                        <Text style={styles.subtitulo}>Servicios incluidos</Text>
-                        <View style={styles.tags}>
-                            {inmueble.servicios?.map((s, i) => (
-                                <View key={i} style={styles.tag}>
-                                    <Text style={styles.tagTexto}>{s}</Text>
-                                </View>
-                            ))}
-                        </View>
-                        
-                        <View style={styles.divider}/>
-
-                        {/* Reglas */}
-                        <Text style={styles.subtitulo}>Reglas de la casa</Text>
-                        <View style={styles.tags}>
-                            {inmueble.reglas?.map((r, i) => (
-                                <View key={i} style={[styles.tag, styles.tagRegla]}>
-                                    <Text style={[styles.tagTexto, styles.tagTextoRegla]}>{r}</Text>
-                                </View>
-                            ))}
-                        </View>
-
-                        <View style={styles.divider}/>
-
-                        {/* Nuevo comentario */}
-                        <View style={styles.inputComentarioContainer}>
-                            <TextInput
-                                style={styles.inputComentario}
-                                placeholder="Escribe tu comentario..."
-                                placeholderTextColor="#aaa"
-                                value={nuevoComentario}
-                                onChangeText={setNuevoComentario}
-                                multiline/>
-                            <TouchableOpacity style={styles.btnEnviar} onPress={agregarComentario}>
-                                <MaterialCommunityIcons name="send" size={20} color="#fff"/>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Comentarios */}
-                        {comentarios.map((c, i) => (
-                            <View key={i} style={styles.comentario}>
-                                <Image source={ANFITRION} style={styles.comentarioAvatar}/>
-                                <View style={{flex: 1}}>
-                                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                                        <Text style={styles.comentarioAutor}>{c.autor}</Text>
-                                        <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
-                                    </View>
-                                    <Text style={styles.comentarioTexto}>{c.texto}</Text>
-                                </View>
+                    {/* Servicios */}
+                    <Text style={styles.subtitulo}>Servicios incluidos</Text>
+                    <View style={styles.tags}>
+                        {inmueble.servicios?.map((s, i) => (
+                            <View key={i} style={styles.tag}>
+                                <Text style={styles.tagTexto}>{s}</Text>
                             </View>
                         ))}
                     </View>
-                </ScrollView>
+                    
+                    <View style={styles.divider}/>
 
-                {/* Footer */}
-                <View style={styles.footer}>
-                    <View>
-                        <Text style={styles.footerPrecio}>${inmueble.precio.toLocaleString('es-MX')}</Text>
-                        <Text style={styles.footerMes}>/ mes</Text>
+                    {/* Reglas */}
+                    <Text style={styles.subtitulo}>Reglas de la casa</Text>
+                    <View style={styles.tags}>
+                        {inmueble.reglas?.map((r, i) => (
+                            <View key={i} style={[styles.tag, styles.tagRegla]}>
+                                <Text style={[styles.tagTexto, styles.tagTextoRegla]}>{r}</Text>
+                            </View>
+                        ))}
                     </View>
-                    <TouchableOpacity style={styles.btnContacto} onPress={() => setModalTarifaVisible(true)}>
-                        <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
-                        <Text style={styles.btnContactoTexto}>Contactar</Text>
-                    </TouchableOpacity>
-                </View>
 
-                {/* Modal de Tarifa de Servicio */}
-                <Modal visible={modalTarifaVisible} transparent animationType="fade">
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalCard}>
-                            <MaterialCommunityIcons name="shield-check" size={48} color="#205EA6" style={{ marginBottom: 16 }} />
-                            <Text style={styles.modalTitle}>Tarifa de Contacto</Text>
-                            <Text style={styles.modalText}>
-                                Para proteger a nuestra comunidad y garantizar un servicio de calidad, cobramos una pequeña tarifa de $50 MXN para contactar a este arrendador.
-                            </Text>
-                            <TouchableOpacity 
-                                style={styles.btnPagar} 
-                                onPress={() => {
-                                    setModalTarifaVisible(false);
-                                    onClose(); // Cierra el InmuebleScreen
-                                    navigation.navigate("PaymentScreen", { token: token }); // Redirige a la pantalla de pagos
-                                }}
-                            >
-                                <Text style={styles.btnPagarTexto}>Entendido, proceder al pago</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalTarifaVisible(false)}>
-                                <Text style={styles.btnCancelarTexto}>Cancelar</Text>
-                            </TouchableOpacity>
+                    <View style={styles.divider}/>
+
+                    {/* Nuevo comentario */}
+                    {/* <View style={styles.inputComentarioContainer}>
+                        <TextInput
+                            style={styles.inputComentario}
+                            placeholder="Escribe tu comentario..."
+                            placeholderTextColor="#aaa"
+                            value={nuevoComentario}
+                            onChangeText={setNuevoComentario}
+                            multiline/>
+                        <TouchableOpacity style={styles.btnEnviar} onPress={agregarComentario}>
+                            <MaterialCommunityIcons name="send" size={20} color="#fff"/>
+                        </TouchableOpacity>
+                    </View> */}
+
+                    {/* Comentarios */}
+                    {/* {comentarios.map((c, i) => (
+                        <View key={i} style={styles.comentario}>
+                            <Image source={ANFITRION} style={styles.comentarioAvatar}/>
+                            <View style={{flex: 1}}>
+                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                                    <Text style={styles.comentarioAutor}>{c.autor}</Text>
+                                    <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
+                                </View>
+                                <Text style={styles.comentarioTexto}>{c.texto}</Text>
+                            </View>
                         </View>
-                    </View>
-                </Modal>
+                    ))} */}
+                </View>
+            </ScrollView>
 
+            {/* Footer */}
+            <View style={styles.footer}>
+                <View>
+                    <Text style={styles.footerPrecio}>${inmueble.precio.toLocaleString('es-MX')}</Text>
+                    <Text style={styles.footerMes}>/ mes</Text>
+                </View>
+                <TouchableOpacity style={styles.btnContacto} onPress={() => setModalTarifaVisible(true)}>
+                    <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
+                    <Text style={styles.btnContactoTexto}>Contactar</Text>
+                </TouchableOpacity>
             </View>
-        </Modal>
+
+            {/* Modal de Tarifa de Servicio (Mantenemos este como modal interno) */}
+            <Modal visible={modalTarifaVisible} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <MaterialCommunityIcons name="shield-check" size={48} color="#205EA6" style={{ marginBottom: 16 }} />
+                        <Text style={styles.modalTitle}>Tarifa de Contacto</Text>
+                        <Text style={styles.modalText}>
+                            Para proteger a nuestra comunidad y garantizar un servicio de calidad, cobramos una pequeña tarifa de $50 MXN para contactar a este arrendador.
+                        </Text>
+                        <TouchableOpacity 
+                            style={styles.btnPagar} 
+                            onPress={() => {
+                                setModalTarifaVisible(false);
+                                navigation.navigate("PaymentScreen", { token: token }); // Redirige a la pantalla de pagos
+                            }}
+                        >
+                            <Text style={styles.btnPagarTexto}>Entendido, proceder al pago</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalTarifaVisible(false)}>
+                            <Text style={styles.btnCancelarTexto}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </View>
     )
 }
 
@@ -374,24 +388,24 @@ const styles = StyleSheet.create({
     },
     btnCerrar: {
         position: "absolute",
-        top: 16,
         left: 16,
         backgroundColor: "#fff",
         borderRadius: 20,
         padding: 6,
-        elevation: 4,
+        elevation: 5,
+        zIndex: 10,
         shadowColor: "#000",
         shadowOpacity: 0.2,
         shadowRadius: 4,
     },
     btnFavorito: {
         position: "absolute",
-        top: 16,
         right: 16,
         backgroundColor: "#fff",
         borderRadius: 20,
         padding: 6,
-        elevation: 4,
+        elevation: 5,
+        zIndex: 10,
         shadowColor: "#000",
         shadowOpacity: 0.2,
         shadowRadius: 4,

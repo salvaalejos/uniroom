@@ -7,7 +7,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import Upload_renta from './src/screens/Upload_Renta';
 import NavigationMenu from './src/screens/NavigationMenu';
-
+import InmuebleScreen from './src/screens/InmuebleScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 
 // Crea el Stack
@@ -41,6 +41,11 @@ export default function App() {
                     name="PaymentScreen"
                     component={PaymentScreen}
                     options={{ headerShown: false }}
+                />
+                <Stack.Screen 
+                    name="InmuebleScreen"
+                    component={InmuebleScreen}
+                    options={{ presentation: 'modal', headerShown: false }}
                 />
             </Stack.Navigator>
             <View style={{height: 50, backgroundColor: "#DCEEFF"}}>

@@ -88,8 +88,13 @@ const LandlordTabs = [
 ];
 
 const TabButton = (props: any) => {
-    const { item, onPress } = props
-    const focused = useIsFocused()
+    const { item, onPress, accessibilityState } = props
+    const isFocused = useIsFocused()
+    
+    // Combinamos useIsFocused con accessibilityState para mayor compatibilidad
+    // Si estamos en la ruta correcta, React Navigation debería marcarnos como enfocados
+    const focused = accessibilityState?.selected ?? isFocused
+    
     const viewRef = useRef<any>(null)
     const circleRef = useRef<any>(null)
     const textRef = useRef<any>(null)
@@ -102,7 +107,6 @@ const TabButton = (props: any) => {
     const imageAnimation = {0: {rotate: "0deg"}, 1: {rotate: "360deg"}}
     const imageAnimation2 = {0: {rotate: "360deg"}, 1: {rotate: "0deg"}}
 
-    //Ya luego le cambio los errores xd
     useEffect(() => {
         if (focused && viewRef.current) {
             viewRef.current.animate(animation1)
@@ -183,7 +187,9 @@ export default function NavigationMenu({ route }: any) {
         
     }, [userId]);
 
-    if (isLoading) {
+    // Solo mostramos el spinner si NO tenemos datos del usuario aún.
+    // Si ya tenemos datos, permitimos que el Navigator se mantenga montado.
+    if (isLoading && !userData) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: bluePrimaryColor }}>
                 <ActivityIndicator size="large" color={blueSecondColor} />
