@@ -12,16 +12,14 @@ export default function MapScreen() {
         link.rel = 'stylesheet';
         document.head.appendChild(link);
     }, []);
-
- 
-  useEffect(() => {
+ useEffect(() => {
   const link = document.createElement('link');
   link.href = 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css';
   link.rel = 'stylesheet';
   document.head.appendChild(link);
 }, []);
-
- useEffect(()=>{
+    useEffect(() => {
+        if (!mapContainer.current) return
 
         const map = new mapboxgl.Map({
             container: mapContainer.current,
