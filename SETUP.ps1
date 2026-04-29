@@ -54,12 +54,9 @@ npx prisma generate
 Write-Step "CONFIGURANDO MOBILE"
 Set-Location "../../mobile/uniroom"
 
-if (!(Test-Path "node_modules")) {
-    Write-Host "Instalando dependencias del Móvil (esto puede tardar)..."
-    npm install
-} else {
-    Write-Host "Dependencias del movil ya instaladas."
-}
+
+Write-Host "Instalando dependencias del Móvil (esto puede tardar un poquito lol)..."
+npm install
 
 Write-Step "PROCESO COMPLETADO"
 Write-Host "Para iniciar el Backend: cd backend/app; bun run src/index.ts" -ForegroundColor Green
