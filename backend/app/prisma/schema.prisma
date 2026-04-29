@@ -64,6 +64,7 @@ model Usuario {
   edad            Int?
   foto            String?
   visibilidad     Boolean       @default(false)
+  email_verificado Boolean     @default(false)
   mp_customer_id  String?       @db.VarChar(100)
   fecha_creacion  DateTime      @default(now())
 
@@ -184,4 +185,15 @@ model Cita {
   // Auditoría
   creado_en       DateTime    @default(now())
   actualizado_en  DateTime    @updatedAt
+}
+
+model VerificacionEmail {
+  id          Int      @id @default(autoincrement())
+  email       String
+  codigo      String
+  expiresAt  DateTime
+  used        Boolean  @default(false)
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
 }

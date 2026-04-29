@@ -89,6 +89,17 @@ export default function LoginScreen({ navigation }: any) {
             setAuthenticatedUser({ name, role });
 
         } catch (error: any) {
+            const errorData = error?.message || '';
+            
+            if (errorData.includes('needsVerification') || errorData.includes('verificar')) {
+                navigation.navigate('VerificarEmail', { 
+                    email: email.trim(),
+                    fromLogin: true,
+                    password: password
+                });
+                return;
+            }
+            
             setAuthenticatedUser(null);
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión.');
         } finally {

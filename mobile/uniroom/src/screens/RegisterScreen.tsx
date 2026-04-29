@@ -17,9 +17,10 @@ import {
     Pressable,
     ActivityIndicator
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Íconos incluidos en Expo por default
+import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
@@ -164,29 +165,17 @@ export default function RegisterScreen({ navigation, route }: any) {
                 throw new Error(errorMsg ?? 'No se pudo completar el registro');
             }
 
-            setSuccessMessage('¡Tu cuenta ha sido creada correctamente! Ahora puedes iniciar sesión para acceder a tu cuenta.');
-            //Hacer un pequeño login para pasar directamente al navigator, xd
-            const responseLogin = await fetch(loginEndpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                email: email.trim(), 
-                password: password 
-            })
+            setSuccessMessage('¡Tu cuenta ha sido creada! Por favor verifica tu correo electrónico.');
+            
+            await AsyncStorage.setItem('pendingAuth', JSON.stringify({
+                email: email.trim(),
+                password: password
+            }));
+            
+            navigation.navigate('VerificarEmail', { 
+                email: email.trim(),
+                fromLogin: false
             });
-            const payload = await responseLogin.json().catch(() => ({}));
-            if (!responseLogin.ok) {
-            throw new Error('Cuenta creada, pero no pudimos iniciar sesión, lo sentimos.');
-            }
-            const userId = getUserId(payload);
-            const token = payload.token;
-            if (userId && token) {
-            navigation.replace("Navigator", { userId: userId, token: token });
-            } else {
-                throw new Error('Error al obtener los datos de acceso.');
-            }
         } catch (error: any) {
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
         } finally {
