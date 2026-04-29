@@ -108,9 +108,14 @@ const Lessor_Renthouse = () => {
     }
 
     const agregarFechaVisita = (dateString: string) => {
-        setFechaActivaVisita(dateString)
         const yaExiste = form.horariosVisita.find(h => h.fecha === dateString)
-        if (!yaExiste) {
+    
+        if (yaExiste) {
+            // Si ya existe, la deselecciona
+            eliminarFechaVisita(dateString)
+        } else {
+            // Si no existe, la agrega y la activa
+            setFechaActivaVisita(dateString)
             setForm(f => ({
                 ...f,
                 horariosVisita: [...f.horariosVisita, { fecha: dateString, horas: [] }]
