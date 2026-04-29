@@ -1,3 +1,4 @@
+version: '3.8'
 services:
   db:
     image: postgres:15-alpine
@@ -10,4 +11,4 @@ services:
       POSTGRES_PASSWORD: '12345'
       POSTGRES_DB: uniroom
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - ./postgres-data:/var/lib/postgresql/data_db
