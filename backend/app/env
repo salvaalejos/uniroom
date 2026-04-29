@@ -1,0 +1,3 @@
+DATABASE_URL="postgresql://uniroom_user:12345@127.0.0.1:5435/uniroom?schema=public&connect_timeout=30&sslmode=disable"
+JWT_SECRET="super_secret_elysia_key"
+MP_ACCESS_TOKEN="TEST-8963143136873678-042622-8bbda8be40d4378549606e7ec1a21ef5-1839200577"

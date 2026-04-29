@@ -10,6 +10,33 @@ const customerClient = new Customer(client);
 const customerCardClient = new CustomerCard(client);
 
 export const paymentRoutes = new Elysia({ prefix: "/payments" })
+  .post("/webhook", async ({ body, set }) => {
+    try {
+      // Manejo de webhook de Mercado Pago
+      console.log("Webhook recibido:", body);
+      const action = (body as any)?.action || (body as any)?.type;
+      const dataId = (body as any)?.data?.id;
+      
+      if ((action === "payment.created" || action === "payment.updated") && dataId) {
+        // Consultar el estado del pago a Mercado Pago
+        const paymentInfo = await paymentClient.get({ id: dataId });
+        
+        if (paymentInfo && paymentInfo.status) {
+          // Actualizar la transacción en nuestra BD
+          await db.transaccion.updateMany({
+            where: { payment_id: dataId.toString() },
+            data: { estado: paymentInfo.status }
+          });
+          console.log(`Transacción ${dataId} actualizada a ${paymentInfo.status}`);
+        }
+      }
+      return { received: true };
+    } catch (e) {
+      console.error("Error procesando webhook:", e);
+      set.status = 500;
+      return { error: "Webhook failed" };
+    }
+  })
   .use(
     jwt({
       name: "jwt",
@@ -52,7 +79,7 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
               last_name: user.apellidos,
             }
           });
-          customerId = newCustomer.id;
+          customerId = newCustomer.id || null;
           // Actualizar en base de datos
           await db.usuario.update({
             where: { id_usuario: user.id_usuario },
@@ -92,6 +119,9 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
         }
 
         const result = await paymentClient.create(paymentData);
+
+        // Log para ver en la consola de Bun que el pago fue exitoso
+        console.log(`✅ [MercadoPago] Pago procesado: ID=${result.id} | Estado=${result.status} | Detalle=${result.status_detail}`);
 
         // Guardar transacción en la base de datos
         await db.transaccion.create({

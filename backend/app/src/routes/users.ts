@@ -17,7 +17,7 @@ const getBearerToken = (authorization?: string) => {
 
 const authenticateRequest = (
   headers: Record<string, string | undefined>,
-  set: { status?: number }
+  set: { status?: number | string }
 ) => {
   const token = getBearerToken(headers.authorization);
   const jwtSecret = process.env.JWT_SECRET || "super_secret_elysia_key";
@@ -93,6 +93,24 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     }
 
     return user;
+  })
+  .get("/:id/transactions", async ({ params: { id }, headers, set }) => {
+    const authUser = authenticateRequest(headers, set);
+    if (!authUser) {
+      return { error: "No autenticado" };
+    }
+
+    if (!canAccessUser(authUser, id)) {
+      set.status = 403;
+      return { error: "No autorizado" };
+    }
+
+    const transactions = await db.transaccion.findMany({
+      where: { id_usuario: id },
+      orderBy: { fecha_creacion: 'desc' }
+    });
+
+    return transactions;
   })
   .put(
     "/:id",

@@ -3,7 +3,7 @@ import {
     View, Text, TextInput, TouchableOpacity, StyleSheet, 
     ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Switch 
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
@@ -25,10 +25,11 @@ export default function PaymentScreen({ navigation, route }: any) {
     const [expiration, setExpiration] = useState(''); // Formato MM/YY
     const [cvc, setCvc] = useState('');
     const [cardholderName, setCardholderName] = useState('');
-    const [docNumber, setDocNumber] = useState(''); // Opcional o requerido según país
     const [saveCard, setSaveCard] = useState(false);
     
     const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
     // Formateadores simples
     const handleCardNumberChange = (text: string) => {
@@ -49,9 +50,40 @@ export default function PaymentScreen({ navigation, route }: any) {
         }
     };
 
+    const getPaymentMethodId = (number: string) => {
+        const cleanNumber = number.replace(/\D/g, '');
+        if (/^4/.test(cleanNumber)) return "visa";
+        if (/^5[1-5]/.test(cleanNumber)) return "master";
+        if (/^3[47]/.test(cleanNumber)) return "amex";
+        return "master"; // Fallback por defecto
+    };
+
+    const getCardTypeForUI = () => {
+        const cleanNumber = cardNumber.replace(/\D/g, '');
+        if (cleanNumber.length === 0) return "unknown";
+        if (/^4/.test(cleanNumber)) return "visa";
+        if (/^5[1-5]/.test(cleanNumber)) return "master";
+        if (/^3[47]/.test(cleanNumber)) return "amex";
+        return "unknown";
+    };
+
+    const cardType = getCardTypeForUI();
+    
+    const cardStyles = {
+        visa: { backgroundColor: '#1A1F71', icon: 'cc-visa' },
+        master: { backgroundColor: '#222222', icon: 'cc-mastercard' },
+        amex: { backgroundColor: '#002663', icon: 'cc-amex' },
+        unknown: { backgroundColor: '#0F2C4F', icon: 'credit-card-outline' }
+    };
+    
+    const currentCardStyle = cardStyles[cardType as keyof typeof cardStyles];
+
     const processPayment = async () => {
-        if (!cardNumber || !expiration || !cvc || !cardholderName || !docNumber) {
-            Alert.alert("Campos incompletos", "Por favor llena todos los datos de la tarjeta.");
+        setErrorMessage('');
+        setSuccessMessage('');
+
+        if (!cardNumber || !expiration || !cvc || !cardholderName) {
+            setErrorMessage("Por favor llena todos los datos de la tarjeta.");
             return;
         }
 
@@ -73,11 +105,7 @@ export default function PaymentScreen({ navigation, route }: any) {
                     expiration_year: parseInt(expirationYear),
                     security_code: cvc,
                     cardholder: {
-                        name: cardholderName,
-                        identification: {
-                            type: "DNI", // o el tipo correspondiente en tu país
-                            number: docNumber
-                        }
+                        name: cardholderName
                     }
                 })
             });
@@ -100,7 +128,7 @@ export default function PaymentScreen({ navigation, route }: any) {
                 },
                 body: JSON.stringify({
                     token: cardToken,
-                    payment_method_id: "master", // Idealmente deducir esto del BIN, lo forzamos para la prueba
+                    payment_method_id: getPaymentMethodId(cardNumber), // Detectado dinámicamente
                     transaction_amount: 50, // Costo de la tarifa
                     installments: 1,
                     saveCard: saveCard,
@@ -115,19 +143,15 @@ export default function PaymentScreen({ navigation, route }: any) {
             }
 
             // Éxito
-            Alert.alert(
-                "¡Pago Exitoso!",
-                "La tarifa se ha cubierto. Ahora puedes contactar al arrendador.",
-                [
-                    { 
-                        text: "Ver contacto", 
-                        onPress: () => navigation.goBack() // Regresa a InmuebleScreen
-                    }
-                ]
-            );
+            setSuccessMessage("La tarifa se ha cubierto. Ahora puedes contactar al arrendador.");
+            
+            // Regresa a InmuebleScreen después de 2 segundos
+            setTimeout(() => {
+                navigation.goBack();
+            }, 2500);
 
         } catch (error: any) {
-            Alert.alert("Error de Pago", error.message);
+            setErrorMessage(error.message || "Ocurrió un error");
         } finally {
             setIsLoading(false);
         }
@@ -147,14 +171,39 @@ export default function PaymentScreen({ navigation, route }: any) {
                 <Text style={styles.title}>Tarifa de Servicio</Text>
                 <Text style={styles.subtitle}>Completa el pago seguro para acceder a la información de contacto.</Text>
 
+                {errorMessage ? (
+                    <View style={styles.errorContainer}>
+                        <MaterialCommunityIcons name="alert-circle" size={20} color="#E74C3C" />
+                        <Text style={styles.errorTextUI}>{errorMessage}</Text>
+                    </View>
+                ) : null}
+
+                {successMessage ? (
+                    <View style={styles.successContainer}>
+                        <MaterialCommunityIcons name="check-circle" size={24} color="#27AE60" />
+                        <View style={styles.successTextContainer}>
+                            <Text style={styles.successTitle}>¡Pago Exitoso!</Text>
+                            <Text style={styles.successTextUI}>{successMessage}</Text>
+                        </View>
+                    </View>
+                ) : null}
+
                 <View style={styles.amountContainer}>
                     <Text style={styles.amountLabel}>Total a pagar</Text>
                     <Text style={styles.amountValue}>$50.00 MXN</Text>
                 </View>
 
                 {/* Tarjeta Virtual Visual */}
-                <View style={styles.cardVisual}>
-                    <MaterialCommunityIcons name="credit-card-chip-outline" size={32} color="#DCEEFF" />
+                <View style={[styles.cardVisual, { backgroundColor: currentCardStyle.backgroundColor }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <MaterialCommunityIcons name="credit-card-chip-outline" size={32} color="#DCEEFF" />
+                        {cardType !== 'unknown' && (
+                            <FontAwesome name={currentCardStyle.icon as any} size={32} color="#FFFFFF" />
+                        )}
+                        {cardType === 'unknown' && (
+                            <MaterialCommunityIcons name="credit-card-outline" size={32} color="rgba(255,255,255,0.3)" />
+                        )}
+                    </View>
                     <Text style={styles.cardVisualNumber}>{cardNumber || '**** **** **** ****'}</Text>
                     <View style={styles.cardVisualFooter}>
                         <View>
@@ -215,17 +264,6 @@ export default function PaymentScreen({ navigation, route }: any) {
                             autoCapitalize="words"
                             value={cardholderName}
                             onChangeText={setCardholderName}
-                        />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Documento de Identidad (DNI)</Text>
-                        <TextInput 
-                            style={styles.input}
-                            keyboardType="number-pad"
-                            placeholder="Número de documento"
-                            value={docNumber}
-                            onChangeText={setDocNumber}
                         />
                     </View>
 
@@ -412,5 +450,47 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#7F8C8D',
         marginLeft: 6,
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FDEDEC',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#FADBD8',
+    },
+    errorTextUI: {
+        color: '#E74C3C',
+        marginLeft: 8,
+        fontSize: 15,
+        flex: 1,
+    },
+    successContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#EAFAF1',
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#D5F5E3',
+        alignItems: 'flex-start',
+    },
+    successTextContainer: {
+        marginLeft: 12,
+        flex: 1,
+    },
+    successTitle: {
+        color: '#27AE60',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    successTextUI: {
+        color: '#2E4053',
+        fontSize: 15,
+        marginBottom: 16,
+        lineHeight: 22,
     }
 });
