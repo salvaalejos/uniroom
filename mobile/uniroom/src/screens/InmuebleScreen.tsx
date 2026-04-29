@@ -20,7 +20,7 @@ const PROPIEDAD = {
     anfitrion: "Stevenson",
     precio: 3200,
     calificacion: 4.91,
-    opiniones: 56,
+    opiniones: 3,
     ubicacion: "Centro Histórico, Morelia — Zona tranquila, cerca de transporte público",
     descripcion: "Departamento amueblado de 2 habitaciones en el corazón de Morelia. Ideal para estudiantes. Incluye todos los servicios básicos y acceso a áreas comunes.",
     servicios: ["WiFi incluido", "Agua incluida", "Luz incluida", "Lavadora", "Estacionamiento"],
@@ -34,16 +34,18 @@ const PROPIEDAD = {
     ]
 }
 
-// Comentarios preestablecidos ksdhfsjf
-const COMENTARIOS_INICIALES = [
+// Reseñas de inquilinos anteriores ksdhfsjf
+const RESENAS = [
     { autor: "Ana G.", texto: "Muy buen lugar, limpio y tranquilo.", fecha: "12 de enero de 2025 a las 3:25 p.m." },
     { autor: "Carlos M.", texto: "Excelente ubicación, el anfitrión muy amable.", fecha: "3 de febrero de 2025 a las 8:46 a.m." },
     { autor: "Sofía R.", texto: "Todo como se describe, lo recomiendo.", fecha: "28 de marzo de 2025 a las 2:07 p.m." },
 ]
 
+
+
 // ─ Tipos ─
 
-type Comentario = { autor: string, texto: string, fecha: string }
+type Resena = { autor: string, texto: string, fecha: string }
 
 type Props = {
     visible: boolean
@@ -69,27 +71,11 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
 
     const [favorito, setFavorito] = useState(false)
     const [imagenActual, setImagenActual] = useState(0)
-    const [miCalificacion, setMiCalificacion] = useState(0)
-    const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIALES)
-    const [nuevoComentario, setNuevoComentario] = useState("")
+    const [verComentarios, setVerComentarios] = useState(false)
 
     const player = useVideoPlayer(
         PROPIEDAD.media[imagenActual].tipo === "video" ? PROPIEDAD.media[imagenActual].src : null
     )
-
-    // Poder agregar comentarios
-    const agregarComentario = () => {
-        if (nuevoComentario.trim() === "") return
-        const fecha = new Date().toLocaleDateString('es-MX', {
-            minute: 'numeric',
-            hour: 'numeric',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        })
-        setComentarios([{ autor: "Tú", texto: nuevoComentario, fecha }, ...comentarios])
-        setNuevoComentario("")
-    }
 
     return(
 
@@ -151,8 +137,6 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
                             ))}
                         </ScrollView>
 
-                        
-
                         {/* Miniautas */}
                         <View style={styles.miniaturas}>
                             {PROPIEDAD.media.map((item, i) => (
@@ -181,16 +165,18 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
                         <Text style={styles.titulo}>{PROPIEDAD.titulo}</Text>
                         
                         <View style={styles.calificacionContainer}>
+
                             <View style={styles.calificacionItem}>
                                 <Text style={styles.calificacionNumero}>{PROPIEDAD.calificacion}</Text>
+                                {/* La idea es que saca el promedio de las valoraciones de las resenas de los usuarios */}
                                 <View style={styles.estrellas}>
-                                    {[1, 2 ,3 ,4 ,5].map((i)=>(
-                                        <TouchableOpacity key={i} onPress={() => setMiCalificacion(i)}>
-                                            <MaterialCommunityIcons
-                                            name={i <= miCalificacion ? "star" : "star-outline"}
+                                    {[1, 2, 3, 4, 5].map((i) => (
+                                        <MaterialCommunityIcons
+                                            key={i}
+                                            name={i <= 4 ? "star" : "star-outline"}
                                             size={25}
-                                            color="#f39c12"/>
-                                        </TouchableOpacity>
+                                            color="#f39c12"
+                                        />
                                     ))}
                                 </View>
                             </View>
@@ -263,38 +249,49 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
 
                         <View style={styles.divider}/>
 
-                        {/* Nuevo comentario */}
-                        <View style={styles.inputComentarioContainer}>
-                            <TextInput
-                            style={styles.inputComentario}
-                            placeholder="Escribe tu comentario..."
-                            placeholderTextColor="#aaa"
-                            value={nuevoComentario}
-                            onChangeText={setNuevoComentario}
-                            multiline/>
-                            <TouchableOpacity style={styles.btnEnviar} onPress={agregarComentario}>
-                                <MaterialCommunityIcons name="send" size={20} color="#fff"/>
-                            </TouchableOpacity>
+                        {/* Comentarios predefinidos */}
+                        <View style={styles.comentarioEncabezado}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <MaterialCommunityIcons name="star" size={18} color="#f39c12" />
+                                <View>
+                                    <Text style={styles.comentarioEncabezadoTexto}>Reseñas del público</Text>
+                                    <Text style={{ fontSize: 12, color: "#185FA5" }}>{RESENAS.length} opiniones</Text>
+                                </View>
+                            </View>
+                            {RESENAS.length > 0 && (
+                                <TouchableOpacity onPress={() => setVerComentarios(!verComentarios)}>
+                                    <MaterialCommunityIcons
+                                        name={verComentarios ? "chevron-up" : "chevron-down"}
+                                        size={24}
+                                        color="#185FA5"
+                                    />
+                                </TouchableOpacity>
+                            )}
                         </View>
 
-                        {/* Comentarios predefinidos */}
-                        {comentarios.map((c, i) => (
-                            <View key={i} style={styles.comentario}>
-                                <Image source={ANFITRION} style={styles.comentarioAvatar}/>
-                                <View>
-                                    <MaterialCommunityIcons name="account" size={20} color="#fff"/>
-                                </View>
-
-                                <View style={{flex: 1}}>
-                                    <View style={{ flexDirection: "column", justifyContent: "space-between" }}>
-                                        <Text style={styles.comentarioAutor}>{c.autor}</Text>
-                                        <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
+                        {RESENAS.length === 0 ? (
+                            <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20 }}>
+                                Aún no hay reseñas para este lugar.
+                            </Text>
+                        ) : verComentarios ? (
+                            RESENAS.map((c, i) => (
+                                <View key={i} style={styles.comentario}>
+                                    <Image source={ANFITRION} style={styles.comentarioAvatar}/>
+                                    <View style={{flex: 1}}>
+                                        <View style={{ flexDirection: "column", justifyContent: "space-between" }}>
+                                            <Text style={styles.comentarioAutor}>{c.autor}</Text>
+                                            <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
+                                        </View>
+                                        <Text style={styles.comentarioTexto}>{c.texto}</Text>
                                     </View>
-                                    <Text style={styles.comentarioTexto}>{c.texto}</Text>
                                 </View>
-
-                            </View>
-                        ))}
+                            ))
+                        ) : (
+                            <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20, fontSize: 13 }}>
+                                Toca la flecha para ver las reseñas.
+                            </Text>
+                        )}
+                        
                     </View>
 
                 </ScrollView>
@@ -311,7 +308,7 @@ const InmuebleScreen = ({ visible, onClose, navigation }: Props) => {
                         onPress={() => {
                             onClose()
                             navigation.navigate("AgendarCita")}}>
-                        <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
+                        <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>
                         <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
                     </TouchableOpacity>
                 </View>
@@ -509,26 +506,21 @@ const styles = StyleSheet.create({
     tagTextoRegla: {
         color: "#b83e31",
     },
-    inputComentarioContainer: {
+    comentarioEncabezado: {
+        borderLeftWidth: 2,
+        borderLeftColor: "#205EA6",
+        paddingVertical: 10,
+        paddingHorizontal: 14,
         flexDirection: "row",
-        alignItems: "flex-start",
-        gap: 10,
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: "#f0f5fc",
         marginBottom: 20,
     },
-    inputComentario: {
-        flex: 1,
-        backgroundColor: "#f5f5f5",
-        borderRadius: 12,
-        padding: 12,
-        fontSize: 14,
-        color: "#1a1a2e",
-    },
-    btnEnviar: {
-        backgroundColor: "#205EA6",
-        borderRadius: 25,
-        padding: 15,
-        justifyContent: "center",
-        alignItems: "center",
+    comentarioEncabezadoTexto: {
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#0C447C",
     },
     comentario: {
         flexDirection: "row",
@@ -545,11 +537,6 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: "700",
         color: "#1a1a2e",
-    },
-    comentarioFecha: {
-        fontSize: 11,
-        color: "#aaa",
-        marginBottom: 2,
     },
     comentarioTexto: {
         fontSize: 14,

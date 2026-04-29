@@ -36,6 +36,8 @@ const InmuebleStackScreen = () => {
     )
 }
 
+// hay un desmadre dnfdjf xdxdxd
+
 const CitaStack = createStackNavigator()
 
 const CitaStackScreen = () => {
@@ -83,10 +85,10 @@ const Profile_Menu = () => {
 const Tabs = [
     {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: CitaStackScreen},
     {route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: MapRouteScreen},
-    //{route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
+    {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
     
     // ruta provicional para los inmuebles
-    {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: InmuebleStackScreen},
+    // {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: InmuebleStackScreen},
 
 
     {route : 'Notificaciones', label: 'Notificaciones', activeIcon: 'bell', inActiveIcon: "bell-outline", component: NotificationScreen},
