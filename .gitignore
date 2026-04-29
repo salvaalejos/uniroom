@@ -22,3 +22,5 @@ mobile/uniroom/.env
 *.log
 test_register.json
 .env
+
+backend/app/uploads

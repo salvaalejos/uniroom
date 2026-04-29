@@ -19,7 +19,6 @@ import * as Animatable from "react-native-animatable"
 import Settings from "./Settings"
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from "@react-navigation/stack"
-
 // agendar cita de vivienda
 import AgendarCita from "./AgendarCita";
 // Para crear inmuebles sjkfhdsf
@@ -91,7 +90,7 @@ const Profile_Menu = ({ route }: any) => {
 
 const StudentTabs = [
     { route: 'Inmuebles', label: 'Explorar', activeIcon: "map-search", component: MapScreen },
-    { route: 'Rutas', label: 'Rutas', activeIcon: "car", component: MapRouteScreen },
+    // { route: 'Rutas', label: 'Rutas', activeIcon: "car", component: MapScreen },
     { route: 'Notificaciones', label: 'Avisos', activeIcon: 'bell', component: NotificationScreen },
     { route: 'ProfileTab', label: 'Mi Perfil', activeIcon: "account", component: Profile_Menu }
 ];

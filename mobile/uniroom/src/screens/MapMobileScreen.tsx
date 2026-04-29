@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { getRouteWithTraffic } from "../services/MapboxService";
 import {
-  TRANSPORT_ROUTES_BY_CATEGORY,
+  TRANSPORT_ROUTES,
   TransportRoute,
 } from "../services/TransportRoutes";
 
@@ -61,10 +61,10 @@ export default function MapScreen() {
   const timeCache = useRef<{ [key: number]: number }>({});
   const distanceCache = useRef<{ [key: number]: number }>({});
 
-  const categories = useMemo(() => Object.keys(TRANSPORT_ROUTES_BY_CATEGORY), []);
+  const categories = useMemo(() => Object.keys(TRANSPORT_ROUTES), []);
   
   const currentSubRoutes = useMemo(() => 
-    selectedCategory ? TRANSPORT_ROUTES_BY_CATEGORY[selectedCategory] : [],
+    selectedCategory ? TRANSPORT_ROUTES[selectedCategory] : [],
     [selectedCategory]
   );
 
@@ -300,7 +300,7 @@ export default function MapScreen() {
       let bestEvaluation: any = null;
       const nearbyRoutesList: string[] = [];
       
-      const allRoutes = Object.values(TRANSPORT_ROUTES_BY_CATEGORY).flat();
+      const allRoutes = Object.values(TRANSPORT_ROUTES).flat();
       
       for (const route of allRoutes) {
         const evaluation = await evaluateRouteForRecommendation(route, userLocation.latitude, userLocation.longitude);
