@@ -17,8 +17,8 @@ export type Propiedad = {
 };
 
 export const PROPIEDADES: Propiedad[] = [
-  {
-    id: 1, precio: 3200, lat: 19.7225, lng: -101.184, tipo: "Cuarto",
+  { 
+    id: 1, precio: 3200, lat: 19.724163, lng: -101.188864, tipo: "Cuarto",
     titulo: "🌙 Cuarto amueblado cerca del Tec",
     anfitrion: "Carlos Martínez", calificacion: 4.8, opiniones: 23,
     ubicacion: "Cerca del Tec de Morelia — Zona tranquila, a 3 min caminando",
@@ -27,12 +27,11 @@ export const PROPIEDADES: Propiedad[] = [
     reglas: ["No mascotas", "No fumar", "Horario de silencio 10pm - 7am", "No visitas después de 11pm"],
     contacto: "55 1234 5678",
     media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
+      { tipo: "imagen", src: require("../default_images/cuarto1.jpg") },
     ]
   },
-  {
-    id: 2, precio: 4800, lat: 19.7208, lng: -101.1862, tipo: "Departamento",
+  { 
+    id: 2, precio: 4800, lat: 19.722689, lng: -101.188397, tipo: "Departamento",
     titulo: "🏢 Departamento centro histórico",
     anfitrion: "Stevenson Ramírez", calificacion: 4.91, opiniones: 56,
     ubicacion: "Centro Histórico, Morelia — Zona tranquila, cerca de transporte público",
@@ -41,14 +40,12 @@ export const PROPIEDADES: Propiedad[] = [
     reglas: ["No mascotas", "No fumar", "No fiestas", "Máx. 3 personas", "Depósito de garantía"],
     contacto: "55 1234 5678",
     media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-      { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
+      { tipo: "imagen", src: require("../default_images/depa1.jpg") },
       { tipo: "video", src: require("../default_images/twt.mp4") },
     ]
   },
-  {
-    id: 3, precio: 2700, lat: 19.7231, lng: -101.1848, tipo: "Cuarto",
+  {//19.721229, -101.190407
+    id: 3, precio: 2700, lat: 19.721229, lng: -101.190407, tipo: "Cuarto",
     titulo: "💸 Cuarto económico para estudiante",
     anfitrion: "Laura Gutiérrez", calificacion: 4.5, opiniones: 34,
     ubicacion: "Colonia Universidad — A 5 min del Tec",
@@ -56,24 +53,23 @@ export const PROPIEDADES: Propiedad[] = [
     servicios: ["Agua incluida", "Luz incluida", "Internet 50MB", "Cocina compartida"],
     reglas: ["No fiestas", "No visitas después de 11pm", "Mantener limpieza"],
     contacto: "55 9876 5432",
-    media: [{ tipo: "imagen", src: require("../default_images/otracasa.jpeg") }]
+    media: [{ tipo: "imagen", src: require("../default_images/cuarto2.jpeg") }]
   },
-  {
-    id: 4, precio: 5500, lat: 19.7202, lng: -101.1835, tipo: "Casa",
-    titulo: "🏠 Casa compartida con jardín",
-    anfitrion: "Miguel Rodríguez", calificacion: 4.7, opiniones: 42,
+  { //19.709099, -101.152523
+    id: 4, precio: 5500, lat: 19.709099, lng: -101.152523, tipo: "Casa",
+    titulo: "La casa del consejal",
+    anfitrion: "Chava Cangrejos", calificacion: 4.7, opiniones: 42,
     ubicacion: "Privada del Bosque — Zona residencial exclusiva",
-    descripcion: "Casa grande con jardín, cocina equipada, estacionamiento para 2 autos y área de lavado. Compartida con otros estudiantes de intercambio. Ambiente internacional y acogedor.",
+    descripcion: "Casa de lujo con 4 habitaciones, 3 baños, cocina equipada, jardín grande y seguridad privada. El habitad de un consejal que abandona a su equipo y manda .env a las 12 de la noche. Perfecta para estudiantes que buscan un ambiente tranquilo y seguro.",
     servicios: ["Internet 100MB", "Agua", "Luz", "Gas", "Estacionamiento", "Jardín", "Lavadora", "Secadora"],
     reglas: ["Mascotas permitidas (consultar)", "No fumar dentro", "Mantener limpio", "Respetar áreas comunes"],
     contacto: "55 4567 8901",
     media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
+      { tipo: "imagen", src: require("../default_images/housechava.png") },
     ]
   },
-  {
-    id: 5, precio: 3900, lat: 19.724, lng: -101.1865, tipo: "Departamento",
+  { //19.726734, -101.184793
+    id: 5, precio: 3900, lat: 19.726734, lng: -101.184793, tipo: "Departamento",
     titulo: "🌅 Departamento con balcón",
     anfitrion: "Ana Sofía", calificacion: 4.9, opiniones: 67,
     ubicacion: "Zona Centro — Cerca de todo",
@@ -82,7 +78,7 @@ export const PROPIEDADES: Propiedad[] = [
     reglas: ["No mascotas", "No fumar", "No fiestas ruidosas"],
     contacto: "55 2345 6789",
     media: [
-      { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
+      { tipo: "imagen", src: require("../default_images/depa2.jpeg") },
       { tipo: "video", src: require("../default_images/twt.mp4") },
     ]
   },
@@ -95,10 +91,10 @@ export const PROPIEDADES: Propiedad[] = [
     servicios: ["Agua", "Luz", "Internet básico 20MB", "Baño compartido"],
     reglas: ["Sin visitas", "Silencio después de 9pm", "No fumar"],
     contacto: "55 3456 7890",
-    media: [{ tipo: "imagen", src: require("../default_images/fachada.jpg") }]
+    media: [{ tipo: "imagen", src: require("../default_images/cuarto3.jpg") }]
   },
-  {
-    id: 7, precio: 6200, lat: 19.7235, lng: -101.183, tipo: "Casa",
+  { //19.725080, -101.178154
+    id: 7, precio: 6200, lat: 19.725080, lng: -101.178154, tipo: "Casa",
     titulo: "🏰 Casa grande 3 habitaciones",
     anfitrion: "Patricia Kuri", calificacion: 4.95, opiniones: 89,
     ubicacion: "Residencial Las Águilas — Zona de lujo",
@@ -107,13 +103,12 @@ export const PROPIEDADES: Propiedad[] = [
     reglas: ["Mascotas bienvenidas", "No fiestas ruidosas después 10pm", "Depósito 1 mes"],
     contacto: "55 4567 1234",
     media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-      { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
+      { tipo: "imagen", src: require("../default_images/casa1.jpg") },
+
     ]
   },
-  {
-    id: 8, precio: 3100, lat: 19.7195, lng: -101.185, tipo: "Cuarto",
+  { //19.717857, -101.185806
+    id: 8, precio: 3100, lat: 19.717857, lng: -101.185806, tipo: "Cuarto",
     titulo: "🚪 Cuarto con baño propio",
     anfitrion: "Roberto Mendoza", calificacion: 4.6, opiniones: 27,
     ubicacion: "Calle del Tec — Entrada principal",
@@ -122,12 +117,12 @@ export const PROPIEDADES: Propiedad[] = [
     reglas: ["No fiestas", "No fumar", "No mascotas"],
     contacto: "55 5678 9012",
     media: [
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
+      { tipo: "imagen", src: require("../default_images/casa2.jpg") },
       { tipo: "video", src: require("../default_images/twt.mp4") },
     ]
   },
-  {
-    id: 9, precio: 4100, lat: 19.7228, lng: -101.188, tipo: "Departamento",
+  { //19.722632, -101.193505
+    id: 9, precio: 4100, lat: 19.722632, lng: -101.193505, tipo: "Departamento",
     titulo: "✨ Departamento amueblado",
     anfitrion: "Sofía Reyes", calificacion: 4.85, opiniones: 51,
     ubicacion: "Colonia Nueva — Zona tranquila y segura",
@@ -136,12 +131,11 @@ export const PROPIEDADES: Propiedad[] = [
     reglas: ["No mascotas", "No fumar", "Responsabilidad sobre el mobiliario"],
     contacto: "55 6789 0123",
     media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
+      { tipo: "imagen", src: require("../default_images/depa3.jpg") },
     ]
   },
-  {
-    id: 10, precio: 2900, lat: 19.7205, lng: -101.1825, tipo: "Cuarto",
+  { //19.717332, -101.189105
+    id: 10, precio: 2900, lat: 19.717332, lng: -101.189105, tipo: "Cuarto",
     titulo: "💰 Cuarto económico",
     anfitrion: "Luis Torres", calificacion: 4.4, opiniones: 31,
     ubicacion: "Cerca del Walmart — Zona comercial",
@@ -149,6 +143,6 @@ export const PROPIEDADES: Propiedad[] = [
     servicios: ["Agua", "Luz", "Internet 50MB", "Cocina compartida"],
     reglas: ["Horario de visita limitado", "No fumar", "No mascotas"],
     contacto: "55 7890 1234",
-    media: [{ tipo: "imagen", src: require("../default_images/fachada.jpg") }]
+    media: [{ tipo: "imagen", src: require("../default_images/casa3.jpg") }]
   },
 ];
