@@ -4,6 +4,7 @@ import { cors } from "@elysiajs/cors";
 import { authRoutes } from "./routes/auth";
 import { usersRoutes } from "./routes/users";
 import { notificacionRoutes } from "./routes/notificacion";
+import { filtroRoutes } from "./routes/Filtro";
 
 
 const app = new Elysia()    
@@ -19,6 +20,7 @@ const app = new Elysia()
   .use(authRoutes)
   .use(usersRoutes)
   .use(notificacionRoutes)
+  .use(filtroRoutes)
   .get("/", () => "Hello Elysia")
   .listen(3000);
 
