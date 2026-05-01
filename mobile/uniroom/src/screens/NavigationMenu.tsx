@@ -41,6 +41,8 @@ const InmuebleStackScreen = () => {
     )
 }
 
+// hay un desmadre dnfdjf xdxdxd
+
 const CitaStack = createStackNavigator()
 
 const CitaStackScreen = () => {
@@ -88,20 +90,20 @@ const Profile_Menu = ({ route }: any) => {
         )
 }
 
-const StudentTabs = [
-    { route: 'Inmuebles', label: 'Explorar', activeIcon: "map-search", component: MapScreen },
-    // { route: 'Rutas', label: 'Rutas', activeIcon: "car", component: MapScreen },
-    { route: 'Notificaciones', label: 'Avisos', activeIcon: 'bell', component: NotificationScreen },
-    { route: 'ProfileTab', label: 'Mi Perfil', activeIcon: "account", component: Profile_Menu }
-];
+const Tabs = [
+    {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: CitaStackScreen},
+    {route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: MapRouteScreen},
+    
+    // Ruta de la casa en renta
+    {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
+    
+    // Ruta provicional para los inmuebles que esta renntando el arrendador
+    // {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: InmuebleStackScreen},
 
-const LandlordTabs = [
-    { route: 'MisInmuebles', label: 'Mis Casas', activeIcon: "home-city", component: MisInmuebles },
-    { route: 'Publicar', label: 'Publicar', activeIcon: "home-plus", component: Upload_Renta },
-    { route: 'Calendario', label: 'Agenda', activeIcon: "calendar-month", component: CalendarScreen },
-    { route: 'Avisos', label: 'Notificaciones', activeIcon: "bell-check", component: NotificationScreen },
-    { route: 'CuentaArrendador', label: 'Mi Cuenta', activeIcon: "account-tie", component: Profile_Menu }
-];
+
+    {route : 'Notificaciones', label: 'Notificaciones', activeIcon: 'bell', inActiveIcon: "bell-outline", component: NotificationScreen},
+    {route : 'ProfileTab', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: ProfileDataScreen}
+]
 
 const TabButton = (props: any) => {
     const { item, onPress, accessibilityState } = props
