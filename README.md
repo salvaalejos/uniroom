@@ -123,7 +123,7 @@ Abran la terminal en la carpeta raíz del proyecto y ejecuten:
 docker-compose up -d
 
 ```
-
+(Puede que en algunas ocaciones ese comando no funcione y se ocupe usar: docker compose up -d)
 Esperen 10 segundos a que la base de datos inicie correctamente.
 
 ---

@@ -12,15 +12,38 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 // Foto del anfitrion provisional
 const ANFITRION = require("../default_images/anfi.jpg")
 
-// Comentarios preestablecidos
-const COMENTARIOS_INICIALES = [
+// Datos falsos por ahora sjdhsjd
+const PROPIEDAD = {
+    titulo: "Departamento Centro Morelia",
+    anfitrion: "Stevenson",
+    precio: 3200,
+    calificacion: 4.91,
+    opiniones: 3,
+    ubicacion: "Centro Histórico, Morelia — Zona tranquila, cerca de transporte público",
+    descripcion: "Departamento amueblado de 2 habitaciones en el corazón de Morelia. Ideal para estudiantes. Incluye todos los servicios básicos y acceso a áreas comunes.",
+    servicios: ["WiFi incluido", "Agua incluida", "Luz incluida", "Lavadora", "Estacionamiento"],
+    reglas: ["No mascotas", "No fumar", "No fiestas", "Máx. 2 personas"],
+    contacto: "55 1234 5678",
+    media: [
+        { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
+        { tipo: "imagen", src: require("../default_images/fachada.jpg") },
+        { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
+        { tipo: "video", src: require("../default_images/twt.mp4") },
+    ]
+}
+
+// Reseñas de inquilinos anteriores ksdhfsjf
+const RESENAS = [
     { autor: "Ana G.", texto: "Muy buen lugar, limpio y tranquilo.", fecha: "12 de enero de 2025 a las 3:25 p.m." },
     { autor: "Carlos M.", texto: "Excelente ubicación, el anfitrión muy amable.", fecha: "3 de febrero de 2025 a las 8:46 a.m." },
     { autor: "Sofía R.", texto: "Todo como se describe, lo recomiendo.", fecha: "28 de marzo de 2025 a las 2:07 p.m." },
 ]
 
+
+
 // ─ Tipos ─
-type Comentario = { autor: string, texto: string, fecha: string }
+
+type Resena = { autor: string, texto: string, fecha: string }
 
 type Props = {
     visible: boolean
@@ -100,57 +123,11 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
     const [favorito, setFavorito] = useState(false)
     const [imagenActual, setImagenActual] = useState(0)
-    const [miCalificacion, setMiCalificacion] = useState(0)
-    const [comentarios, setComentarios] = useState<Comentario[]>(COMENTARIOS_INICIALES)
-    const [nuevoComentario, setNuevoComentario] = useState("")
-    const [modalTarifaVisible, setModalTarifaVisible] = useState(false)
+    const [verComentarios, setVerComentarios] = useState(false)
 
-    const agregarComentario = () => {
-        if (nuevoComentario.trim() === "") return
-        const fecha = new Date().toLocaleDateString('es-MX', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: 'numeric'
-        })
-        setComentarios([{ autor: "Tú", texto: nuevoComentario, fecha }, ...comentarios])
-        setNuevoComentario("")
-    }
-
-    const renderMedia = (item, index) => {
-        if (item.tipo === "imagen") {
-            return (
-                <Image 
-                    key={index} 
-                    source={item.src} 
-                    style={styles.imagenPrincipal}
-                    resizeMode="cover"
-                />
-            )
-        } else {
-            // Solo mostrar VideoView si el video es el actual y es visible
-            if (index === imagenActual && visible && videoSource) {
-                return (
-                    <VideoView
-                        key={index}
-                        player={player}
-                        style={styles.imagenPrincipal}
-                        contentFit="cover"
-                        nativeControls
-                    />
-                )
-            } else {
-                // Placeholder mientras no está activo
-                return (
-                    <View key={index} style={[styles.imagenPrincipal, styles.videoPlaceholder]}>
-                        <MaterialCommunityIcons name="play-circle" size={50} color="#fff" />
-                        <Text style={styles.videoPlaceholderText}>Video preview</Text>
-                    </View>
-                )
-            }
-        }
-    }
+    const player = useVideoPlayer(
+        PROPIEDAD.media[imagenActual].tipo === "video" ? PROPIEDAD.media[imagenActual].src : null
+    )
 
     return(
         <View style={styles.container}>
@@ -184,13 +161,22 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         onMomentumScrollEnd={(e) => {
                             const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width)
                             setImagenActual(index)
-                        }}
-                    >
-                        {inmueble.media?.map((item, i) => renderMedia(item, i))}
-                    </ScrollView>
+                        }}>
+                            {PROPIEDAD.media.map((item, i) => (
+                                item.tipo === "imagen" ? (
+                                    <Image key={i} source={item.src} style={styles.imagenPrincipal}/>
+                                ) : (
+                                    <VideoView
+                                    key={i}
+                                    player={player}
+                                    style={styles.imagenPrincipal}
+                                    allowsFullscreen
+                                    allowsPictureInPicture/>
+                                )
+                            ))}
+                        </ScrollView>
 
-                    {/* Miniaturas */}
-                    {inmueble.media?.length > 1 && (
+                        {/* Miniautas */}
                         <View style={styles.miniaturas}>
                             {inmueble.media.map((item, i) => (
                                 <TouchableOpacity key={i} onPress={() => {
@@ -210,29 +196,28 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     )}
                 </View>
 
-                {/* Informacion Principal */}
-                <View style={styles.info}>
-                    {/* Titulo */}
-                    <Text style={styles.titulo}>{inmueble.titulo}</Text>
-                    
-                    {/* Calificaciones */}
-                    <View style={styles.calificacionContainer}>
-                        <View style={styles.calificacionItem}>
-                            <Text style={styles.calificacionNumero}>{inmueble.calificacion} <MaterialCommunityIcons
-                                            name={"star"}
-                                            size={25}
-                                            color="#f39c12"/></Text>
-                            {/* <View style={styles.estrellas}>
-                                {[1, 2, 3, 4, 5].map((i)=>(
-                                    <TouchableOpacity key={i} onPress={() => setMiCalificacion(i)}>
+                    {/* Informacion Principal */}
+                    <View style={styles.info}>
+
+                        {/* Titulo y calificaciones jsjs */}
+                        <Text style={styles.titulo}>{PROPIEDAD.titulo}</Text>
+                        
+                        <View style={styles.calificacionContainer}>
+
+                            <View style={styles.calificacionItem}>
+                                <Text style={styles.calificacionNumero}>{PROPIEDAD.calificacion}</Text>
+                                {/* La idea es que saca el promedio de las valoraciones de las resenas de los usuarios */}
+                                <View style={styles.estrellas}>
+                                    {[1, 2, 3, 4, 5].map((i) => (
                                         <MaterialCommunityIcons
-                                            name={i <= miCalificacion ? "star" : "star-outline"}
+                                            key={i}
+                                            name={i <= 4 ? "star" : "star-outline"}
                                             size={25}
-                                            color="#f39c12"/>
-                                    </TouchableOpacity>
-                                ))}
-                            </View> */}
-                        </View>
+                                            color="#f39c12"
+                                        />
+                                    ))}
+                                </View>
+                            </View>
 
                         <View style={styles.calificacionItem}>
                             <Text style={styles.calificacionNumero}>{inmueble.opiniones}</Text>
@@ -288,43 +273,70 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         ))}
                     </View>
 
-                    <View style={styles.divider}/>
+                        <View style={styles.divider}/>
 
-                    {/* Nuevo comentario */}
-                    {/* <View style={styles.inputComentarioContainer}>
-                        <TextInput
-                            style={styles.inputComentario}
-                            placeholder="Escribe tu comentario..."
-                            placeholderTextColor="#aaa"
-                            value={nuevoComentario}
-                            onChangeText={setNuevoComentario}
-                            multiline/>
-                        <TouchableOpacity style={styles.btnEnviar} onPress={agregarComentario}>
-                            <MaterialCommunityIcons name="send" size={20} color="#fff"/>
-                        </TouchableOpacity>
-                    </View> */}
-
-                    {/* Comentarios */}
-                    {comentarios.map((c, i) => (
-                        <View key={i} style={styles.comentario}>
-                            <Image source={ANFITRION} style={styles.comentarioAvatar}/>
-                            <View style={{flex: 1}}>
-                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                                    <Text style={styles.comentarioAutor}>{c.autor}</Text>
-                                    <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
+                        {/* Comentarios predefinidos */}
+                        <View style={styles.comentarioEncabezado}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <MaterialCommunityIcons name="star" size={18} color="#f39c12" />
+                                <View>
+                                    <Text style={styles.comentarioEncabezadoTexto}>Reseñas del público</Text>
+                                    <Text style={{ fontSize: 12, color: "#185FA5" }}>{RESENAS.length} opiniones</Text>
                                 </View>
-                                <Text style={styles.comentarioTexto}>{c.texto}</Text>
                             </View>
+                            {RESENAS.length > 0 && (
+                                <TouchableOpacity onPress={() => setVerComentarios(!verComentarios)}>
+                                    <MaterialCommunityIcons
+                                        name={verComentarios ? "chevron-up" : "chevron-down"}
+                                        size={24}
+                                        color="#185FA5"
+                                    />
+                                </TouchableOpacity>
+                            )}
                         </View>
-                    ))}
-                </View>
-            </ScrollView>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-                <View>
-                    <Text style={styles.footerPrecio}>${inmueble.precio.toLocaleString('es-MX')}</Text>
-                    <Text style={styles.footerMes}>/ mes</Text>
+                        {RESENAS.length === 0 ? (
+                            <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20 }}>
+                                Aún no hay reseñas para este lugar.
+                            </Text>
+                        ) : verComentarios ? (
+                            RESENAS.map((c, i) => (
+                                <View key={i} style={styles.comentario}>
+                                    <Image source={ANFITRION} style={styles.comentarioAvatar}/>
+                                    <View style={{flex: 1}}>
+                                        <View style={{ flexDirection: "column", justifyContent: "space-between" }}>
+                                            <Text style={styles.comentarioAutor}>{c.autor}</Text>
+                                            <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
+                                        </View>
+                                        <Text style={styles.comentarioTexto}>{c.texto}</Text>
+                                    </View>
+                                </View>
+                            ))
+                        ) : (
+                            <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20, fontSize: 13 }}>
+                                Toca la flecha para ver las reseñas.
+                            </Text>
+                        )}
+                        
+                    </View>
+
+                </ScrollView>
+
+                {/* Footer */}
+                <View style={styles.footer}>
+                    <View>
+                        <Text style={styles.footerPrecio}>${PROPIEDAD.precio.toLocaleString('es-MX')}</Text>
+                        <Text style={styles.footerMes}>/ mes</Text>
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.btnContacto}
+                        onPress={() => {
+                            onClose()
+                            navigation.navigate("AgendarCita")}}>
+                        <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>
+                        <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
+                    </TouchableOpacity>
                 </View>
                 <TouchableOpacity style={styles.btnContacto} onPress={() => setModalTarifaVisible(true)}>
                     <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
@@ -533,26 +545,21 @@ const styles = StyleSheet.create({
     tagTextoRegla: {
         color: "#b83e31",
     },
-    inputComentarioContainer: {
+    comentarioEncabezado: {
+        borderLeftWidth: 2,
+        borderLeftColor: "#205EA6",
+        paddingVertical: 10,
+        paddingHorizontal: 14,
         flexDirection: "row",
-        alignItems: "flex-start",
-        gap: 10,
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: "#f0f5fc",
         marginBottom: 20,
     },
-    inputComentario: {
-        flex: 1,
-        backgroundColor: "#f5f5f5",
-        borderRadius: 12,
-        padding: 12,
-        fontSize: 14,
-        color: "#1a1a2e",
-    },
-    btnEnviar: {
-        backgroundColor: "#205EA6",
-        borderRadius: 25,
-        padding: 15,
-        justifyContent: "center",
-        alignItems: "center",
+    comentarioEncabezadoTexto: {
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#0C447C",
     },
     comentario: {
         flexDirection: "row",

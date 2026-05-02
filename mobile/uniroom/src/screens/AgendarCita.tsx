@@ -1,5 +1,5 @@
-import React, { useState } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from "react-native"
+import React, { useState, useRef } from "react"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Animated } from "react-native"
 import { Calendar } from "react-native-calendars"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -64,12 +64,25 @@ const AgendarCita = ({ navigation }: any): React.ReactElement => {
 
     const [modalVisible, setModalVisible] = useState(false)
 
+    const fadeAnim = useRef(new Animated.Value(1)).current
+
+    const cerrarConFade = () => {
+        Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start(() => navigation.goBack())
+    }
+
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <Animated.View style={[styles.container, { paddingTop: insets.top, opacity: fadeAnim }]}>
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.btnBack} onPress={() => navigation.goBack()}>
+                <TouchableOpacity style={styles.btnBack} onPress={() => {
+                    setModalVisible(false)
+                    cerrarConFade()
+                }}>
                     <MaterialCommunityIcons name="chevron-left" size={26} color="#1a1a2e" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitulo}>Agendar visita</Text>
@@ -190,8 +203,7 @@ const AgendarCita = ({ navigation }: any): React.ReactElement => {
 
                         <View style={styles.resumenBody}>
                             <Text style={styles.resumenNota}>
-                                Tu visita está sujeta a confirmación por parte del arrendador.
-                                Te notificaremos cuando sea aprobada.
+                                Asegúrate de ingresar los datos correctamente. Tu solicitud será revisada por el arrendador y te notificaremos una vez que haya sido aprobada.
                             </Text>
                         </View>
                     </View>
@@ -206,17 +218,20 @@ const AgendarCita = ({ navigation }: any): React.ReactElement => {
 
             </ScrollView>
 
+            {/* Modal de Tarifa */}
             <Modal visible={modalVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
 
-                        <View style={styles.modalIcono}>
-                            <MaterialCommunityIcons name="calendar-check" size={36} color="#205EA6" />
+                        {/* Iconos */}
+                        <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, marginBottom: 16 }}>
+                            <MaterialCommunityIcons name="shield-check" size={36} color="#205EA6" />
                         </View>
 
-                        <Text style={styles.modalTitulo}>¡Visita agendada!</Text>
-                        <Text style={styles.modalSubtitulo}>Tu solicitud fue enviada al arrendador.</Text>
+                        <Text style={styles.modalTitulo}>Confirmar visita</Text>
+                        <Text style={styles.modalSubtitulo}>Revisa los detalles antes de proceder</Text>
 
+                        {/* Resumen de fecha y hora */}
                         <View style={styles.modalResumen}>
                             <View style={styles.modalFila}>
                                 <MaterialCommunityIcons name="calendar" size={16} color="#205EA6" />
@@ -228,25 +243,36 @@ const AgendarCita = ({ navigation }: any): React.ReactElement => {
                             </View>
                         </View>
 
-                        <Text style={styles.modalNota}>
-                            Te notificaremos cuando el arrendador confirme tu visita.
-                        </Text>
+                        {/* Tarifa */}
+                        <View style={{ backgroundColor: "#f0f5fc", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+                            <Text style={{ fontSize: 13, color: "#185FA5", lineHeight: 20 }}>
+                                Para garantizar un servicio de calidad, se cobra una tarifa de{" "}
+                                <Text style={{ fontWeight: "700" }}>$50 MXN</Text>{" "}
+                                para contactar a este arrendador.
+                            </Text>
+                        </View>
 
+                        {/* Botones */}
                         <TouchableOpacity
-                            style={styles.modalBtn}
+                            style={styles.btnPagar}
                             onPress={() => {
                                 setModalVisible(false)
-                                navigation.goBack()
+                                navigation.navigate("PaymentScreen", { token: token })
                             }}
                         >
-                            <Text style={styles.modalBtnTexto}>Entendido</Text>
+                            <Text style={styles.btnPagarTexto}>Entendido, proceder al pago</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalVisible(false)}>
+                            <Text style={styles.btnCancelarTexto}>Cancelar</Text>
                         </TouchableOpacity>
 
                     </View>
                 </View>
             </Modal>
 
-        </View>
+        </Animated.View>
+
     )
 }
 
@@ -505,22 +531,34 @@ const styles = StyleSheet.create({
         color: "#1a1a2e",
         textTransform: "capitalize",
     },
-    modalNota: {
-        fontSize: 12,
-        color: "#aaa",
-        textAlign: "center",
-        lineHeight: 18,
-    },
-    modalBtn: {
-        backgroundColor: "#205EA6",
+    btnPagar: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingVertical: 16,
         borderRadius: 30,
-        paddingVertical: 14,
-        paddingHorizontal: 40,
-        marginTop: 4,
+        backgroundColor: "#205EA6",
+        width: 250,
+        alignSelf: "center",
     },
-    modalBtnTexto: {
+    btnPagarTexto: {
         color: "#fff",
         fontWeight: "700",
-        fontSize: 15,
+    },
+    btnCancelar: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingVertical: 16,
+        borderRadius: 30,
+        backgroundColor: "#eb695b",
+        width: 120,
+        alignSelf: "center",
+    },
+    btnCancelarTexto: {
+        color: "#fff",
+        fontWeight: "700",
     },
 })
