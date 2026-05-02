@@ -24,9 +24,8 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
     const [routeEmail, setRouteEmail] = useState(route.params?.email || '');
     const [routePassword, setRoutePassword] = useState(route.params?.password || '');
     const fromLogin = route.params?.fromLogin || false;
-
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [email, setEmail] = useState(route.params?.email || '');
+    const [password, setPassword] = useState(route.params?.password || '');
 
     const [otp, setOtp] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -36,25 +35,26 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
     
     const inputRefs = useRef<(TextInput | null)[]>([]);
 
-    useEffect(() => {
-        const loadPendingAuth = async () => {
-            try {
-                const stored = await AsyncStorage.getItem('pendingAuth');
-                if (stored) {
-                    const auth = JSON.parse(stored);
-                    setEmail(auth.email || routeEmail);
-                    setPassword(auth.password || routePassword);
-                } else {
-                    setEmail(routeEmail);
-                    setPassword(routePassword);
-                }
-            } catch {
-                setEmail(routeEmail);
-                setPassword(routePassword);
-            }
-        };
-        loadPendingAuth();
-    }, []);
+    //CAMBIO EN LA OBTENCIÓN DE DATOS DEL SUSUARIO =====================================================================================
+    // useEffect(() => {
+    //     const loadPendingAuth = async () => {
+    //         try {
+    //             const stored = await AsyncStorage.getItem('pendingAuth');
+    //             if (stored) {
+    //                 const auth = JSON.parse(stored);
+    //                 setEmail(auth.email || routeEmail);
+    //                 setPassword(auth.password || routePassword);
+    //             } else {
+    //                 setEmail(routeEmail);
+    //                 setPassword(routePassword);
+    //             }
+    //         } catch {
+    //             setEmail(routeEmail);
+    //             setPassword(routePassword);
+    //         }
+    //     };
+    //     loadPendingAuth();
+    // }, []);
 
     useEffect(() => {
         if (countdown > 0) {
@@ -65,7 +65,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
 
     useEffect(() => {
         if (otp.length === OTP_LENGTH) {
-            verifyCode();
+            verifyCodeAndLogin();
         }
     }, [otp]);
 
@@ -84,57 +84,66 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
         return payload.rol ?? payload.role ?? payload.usuario?.rol ?? payload.user?.rol ?? payload.user?.role ?? '';
     };
 
-    const verifyCode = async () => {
+    const verifyCodeAndLogin = async () => {
         if (otp.length !== OTP_LENGTH) return;
         
         setIsLoading(true);
         setErrorMessage('');
 
-        const currentEmail = email;
-        const currentPassword = password;
-
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+            // 1. Verificar el código OTP
+            const verifyResponse = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    email: currentEmail, 
-                    codigo: otp 
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, codigo: otp })
             });
 
-            const payload = await response.json().catch(() => ({}));
+            const verifyPayload = await verifyResponse.json().catch(() => ({}));
 
-            if (!response.ok) {
-                const apiError = payload?.error ?? 'Código inválido o expirado';
+            if (!verifyResponse.ok) {
+                const apiError = verifyPayload?.error ?? 'Código inválido o expirado';
                 throw new Error(apiError);
             }
 
-            const name = getUserName(payload);
-            const role = getUserRole(payload);
-            const userId = getUserId(payload);
-            const token = payload.token;
+            // 2. Login Invisible (obtenemos el JWT)
+            const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
 
-            if (!name || !role || !userId || !token) {
-                throw new Error('Error al obtener los datos del usuario');
+            const loginPayload = await loginResponse.json().catch(() => ({}));
+
+            if (!loginResponse.ok) {
+                throw new Error('Correo verificado. Por favor, ve a la pantalla de Iniciar Sesión.');
             }
 
-            const userData = { userId, token };
-            await AsyncStorage.setItem('userData', JSON.stringify(userData));
-            await AsyncStorage.removeItem('pendingAuth');
+            // 3. Extraer y guardar seguro
+            const userId = getUserId(loginPayload);
+            const token = loginPayload.token;
 
+            if (!userId || !token) {
+                throw new Error('Error al obtener los datos de acceso.');
+            }
+
+            // Guardamos el token y limpiamos basura
+            await AsyncStorage.setItem('token', token);
+            await AsyncStorage.setItem('userId', String(userId));
+            await AsyncStorage.removeItem('pendingAuth'); 
+            
+            setPassword(''); // Limpiamos RAM
+
+            // 4. ¡Adentro!
             navigation.replace('Navigator', { userId, token });
 
         } catch (error: any) {
-            setErrorMessage(error?.message ?? 'Error al verificar el código');
+            setErrorMessage(error?.message ?? 'Error en la verificación');
             setOtp('');
             inputRefs.current[0]?.focus();
         } finally {
             setIsLoading(false);
         }
-    };
+    }
 
     const handleResend = async () => {
         if (countdown > 0 || resending) return;
@@ -249,7 +258,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                         styles.verifyButton,
                         (isLoading || otp.length !== OTP_LENGTH) && styles.verifyButtonDisabled,
                     ]}
-                    onPress={verifyCode}
+                    onPress={verifyCodeAndLogin}
                     disabled={isLoading || otp.length !== OTP_LENGTH}
                 >
                     {isLoading ? (

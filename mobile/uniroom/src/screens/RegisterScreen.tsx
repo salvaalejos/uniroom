@@ -165,23 +165,20 @@ export default function RegisterScreen({ navigation, route }: any) {
                 throw new Error(errorMsg ?? 'No se pudo completar el registro');
             }
 
-            setSuccessMessage('¡Tu cuenta ha sido creada! Por favor verifica tu correo electrónico.');
-            
-            await AsyncStorage.setItem('pendingAuth', JSON.stringify({
-                email: email.trim(),
-                password: password
-            }));
+            // setSuccessMessage('¡Tu cuenta ha sido creada! Por favor verifica tu correo electrónico.');
             
             navigation.navigate('VerificarEmail', { 
                 email: email.trim(),
+                password: password, // <-- Se lo pasamos directamente a la siguiente pantalla
                 fromLogin: false
             });
+
         } catch (error: any) {
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
         } finally {
             setIsLoading(false);
         }
-    };
+    }
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'android' ? 'padding' : 'height'}
@@ -218,7 +215,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                     </View>
                 ) : null}
 
-                {successMessage ? (
+                {/* {successMessage ? (
                     <View style={styles.successContainer}>
                         <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
                         <View style={styles.successTextContainer}>
@@ -229,7 +226,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                             </TouchableOpacity>
                         </View>
                     </View>
-                ) : null}
+                ) : null} */}
 
                 {/* Formulario */}
                 {!successMessage && (

@@ -57,6 +57,7 @@ Set-Location "../../mobile/uniroom"
 
 Write-Host "Instalando dependencias del Móvil (esto puede tardar un poquito lol)..."
 npm install
+npx expo install @react-native-async-storage/async-storage
 
 Write-Step "PROCESO COMPLETADO"
 Write-Host "Para iniciar el Backend: cd backend/app; bun run src/index.ts" -ForegroundColor Green

@@ -1,269 +1,140 @@
 // MapScreen.tsx
-import { View, StyleSheet, TouchableOpacity, Text, Dimensions, ActivityIndicator, Alert, Image} from "react-native"
-import { useState, useEffect, useRef, useCallback } from "react"
-import Mapbox from "@rnmapbox/maps"
-import InmuebleScreen from "./InmuebleScreen"
-import * as Location from "expo-location"
+import { View, StyleSheet, TouchableOpacity, Text, Dimensions, ActivityIndicator, SafeAreaView } from "react-native";
+import { useState, useEffect, useRef } from "react";
+import Mapbox from "@rnmapbox/maps";
+import * as Location from "expo-location";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
-Mapbox.setAccessToken(MAPBOX_TOKEN)
+// Componentes extra
+import InmuebleScreen from "./InmuebleScreen";
+import FiltrosModal from "./FiltrosModal";
 
-const { width, height } = Dimensions.get('window')
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
+if (MAPBOX_TOKEN) {
+  Mapbox.setAccessToken(MAPBOX_TOKEN);
+}
 
+const { width, height } = Dimensions.get('window');
+
+// Ubicación del Tec de Morelia
 const TEC_ITM = {
   latitude: 19.721869,
   longitude: -101.185483,
-}
+};
 
-const PROPIEDADES = [
-  { 
-    id: 1, 
-    precio: 3200, 
-    lat: 19.7225, 
-    lng: -101.184, 
-    tipo: "Cuarto",
-    titulo: "🌙 Cuarto amueblado cerca del Tec",
-    anfitrion: "Carlos Martínez",
-    calificacion: 4.8,
-    opiniones: 23,
-    ubicacion: "Cerca del Tec de Morelia — Zona tranquila, a 3 min caminando",
-    descripcion: "Cuarto amueblado con cama matrimonial, escritorio, clóset y ventilador. Incluye internet de alta velocidad (150 MB) y servicios básicos. Ambiente tranquilo y seguro, ideal para estudiante que busca concentrarse en sus estudios.",
-    servicios: ["WiFi 150MB", "Agua incluida", "Luz incluida", "Limpieza semanal", "Seguridad 24/7"],
-    reglas: ["No mascotas", "No fumar", "Horario de silencio 10pm - 7am", "No visitas después de 11pm"],
-    contacto: "55 1234 5678",
-    media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-    ]
-  },
-  { 
-    id: 2, 
-    precio: 4800, 
-    lat: 19.7208, 
-    lng: -101.1862, 
-    tipo: "Departamento",
-    titulo: "🏢 Departamento centro histórico",
-    anfitrion: "Stevenson Ramírez",
-    calificacion: 4.91,
-    opiniones: 56,
-    ubicacion: "Centro Histórico, Morelia — Zona tranquila, cerca de transporte público",
-    descripcion: "Departamento amueblado de 2 habitaciones en el corazón de Morelia. Ideal para estudiantes o profesionistas. Incluye todos los servicios básicos, acceso a áreas comunes y terraza con vista a la catedral.",
-    servicios: ["WiFi 200MB", "Agua incluida", "Luz incluida", "Lavadora", "Estacionamiento", "Terraza", "Seguridad 24/7"],
-    reglas: ["No mascotas", "No fumar", "No fiestas", "Máx. 3 personas", "Depósito de garantía"],
-    contacto: "55 1234 5678",
-    media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-      { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
-      { tipo: "video", src: require("../default_images/twt.mp4") },
-    ]
-  },
-  { 
-    id: 3, 
-    precio: 2700, 
-    lat: 19.7231, 
-    lng: -101.1848, 
-    tipo: "Cuarto",
-    titulo: "💸 Cuarto económico para estudiante",
-    anfitrion: "Laura Gutiérrez",
-    calificacion: 4.5,
-    opiniones: 34,
-    ubicacion: "Colonia Universidad — A 5 min del Tec",
-    descripcion: "Cuarto sencillo pero cómodo, ideal para estudiante que busca algo económico sin sacrificar comodidad. Cerca de tiendas de conveniencia y parada de camiones.",
-    servicios: ["Agua incluida", "Luz incluida", "Internet 50MB", "Cocina compartida"],
-    reglas: ["No fiestas", "No visitas después de 11pm", "Mantener limpieza"],
-    contacto: "55 9876 5432",
-    media: [
-      { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
-    ]
-  },
-  { 
-    id: 4, 
-    precio: 5500, 
-    lat: 19.7202, 
-    lng: -101.1835, 
-    tipo: "Casa",
-    titulo: "🏠 Casa compartida con jardín",
-    anfitrion: "Miguel Rodríguez",
-    calificacion: 4.7,
-    opiniones: 42,
-    ubicacion: "Privada del Bosque — Zona residencial exclusiva",
-    descripcion: "Casa grande con jardín, cocina equipada, estacionamiento para 2 autos y área de lavado. Compartida con otros estudiantes de intercambio. Ambiente internacional y acogedor.",
-    servicios: ["Internet 100MB", "Agua", "Luz", "Gas", "Estacionamiento", "Jardín", "Lavadora", "Secadora"],
-    reglas: ["Mascotas permitidas (consultar)", "No fumar dentro", "Mantener limpio", "Respetar áreas comunes"],
-    contacto: "55 4567 8901",
-    media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-    ]
-  },
-  { 
-    id: 5, 
-    precio: 3900, 
-    lat: 19.724, 
-    lng: -101.1865, 
-    tipo: "Departamento",
-    titulo: "🌅 Departamento con balcón",
-    anfitrion: "Ana Sofía",
-    calificacion: 4.9,
-    opiniones: 67,
-    ubicacion: "Zona Centro — Cerca de todo",
-    descripcion: "Departamento moderno con balcón, buena vista a la ciudad, cerca de supermercados, restaurantes y transporte público. Totalmente amueblado y equipado.",
-    servicios: ["WiFi 150MB", "Agua", "Luz", "Balcón", "Ascensor", "Estacionamiento", "Seguridad"],
-    reglas: ["No mascotas", "No fumar", "No fiestas ruidosas"],
-    contacto: "55 2345 6789",
-    media: [
-      { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
-      { tipo: "video", src: require("../default_images/twt.mp4") },
-    ]
-  },
-  { 
-    id: 6, 
-    precio: 2400, 
-    lat: 19.7215, 
-    lng: -101.187, 
-    tipo: "Cuarto",
-    titulo: "🛏️ Cuarto sencillo",
-    anfitrion: "José Luis",
-    calificacion: 4.3,
-    opiniones: 18,
-    ubicacion: "Atras del Tec — Muy cerca, a 1 cuadra",
-    descripcion: "Cuarto básico pero funcional, ideal si solo necesitas un lugar para dormir y estudiar. Baño compartido con otros 2 estudiantes.",
-    servicios: ["Agua", "Luz", "Internet básico 20MB", "Baño compartido"],
-    reglas: ["Sin visitas", "Silencio después de 9pm", "No fumar"],
-    contacto: "55 3456 7890",
-    media: [
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-    ]
-  },
-  { 
-    id: 7, 
-    precio: 6200, 
-    lat: 19.7235, 
-    lng: -101.183, 
-    tipo: "Casa",
-    titulo: "🏰 Casa grande 3 habitaciones",
-    anfitrion: "Patricia Kuri",
-    calificacion: 4.95,
-    opiniones: 89,
-    ubicacion: "Residencial Las Águilas — Zona de lujo",
-    descripcion: "Casa amplia con 3 habitaciones, 2 baños completos, cocina integral equipada, jardín grande y asador. Perfecta para grupos de estudiantes.",
-    servicios: ["Internet fibra 300MB", "Agua", "Luz", "Gas", "Estacionamiento 2 autos", "Jardín", "Lavadora", "Secadora", "Asador"],
-    reglas: ["Mascotas bienvenidas", "No fiestas ruidosas después 10pm", "Depósito 1 mes"],
-    contacto: "55 4567 1234",
-    media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-      { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
-    ]
-  },
-  { 
-    id: 8, 
-    precio: 3100, 
-    lat: 19.7195, 
-    lng: -101.185, 
-    tipo: "Cuarto",
-    titulo: "🚪 Cuarto con baño propio",
-    anfitrion: "Roberto Mendoza",
-    calificacion: 4.6,
-    opiniones: 27,
-    ubicacion: "Calle del Tec — Entrada principal",
-    descripcion: "Cuarto con baño privado y entrada independiente. Muy privado y cómodo. Incluye mini refrigerador y microondas.",
-    servicios: ["Agua", "Luz", "Internet 100MB", "Baño propio", "Mini refrigerador"],
-    reglas: ["No fiestas", "No fumar", "No mascotas"],
-    contacto: "55 5678 9012",
-    media: [
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-      { tipo: "video", src: require("../default_images/twt.mp4") },
-    ]
-  },
-  { 
-    id: 9, 
-    precio: 4100, 
-    lat: 19.7228, 
-    lng: -101.188, 
-    tipo: "Departamento",
-    titulo: "✨ Departamento amueblado",
-    anfitrion: "Sofía Reyes",
-    calificacion: 4.85,
-    opiniones: 51,
-    ubicacion: "Colonia Nueva — Zona tranquila y segura",
-    descripcion: "Departamento completamente amueblado, cocina equipada, internet de fibra óptica. A 10 min caminando del Tec.",
-    servicios: ["Internet fibra 200MB", "Agua", "Luz", "Amueblado", "Estacionamiento", "Seguridad"],
-    reglas: ["No mascotas", "No fumar", "Responsabilidad sobre el mobiliario"],
-    contacto: "55 6789 0123",
-    media: [
-      { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-      { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
-    ]
-  },
-  { 
-    id: 10, 
-    precio: 2900, 
-    lat: 19.7205, 
-    lng: -101.1825, 
-    tipo: "Cuarto",
-    titulo: "💰 Cuarto económico",
-    anfitrion: "Luis Torres",
-    calificacion: 4.4,
-    opiniones: 31,
-    ubicacion: "Cerca del Walmart — Zona comercial",
-    descripcion: "Cuarto económico pero acogedor, servicios incluidos, cerca de tiendas, bancos y transporte público.",
-    servicios: ["Agua", "Luz", "Internet 50MB", "Cocina compartida"],
-    reglas: ["Horario de visita limitado", "No fumar", "No mascotas"],
-    contacto: "55 7890 1234",
-    media: [
-      { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-    ]
-  },
-]
+// Fórmula de Haversine (De la rama de Said)
+const getDistancia = (lat2: number, lon2: number) => {
+  const R = 6371;
+  const dLat = (lat2 - TEC_ITM.latitude) * Math.PI / 180;
+  const dLon = (lon2 - TEC_ITM.longitude) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(TEC_ITM.latitude * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1);
+};
 
-const MapScreen = ({ route, navigation }: any) => {
-  const [modalVisible, setModalVisible] = useState(false)
-  const [mapaListo, setMapaListo] = useState(false)
-  const [cargando, setCargando] = useState(true)
-  const cameraRef = useRef(null)
+export default function MapScreen({ route, navigation }: any) {
+  // Estados combinados
+  const [inmuebles, setInmuebles] = useState<any[]>([]);
+  const [originales, setOriginales] = useState<any[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [mapaListo, setMapaListo] = useState(false);
+  const [modalFiltros, setModalFiltros] = useState(false);
+  const cameraRef = useRef<Mapbox.Camera>(null);
 
   useEffect(() => {
-    const cargarMapa = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync()
+    const inicializar = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        console.log("Permiso de ubicación denegado")
+        console.log("Permiso de ubicación denegado");
       }
-      setCargando(false)
-    }
-    cargarMapa()
-  }, [])
+      await fetchInmuebles();
+    };
+    inicializar();
+  }, []);
 
   useEffect(() => {
     if (mapaListo && cameraRef.current) {
       cameraRef.current.setCamera({
         centerCoordinate: [TEC_ITM.longitude, TEC_ITM.latitude],
-        zoomLevel: 15,
+        zoomLevel: 14.5,
         animationDuration: 1000,
-      })
+      });
     }
-  }, [mapaListo])
+  }, [mapaListo]);
 
-  const abrirDetalle = (propiedad: any) => {
-    console.log("Abriendo detalle de:", propiedad.titulo)
-    navigation.navigate("InmuebleScreen", { 
-      inmueble: propiedad,
-      token: route?.params?.token 
-    })
-  }
+  const fetchInmuebles = async () => {
+    try {
+      // Fetch a la API de Said
+      const res = await fetch("http://localhost:3000/api/inmuebles/filtrar").catch(() => null);
+      let data = res ? await res.json() : null;
+      
+      // Fallback a los datos mock de Said si el backend no está corriendo
+      if (!data || data.length === 0) {
+        data = [
+          { 
+            id_inmueble: 1, precio_mensual: 3500, direccion_latitud: 19.723, direccion_longitud: -101.185,
+            servicios: [{ nombre: 'WiFi' }, { nombre: 'Agua incluida' }],
+            restricciones: [{ nombre: 'No mascotas' }],
+            calificaciones: [{ calificacion: 5 }, { calificacion: 4 }],
+            imagenes: [{ src: require("../default_images/dreamhouse.jpg") }]
+          }
+        ];
+      }
+      
+      const procesados = data.map((item: any) => {
+        const total = item.calificaciones?.reduce((acc: number, c: any) => acc + c.calificacion, 0) || 0;
+        return {
+          ...item,
+          promedio: item.calificaciones?.length > 0 ? total / item.calificaciones.length : 0,
+          distancia: parseFloat(getDistancia(Number(item.direccion_latitud), Number(item.direccion_longitud)))
+        };
+      });
+
+      setInmuebles(procesados);
+      setOriginales(procesados);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const filtrarInmuebles = (datos: any) => {
+    const { precioMax, distanciaMax, servicios, restricciones, calificacionMin } = datos;
+    const filtrados = originales.filter(item => (
+      item.precio_mensual <= precioMax &&
+      item.distancia <= distanciaMax &&
+      item.promedio >= calificacionMin &&
+      (servicios.length === 0 || servicios.every((s: string) => item.servicios?.some((is: any) => is.nombre === s))) &&
+      (restricciones.length === 0 || restricciones.every((r: string) => item.restricciones?.some((ir: any) => ir.nombre === r)))
+    ));
+    setInmuebles(filtrados);
+    setModalFiltros(false);
+  };
+
+  const abrirDetalle = (inmueble: any) => {
+    navigation.navigate("InmuebleScreen", { inmueble, token: route?.params?.token });
+  };
 
   if (cargando) {
     return (
-      <View style={styles.centrado}>
+      <View style={styles.center}>
         <ActivityIndicator size="large" color="#205EA6" />
-        <Text style={styles.textoCarga}>Cargando mapa...</Text>
+        <Text style={styles.textoCarga}>Cargando mapa e inmuebles...</Text>
       </View>
-    )
+    );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      {/* Encabezado con Filtros (Rama Said) */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitulo}>UniRoom Morelia</Text>
+        <TouchableOpacity style={styles.btnFiltro} onPress={() => setModalFiltros(true)}>
+          <MaterialCommunityIcons name="tune" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Mapa Principal (Tu Rama HEAD) */}
       <Mapbox.MapView
         style={styles.map}
         styleURL="mapbox://styles/mapbox/streets-v12"
@@ -273,6 +144,7 @@ const MapScreen = ({ route, navigation }: any) => {
       >
         <Mapbox.Camera ref={cameraRef} />
 
+        {/* Marcador fijo de la escuela */}
         <Mapbox.PointAnnotation
           id="escuela"
           coordinate={[TEC_ITM.longitude, TEC_ITM.latitude]}
@@ -282,87 +154,75 @@ const MapScreen = ({ route, navigation }: any) => {
           </View>
         </Mapbox.PointAnnotation>
 
-        {PROPIEDADES.map((prop) => (
+        {/* Pines generados dinámicamente desde la BD/Filtros */}
+        {inmuebles.map((prop) => (
           <Mapbox.PointAnnotation
-            key={prop.id}
-            id={`prop-${prop.id}`}
-            coordinate={[prop.lng, prop.lat]}
+            key={`prop-${prop.id_inmueble}`}
+            id={`prop-${prop.id_inmueble}`}
+            coordinate={[Number(prop.direccion_longitud), Number(prop.direccion_latitud)]}
             onSelected={() => abrirDetalle(prop)}
           >
             <View style={styles.pin}>
               <Text style={styles.pinText}>
-                ${prop.precio.toLocaleString('es-MX')}
+                ${Number(prop.precio_mensual).toLocaleString('es-MX')}
               </Text>
             </View>
           </Mapbox.PointAnnotation>
         ))}
       </Mapbox.MapView>
 
-      <InmuebleScreen
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        navigation={navigation}
+      {/* Modal de Filtros */}
+      <FiltrosModal 
+        visible={modalFiltros} 
+        onClose={() => setModalFiltros(false)} 
+        onApply={filtrarInmuebles} 
       />
-    </View>
-  )
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#EEF4FF",
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 20, 
+    backgroundColor: '#fff', 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#E2E8F0',
+    zIndex: 10 
   },
-  map: {
-    flex: 1,
+  headerTitulo: { fontSize: 20, fontWeight: '800', color: '#1E293B' },
+  btnFiltro: { backgroundColor: '#205EA6', padding: 8, borderRadius: 12 },
+  map: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  textoCarga: { marginTop: 15, fontSize: 16, color: '#64748B', fontWeight: '500' },
+  pin: { 
+    backgroundColor: '#205EA6', 
+    paddingHorizontal: 10, 
+    paddingVertical: 6, 
+    borderRadius: 8, 
+    borderWidth: 1.5, 
+    borderColor: '#fff', 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.3, 
+    shadowRadius: 3, 
+    elevation: 5 
   },
-  centrado: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#EEF4FF",
+  pinText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
+  marcadorEscuela: { 
+    backgroundColor: '#fff', 
+    padding: 6, 
+    borderRadius: 20, 
+    borderWidth: 2, 
+    borderColor: '#E74C3C',
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.3, 
+    shadowRadius: 3, 
+    elevation: 5
   },
-  textoCarga: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#205EA6",
-    fontWeight: "500",
-  },
-  marcadorEscuela: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#2B9348",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  emojiEscuela: {
-    fontSize: 24,
-  },
-  pin: {
-    backgroundColor: "#1a1a2e",
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderWidth: 2,
-    borderColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  pinText: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-})
-
-export default MapScreen
+  emojiEscuela: { fontSize: 22 }
+});
