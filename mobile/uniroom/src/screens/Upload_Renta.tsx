@@ -211,20 +211,23 @@ const Lessor_Renthouse = () => {
             if (!token) throw new Error('No autenticado')
 
             const formData = new FormData();
-            formData.append('precio_mensual', form.precio);
-            formData.append('descripcion', form.descripcion);
-            formData.append('direccion_latitud', form.latitud);
-            formData.append('direccion_longitud', form.longitud);
-            formData.append('titulo', form.titulo);
-            formData.append('tipo_inmueble', form.tipoInmueble === "Casa" ? "CASA" : form.tipoInmueble === "Departamento" ? "DEPA" : "CUARTO");
+            formData.append('precio_mensual', form.precio || "0");
+            formData.append('descripcion', form.descripcion || "");
+            formData.append('direccion_latitud', form.latitud || "0");
+            formData.append('direccion_longitud', form.longitud || "0");
+            formData.append('titulo', form.titulo || "Inmueble");
             
-            // Enviar arreglos como strings JSON para que el backend los procese
+            const tipoMap: Record<string, string> = {
+                "Casa": "CASA",
+                "Departamento": "DEPA",
+                "Cuarto": "CUARTO"
+            };
+            formData.append('tipo_inmueble', tipoMap[form.tipoInmueble] || "CUARTO");
+            
             formData.append('servicios', JSON.stringify(form.servicios.map(s => SERVICIOS_OPCIONES.indexOf(s) + 1)));
             formData.append('restricciones', JSON.stringify(form.reglas.map(r => REGLAS_OPCIONES.indexOf(r) + 1)));
 
-            // Agregar archivos (fotos y videos)
-            for (let i = 0; i < form.medios.length; i++) {
-                const media = form.medios[i];
+            form.medios.forEach((media, i) => {
                 const uriParts = media.uri.split('.');
                 const fileType = uriParts[uriParts.length - 1];
                 const fileName = `media_${Date.now()}_${i}.${fileType}`;
@@ -234,49 +237,39 @@ const Lessor_Renthouse = () => {
                     name: fileName,
                     type: media.tipo === "foto" ? `image/${fileType}` : `video/${fileType}`,
                 } as any);
-            }
+            });
 
-            const resp = await fetch(`${API_URL}/inmuebles`, {
+            const finalUrl = `${API_URL}/inmuebles`;
+            console.log(">>> POST", finalUrl);
+
+            const resp = await fetch(finalUrl, {
                 method: 'POST',
                 headers: { 
-                    Authorization: `Bearer ${token}`
-                    // Nota: No poner 'Content-Type': 'multipart/form-data' manualmente,
-                    // fetch lo hace solo con el boundary correcto al pasar un FormData.
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: formData,
-            })
+            }).catch(err => {
+                console.error("Network Error:", err);
+                throw new Error("No se pudo contactar con el servidor. Revisa tu conexión.");
+            });
 
-            const responseData = await resp.json().catch(() => ({}));
-            if (!resp.ok) throw new Error(responseData.error || 'Error al guardar el inmueble')
+            const responseText = await resp.text();
+            console.log("Server Response:", responseText);
 
-            Alert.alert('Éxito', `${form.tipoInmueble} guardado correctamente`)
+            let data;
+            try { data = JSON.parse(responseText); } catch(e) { data = { error: responseText }; }
 
-            // Lógica para cuartos adicionales (Si es una casa)
-            if (form.tipoInmueble === 'Casa' && form.cuartosAdicionales.length > 0) {
-                for (const cuarto of form.cuartosAdicionales) {
-                    const cuartoFormData = new FormData();
-                    cuartoFormData.append('precio_mensual', cuarto.precio);
-                    cuartoFormData.append('descripcion', cuarto.descripcion || `Cuarto dentro de ${form.titulo}`);
-                    cuartoFormData.append('titulo', cuarto.nombre);
-                    cuartoFormData.append('tipo_inmueble', 'CUARTO');
-                    cuartoFormData.append('direccion_latitud', form.latitud);
-                    cuartoFormData.append('direccion_longitud', form.longitud);
-                    // Los cuartos adicionales usualmente heredan o no tienen las mismas fotos
-                    // Por ahora los mandamos sin fotos o con las mismas si fuera necesario.
-
-                    const cuartoResp = await fetch(`${API_URL}/inmuebles`, {
-                        method: 'POST',
-                        headers: { Authorization: `Bearer ${token}` },
-                        body: cuartoFormData,
-                    })
-                    if (!cuartoResp.ok) console.warn('Error guardando cuarto adicional')
-                }
-                Alert.alert('Éxito', `Se guardaron ${form.cuartosAdicionales.length} cuarto(s) adicional(es)`)
+            if (!resp.ok) {
+                throw new Error(data.error || data.details || "Error desconocido en el servidor");
             }
 
-            navigation.goBack()
+            Alert.alert('Éxito', 'Inmueble registrado correctamente');
+            navigation.goBack();
+
         } catch (error: any) {
-            Alert.alert('Error', error.message)
+            console.error("Submit Error:", error);
+            Alert.alert('Error', error.message);
         } finally {
             setCargando(false)
         }

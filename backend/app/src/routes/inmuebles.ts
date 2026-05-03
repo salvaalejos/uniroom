@@ -3,6 +3,8 @@ import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
 import { existsSync, mkdirSync } from "node:fs";
 
+console.log("[Inmuebles] Cargando rutas de inmuebles...");
+
 export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   .use(
     jwt({
@@ -97,79 +99,102 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   .post(
     "/",
     async ({ body, authenticatedUser, set }) => {
-      if (!authenticatedUser) {
-        set.status = 401;
-        return { error: "No autenticado" };
-      }
-      if (authenticatedUser.rol !== "ARRENDADOR" && authenticatedUser.rol !== "ADMIN") {
-        set.status = 403;
-        return { error: "Solo los arrendadores pueden crear inmuebles" };
-      }
-
-      // Desestructurar y parsear datos del FormData
-      const precio_mensual = parseFloat(body.precio_mensual as string);
-      const { descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, titulo } = body;
-      
-      // Parsear servicios y restricciones si vienen como JSON string
-      let serviciosIds: number[] = [];
-      let restriccionesIds: number[] = [];
+      console.log("=== PETICION RECIBIDA: POST /inmuebles ===");
       try {
-        if (typeof body.servicios === 'string') serviciosIds = JSON.parse(body.servicios);
-        if (typeof body.restricciones === 'string') restriccionesIds = JSON.parse(body.restricciones);
-      } catch (e) {
-        console.error("Error parsing JSON arrays:", e);
-      }
-
-      // Procesar imágenes/videos
-      const mediaPaths: string[] = [];
-      const housesDir = "./uploads/houses";
-      
-      if (!existsSync(housesDir)) {
-        mkdirSync(housesDir, { recursive: true });
-      }
-
-      const files = body.imagenes ? (Array.isArray(body.imagenes) ? body.imagenes : [body.imagenes]) : [];
-      
-      for (const file of files) {
-        if (file instanceof File) {
-          const fileName = `${Date.now()}-${file.name}`;
-          const destination = `${housesDir}/${fileName}`;
-          await Bun.write(destination, file);
-          mediaPaths.push(`/public/houses/${fileName}`);
+        if (!authenticatedUser) {
+          console.error("[Inmuebles] Error: No hay usuario en el token");
+          set.status = 401;
+          return { error: "No autenticado" };
         }
+
+        const { titulo, precio_mensual, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, servicios, restricciones, imagenes } = body as any;
+
+        console.log("[Inmuebles] Datos básicos:", { titulo, tipo_inmueble, precio_mensual });
+
+        const precio = parseFloat(precio_mensual);
+        const lat = parseFloat(direccion_latitud);
+        const lng = parseFloat(direccion_longitud);
+
+        if (isNaN(precio)) {
+          set.status = 400;
+          return { error: "El precio debe ser un número válido" };
+        }
+
+        // Mapear tipos
+        let tipoFinal: any = tipo_inmueble;
+        if (tipoFinal === "Departamento") tipoFinal = "DEPA";
+        else if (tipoFinal === "Casa") tipoFinal = "CASA";
+        else if (tipoFinal === "Cuarto") tipoFinal = "CUARTO";
+        else if (!["CASA", "DEPA", "CUARTO"].includes(tipoFinal)) tipoFinal = "CUARTO";
+
+        // Parsear arrays
+        let sIds: number[] = [];
+        let rIds: number[] = [];
+        try {
+          if (servicios) sIds = typeof servicios === 'string' ? JSON.parse(servicios) : servicios;
+          if (restricciones) rIds = typeof restricciones === 'string' ? JSON.parse(restricciones) : restricciones;
+        } catch (e) {
+          console.warn("[Inmuebles] Error parseando servicios/restricciones");
+        }
+
+        // VALIDACIÓN PREVIA DE IDs (Para evitar error P2025)
+        // Filtramos solo los IDs que realmente existen en la DB
+        const serviciosExistentes = await db.servicios.findMany({
+          where: { id_servicios: { in: sIds } },
+          select: { id_servicios: true }
+        });
+        const rExistentes = await db.restricciones.findMany({
+          where: { id_restriccion: { in: rIds } },
+          select: { id_restriccion: true }
+        });
+
+        const filteredSIds = serviciosExistentes.map(s => s.id_servicios);
+        const filteredRIds = rExistentes.map(r => r.id_restriccion);
+
+        console.log("[Inmuebles] IDs validados para conectar:", { 
+          servicios: filteredSIds, 
+          restricciones: filteredRIds 
+        });
+
+        // Procesar imágenes
+        const mediaPaths: string[] = [];
+        const housesDir = "./uploads/houses";
+        if (!existsSync(housesDir)) mkdirSync(housesDir, { recursive: true });
+
+        const files = imagenes ? (Array.isArray(imagenes) ? imagenes : [imagenes]) : [];
+        for (const file of files) {
+          if (file instanceof File) {
+            const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+            await Bun.write(`${housesDir}/${fileName}`, file);
+            mediaPaths.push(`/public/houses/${fileName}`);
+          }
+        }
+
+        console.log("[Inmuebles] Guardando en DB...");
+        const nuevo = await db.inmueble.create({
+          data: {
+            titulo: titulo || "Sin título",
+            precio_mensual: precio,
+            descripcion: descripcion || "",
+            direccion_latitud: isNaN(lat) ? null : lat,
+            direccion_longitud: isNaN(lng) ? null : lng,
+            tipo_inmueble: tipoFinal,
+            id_arrendador: authenticatedUser.id_usuario,
+            servicios: filteredSIds.length ? { connect: filteredSIds.map(id => ({ id_servicios: id })) } : undefined,
+            restricciones: filteredRIds.length ? { connect: filteredRIds.map(id => ({ id_restriccion: id })) } : undefined,
+            imagenes: mediaPaths.length ? { create: mediaPaths.map(p => ({ imagen: p })) } : undefined,
+          }
+        });
+
+        console.log("[Inmuebles] ¡Éxito! ID:", nuevo.id_inmueble);
+        set.status = 201;
+        return nuevo;
+
+      } catch (error: any) {
+        console.error("[Inmuebles] ERROR FATAL:", error);
+        set.status = 500;
+        return { error: "Error al crear inmueble", details: error.message };
       }
-
-      const nuevoInmueble = await db.inmueble.create({
-        data: {
-          titulo: titulo as string || "Inmueble sin título",
-          precio_mensual,
-          descripcion: descripcion as string,
-          direccion_latitud: direccion_latitud ? parseFloat(direccion_latitud as string) : null,
-          direccion_longitud: direccion_longitud ? parseFloat(direccion_longitud as string) : null,
-          tipo_inmueble: tipo_inmueble as any,
-          id_arrendador: authenticatedUser.id_usuario,
-          servicios: serviciosIds.length ? { connect: serviciosIds.map(id => ({ id_servicios: id })) } : undefined,
-          restricciones: restriccionesIds.length ? { connect: restriccionesIds.map(id => ({ id_restriccion: id })) } : undefined,
-          imagenes: mediaPaths.length ? { create: mediaPaths.map(path => ({ imagen: path })) } : undefined,
-        },
-        include: { servicios: true, restricciones: true, imagenes: true },
-      });
-
-      set.status = 201;
-      return nuevoInmueble;
-    },
-    {
-      body: t.Object({
-        titulo: t.Optional(t.String()),
-        precio_mensual: t.String(),
-        descripcion: t.Optional(t.String()),
-        direccion_latitud: t.Optional(t.String()),
-        direccion_longitud: t.Optional(t.String()),
-        tipo_inmueble: t.String(),
-        servicios: t.Optional(t.String()), // JSON string de array de IDs
-        restricciones: t.Optional(t.String()), // JSON string de array de IDs
-        imagenes: t.Optional(t.Files({ maxSize: '10m' })),
-      }),
     }
   )
 

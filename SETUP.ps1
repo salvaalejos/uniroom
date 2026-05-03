@@ -45,11 +45,14 @@ bun install
 Write-Host "Esperando a que la Base de Datos esté lista..."
 Start-Sleep -Seconds 10
 
-Write-Host "Ejecutando migraciones de Prisma..."
-npx prisma migrate dev --name init
+Write-Host "Sincronizando esquema de Base de Datos (Prisma)..."
+bunx prisma db push
+
+Write-Host "Poblando base de datos con catálogos (WiFi, Reglas, etc)..."
+bunx prisma db seed
 
 Write-Host "Generando cliente de Prisma..."
-npx prisma generate
+bunx prisma generate
 
 Write-Step "CONFIGURANDO MOBILE"
 Set-Location "../../mobile/uniroom"

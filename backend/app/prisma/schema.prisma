@@ -84,6 +84,7 @@ model Inmueble {
   id_arrendador   String
   arrendador      Usuario         @relation("InmueblesArrendador", fields: [id_arrendador], references: [id_usuario])
 
+  titulo          String          @db.VarChar(200)
   precio_mensual  Decimal         @db.Decimal(10, 2)
   estado          EstadoInmueble  @default(DISPONIBLE)
   descripcion     String?         @db.Text
