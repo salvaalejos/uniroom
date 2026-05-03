@@ -1,4 +1,4 @@
-import { ScrollView, Text, View, StyleSheet, TextInput, Image, TouchableOpacity, Modal, Dimensions, Alert, ActivityIndicator } from 'react-native'
+import { ScrollView, Text, View, StyleSheet, TextInput, Image, TouchableOpacity, Modal, Dimensions, Alert, ActivityIndicator, Platform } from 'react-native'
 import { useState, useRef, useEffect } from 'react'
 import * as ImagePicker from 'expo-image-picker'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'

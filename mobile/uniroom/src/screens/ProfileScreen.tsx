@@ -16,6 +16,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { CommonActions } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
 const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
@@ -41,13 +42,22 @@ export default function ProfileScreen({ navigation, route }: any) {
         }
     }, [navigation, userId])
 
-    const handleLogout = () => {
-        navigation.dispatch(
-        CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-        })
-    );
+    const handleLogout = async () => {
+        try {
+            console.log("[Profile] Cerrando sesión y limpiando storage...");
+            await AsyncStorage.removeItem('token');
+            await AsyncStorage.removeItem('userId');
+            
+            navigation.dispatch(
+                CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'Login' }],
+                })
+            );
+        } catch (error) {
+            console.error("[Profile] Error al cerrar sesión:", error);
+            Alert.alert("Error", "No se pudo cerrar la sesión correctamente.");
+        }
     }
 
     const fetchTransactions = async () => {

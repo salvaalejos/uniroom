@@ -14,8 +14,9 @@ const app = new Elysia()
         assets: 'uploads', //Carpeta
         prefix: '/public'  //URL externa lol
     }))
-.use(cors({
-    origin: '*' // El asterisco significa "Aceptar peticiones de CUALQUIER lado"
+  .use(cors({
+    origin: '*',
+    allowedHeaders: ['Authorization', 'Content-Type'],
   }))
   .use(
     jwt({
@@ -23,7 +24,6 @@ const app = new Elysia()
       secret: process.env.JWT_SECRET || "super_secret_elysia_key",
     })
   )
-  .use(cors({ origin: 'http://localhost:8081' }))
   .use(authRoutes)
   .use(usersRoutes)
   .use(paymentRoutes)

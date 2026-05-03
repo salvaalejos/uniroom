@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
@@ -51,6 +52,18 @@ export default function LoginScreen({ navigation }: any) {
 
     const loginEndpoint = useMemo(() => `${API_BASE_URL}/auth/login`, []);
 
+    useEffect(() => {
+        const checkSession = async () => {
+            const token = await AsyncStorage.getItem('token');
+            const userId = await AsyncStorage.getItem('userId');
+            if (token && userId) {
+                console.log("[LoginScreen] Sesión previa detectada, navegando...");
+                navigation.replace("Navigator", { userId, token });
+            }
+        };
+        checkSession();
+    }, []);
+
     const handleLogin = async () => {
         if (!email || !password) {
             setErrorMessage('Ingresa tu correo y contraseña para continuar.');
@@ -61,6 +74,7 @@ export default function LoginScreen({ navigation }: any) {
         setErrorMessage('');
 
         try {
+            console.log("[Login] Intentando login en:", loginEndpoint);
             const response = await fetch(loginEndpoint, {
                 method: 'POST',
                 headers: {
@@ -69,9 +83,11 @@ export default function LoginScreen({ navigation }: any) {
                 body: JSON.stringify({ email: email.trim(), password })
             });
 
+            console.log("[Login] Respuesta recibida con status:", response.status);
             const payload = await response.json().catch(() => ({}));
 
             if (!response.ok) {
+                console.log("[Login] Error en respuesta:", payload);
                 const apiError = payload?.error ?? payload?.message ?? 'Credenciales incorrectas o problema para iniciar sesión.';
                 throw new Error(apiError);
             }
@@ -81,14 +97,22 @@ export default function LoginScreen({ navigation }: any) {
             const userId = getUserId(payload);
             const token = payload.token;
 
+            console.log("[Login] Datos extraídos:", { name, role, userId, hasToken: !!token });
+
             if (!name || !role || !userId || !token) {
                 throw new Error('El backend no devolvió nombre, rol o token del usuario.');
             }
+
+            console.log("[Login] Guardando en AsyncStorage...");
+            await AsyncStorage.setItem('token', token);
+            await AsyncStorage.setItem('userId', String(userId));
+            console.log("[Login] Guardado exitoso.");
 
             navigation.replace("Navigator", { userId: userId, token: token })
             setAuthenticatedUser({ name, role });
 
         } catch (error: any) {
+            console.error("[Login] Error capturado:", error);
             const errorData = error?.message || '';
             
             if (errorData.includes('needsVerification') || errorData.includes('verificar')) {

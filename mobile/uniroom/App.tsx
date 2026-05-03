@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import {View} from 'react-native'
+import { View, ActivityIndicator } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // Importa tus pantallas
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
@@ -15,12 +16,48 @@ import PaymentScreen from './src/screens/PaymentScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+    const [isLoading, setIsLoading] = useState(true);
+    const [initialRoute, setInitialRoute] = useState<string>("Login");
+    const [authParams, setAuthParams] = useState<any>(null);
+
+    useEffect(() => {
+        const checkToken = async () => {
+            try {
+                const token = await AsyncStorage.getItem('token');
+                const userId = await AsyncStorage.getItem('userId');
+
+                if (token && userId) {
+                    console.log("[App] Sesión detectada, redirigiendo...");
+                    setInitialRoute("Navigator");
+                    setAuthParams({ token, userId });
+                } else {
+                    console.log("[App] No hay sesión activa.");
+                }
+            } catch (e) {
+                console.error("[App] Error al verificar token:", e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        checkToken();
+    }, []);
+
+    if (isLoading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#DCEEFF' }}>
+                <ActivityIndicator size="large" color="#205EA6" />
+            </View>
+        );
+    }
+
     return (
         <NavigationContainer>
-            <Stack.Navigator initialRouteName="Login">
+            <Stack.Navigator initialRouteName={initialRoute}>
                 <Stack.Screen 
                     name="Navigator"
                     component={NavigationMenu}
+                    initialParams={authParams}
                     options={{headerShown: false}}
                 />
                 <Stack.Screen

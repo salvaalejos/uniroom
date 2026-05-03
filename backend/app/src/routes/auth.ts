@@ -1,6 +1,6 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-import jwt from "@elysiajs/jwt";
+import { jwt } from "@elysiajs/jwt";
 import { sendOTPEmail } from "../lib/email";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
