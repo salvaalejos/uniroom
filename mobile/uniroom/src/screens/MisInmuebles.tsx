@@ -1,58 +1,28 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native'
-import { useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Platform } from 'react-native'
+import { useState, useEffect, useMemo } from 'react'
 
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import Constants from 'expo-constants'
 
 
 // ---- Tipo del Inmueble ----
 type Inmueble = {
-    id: number
+    id_inmueble: number
     titulo: string
     ubicacion: string
     descripcion: string
     precio: number
-    estado: "pendiente" | "publicado"
-    foto: ReturnType<typeof require>
+    estado: string
+    foto: string | any
 }
 
-const IMAGENES = {
-    casa_uno: require("../default_images/fachada.jpg"),
-    casa_dos: require("../default_images/casa2.jpg"),
-    casa_tres: require("../default_images/casa3.png")
-}
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+const API_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
-// --- Datos falsos sjhdjshds
-const INMUEBLES_INICIALES: Inmueble[] = [
-    { 
-        id: 1, 
-        titulo: "Departamento Centro de Morelia", 
-        ubicacion: "Centro Histórico, Morelia", 
-        descripcion: "Departamento amueblado de 2 recámaras en el corazón de Morelia, a pasos de la Catedral y el mercado. Cocina equipada, baño completo, agua y luz incluidos. Perfecto para estudiantes o profesionistas.", 
-        precio: 3200, 
-        estado: "publicado", 
-        foto: IMAGENES.casa_uno 
-    },
-    { 
-        id: 2, 
-        titulo: "Cuarto amueblado cerca del Tec", 
-        ubicacion: "Félix Ireta, Morelia", 
-        descripcion: "Cuarto privado totalmente amueblado a 5 minutos del Tecnológico de Morelia. Incluye cama matrimonial, escritorio, closet y WiFi de alta velocidad. Baño compartido con solo un compañero. Ambiente tranquilo y seguro.", 
-        precio: 1800, 
-        estado: "pendiente", 
-        foto: IMAGENES.casa_dos 
-    },
-    { 
-        id: 3, 
-        titulo: "Estudio con balcón", 
-        ubicacion: "Chapultepec, Morelia", 
-        descripcion: "Acogedor estudio con balcón privado y vista a zona arbolada en una de las colonias más tranquilas de Morelia. Área de cocina integrada, baño propio y estacionamiento incluido. Ideal para quien busca tranquilidad sin alejarse de todo.", 
-        precio: 2700, 
-        estado: "pendiente", 
-        foto: IMAGENES.casa_tres 
-    },
-]
+const DEFAULT_IMAGE = require("../default_images/fachada.jpg");
 
 // ---- Componente Inicial ----
 
@@ -60,48 +30,119 @@ const MisInmuebles = () => {
     const insets = useSafeAreaInsets()
     const navegacion = useNavigation<any>()
 
-    const [inmuebles, setInmuebles] = useState<Inmueble[]>([...INMUEBLES_INICIALES])
+    const [inmuebles, setInmuebles] = useState<Inmueble[]>([])
+    const [cargando, setCargando] = useState(true)
     const [confirmarId, setConfirmarId] = useState<number | null>(null)
     const [menuAbierto, setMenuAbierto] = useState<number | null>(null)
 
-    // --- Eliminar vivienda 
+    const fetchInmuebles = async () => {
+        try {
+            const userId = await AsyncStorage.getItem('userId');
+            const token = await AsyncStorage.getItem('token');
+            console.log("[MisInmuebles] Recuperando inmuebles para userId:", userId);
+            
+            if (!userId || !token) {
+                console.warn("[MisInmuebles] No hay userId o token en storage");
+                setCargando(false);
+                return;
+            }
 
-    // const eliminarInmueble = (id:number) => {
-    //     setMenuAbierto(null)
-    //     console.log("eliminarInmueble llamado con id:", id)
-    //     setTimeout(() => {
-    //         Alert.alert(
-    //             "Eliminar inmueble",
-    //             "¿Estás seguro? Esta acción no se puede deshacer.",
-    //             [
-    //                 { text: "Cancelar", style: "cancel" },
-    //                 { text: "Eliminar", style: "destructive", onPress: () => setInmuebles(prev => prev.filter(i => i.id !== id)) }
-    //             ]
-    //         )
-    //     }, 150)
-    // }
+            const url = `${API_URL}/inmuebles?arrendadorId=${userId}`;
+            console.log("[MisInmuebles] Fetching:", url);
+
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Error ${response.status}: ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log("[MisInmuebles] Datos recibidos:", data.length);
+            
+            // Mapear los datos del backend al formato del componente
+            const mappedData: Inmueble[] = data.map((item: any) => ({
+                id_inmueble: item.id_inmueble,
+                titulo: item.titulo,
+                ubicacion: "Morelia, Michoacán", // Texto genérico ya que no hay dirección textual en la DB
+                descripcion: item.descripcion || "Sin descripción",
+                precio: parseFloat(item.precio_mensual),
+                estado: item.estado === "DISPONIBLE" ? "publicado" : "pendiente",
+                foto: item.imagenes && item.imagenes.length > 0 
+                    ? { uri: `${API_URL}${item.imagenes[0].imagen}` } 
+                    : DEFAULT_IMAGE
+            }));
+
+            setInmuebles(mappedData);
+        } catch (error: any) {
+            console.error("[MisInmuebles] Error fatal:", error.message);
+            Alert.alert("Error", "No se pudieron cargar tus inmuebles.");
+        } finally {
+            setCargando(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchInmuebles();
+        
+        // Agregar un listener para recargar cuando se regrese a esta pantalla
+        const unsubscribe = navegacion.addListener('focus', () => {
+            fetchInmuebles();
+        });
+
+        return unsubscribe;
+    }, [navegacion]);
 
     const eliminarInmueble = (id: number) => {
         setMenuAbierto(null)
         setConfirmarId(id)
     }
 
-    const confirmarEliminar = () => {
-        setInmuebles(prev => prev.filter(i => i.id !== confirmarId))
-        setConfirmarId(null)
+    const confirmarEliminar = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const response = await fetch(`${API_URL}/inmuebles/${confirmarId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) throw new Error("No se pudo eliminar el inmueble");
+
+            setInmuebles(prev => prev.filter(i => i.id_inmueble !== confirmarId))
+            setConfirmarId(null)
+            Alert.alert("Éxito", "Inmueble eliminado correctamente.");
+        } catch (error) {
+            console.error("[MisInmuebles] Error al eliminar:", error);
+            Alert.alert("Error", "No se pudo eliminar el inmueble.");
+        }
     }
 
     // --- Editar vivienda
 
     const editarInmueble = (inmueble: Inmueble) => {
         setMenuAbierto(null)
-        navegacion.navigate("SubirInmueble", {inmueble: inmueble})
+        navegacion.navigate("Tu Primer Inmueble", { inmueble: inmueble })
     }
 
     // --- Crear vivienda
 
     const nuevoInmueble = () => {
-        navegacion.navigate("SubirInmueble", {inmueble: null})
+        navegacion.navigate("Tu Primer Inmueble", { inmueble: null })
+    }
+
+    if (cargando) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#205EA6" />
+                <Text style={{ marginTop: 10, color: '#888' }}>Cargando tus propiedades...</Text>
+            </View>
+        );
     }
 
     return (
@@ -114,13 +155,6 @@ const MisInmuebles = () => {
                 <Text style={styles.titulo}>
                     Mis inmuebles
                 </Text>
-
-                {/* <TouchableOpacity style={styles.btnNuevo} onPress={nuevoInmueble}>
-                    <MaterialCommunityIcons name="plus" size={22} color="#fff"/>
-                    <Text style={styles.btnNuevoTexto}>
-                        Nuevo
-                    </Text>
-                </TouchableOpacity> */}
 
             </View>
 
@@ -148,11 +182,11 @@ const MisInmuebles = () => {
 
                 {inmuebles.map(inmueble => (
 
-                    <View key={inmueble.id}>
+                    <View key={inmueble.id_inmueble}>
 
                         <View style={styles.card}>
 
-                            <Image source={inmueble.foto} style={styles.cardFoto}/>
+                            <Image source={typeof inmueble.foto === 'object' ? inmueble.foto : { uri: inmueble.foto }} style={styles.cardFoto}/>
 
                             <View style={styles.cardInfo}>
 
@@ -168,12 +202,12 @@ const MisInmuebles = () => {
                                                 {inmueble.ubicacion}
                                             </Text>
                                         </View>
-                                        <Text style={styles.cardDescripcion}>
+                                        <Text style={styles.cardDescripcion} numberOfLines={2}>
                                             {inmueble.descripcion}
                                         </Text>
                                     </View>
 
-                                    <TouchableOpacity style={styles.btnMenu} onPress={() => setMenuAbierto(menuAbierto === inmueble.id ? null : inmueble.id)}>
+                                    <TouchableOpacity style={styles.btnMenu} onPress={() => setMenuAbierto(menuAbierto === inmueble.id_inmueble ? null : inmueble.id_inmueble)}>
                                         <MaterialCommunityIcons name="dots-vertical" size={22} color="#888"/>
                                     </TouchableOpacity>
 
@@ -198,7 +232,7 @@ const MisInmuebles = () => {
                         </View>
 
                         {/* Menu desplegable */}
-                        {menuAbierto === inmueble.id && (
+                        {menuAbierto === inmueble.id_inmueble && (
 
                             <View style={styles.menuDesplegable}>
 
@@ -211,7 +245,7 @@ const MisInmuebles = () => {
 
                                 <View style={styles.menuDivider} />
 
-                                <TouchableOpacity style={styles.menuItem} onPress={() => eliminarInmueble(inmueble.id)}>
+                                <TouchableOpacity style={styles.menuItem} onPress={() => eliminarInmueble(inmueble.id_inmueble)}>
                                     <MaterialCommunityIcons name="trash-can" size={18} color="#e74c3c"/>
                                     <Text style={[styles.menuItemTexto, { color: "#e74c3c" }]}>
                                         Eliminar

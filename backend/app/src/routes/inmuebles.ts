@@ -29,16 +29,25 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   // 1. Listar todos los inmuebles (público, pero se puede filtrar)
   .get("/", async ({ authenticatedUser, query }) => {
     const { estado, tipo, arrendadorId } = query;
+    console.log("[Inmuebles] GET / - Filtros:", { estado, tipo, arrendadorId });
 
     const where: any = {};
     if (estado) where.estado = estado;
     if (tipo) where.tipo_inmueble = tipo;
-    if (arrendadorId) where.id_arrendador = arrendadorId;
+    
+    // Si se pide un arrendador específico, filtramos por él
+    if (arrendadorId) {
+      where.id_arrendador = arrendadorId;
+    }
 
-    // Si no es admin ni arrendador del inmueble, solo mostrar DISPONIBLE por defecto
-    const isAdmin = authenticatedUser?.rol === "ADMIN";
-    if (!authenticatedUser || (!isAdmin && !arrendadorId)) {
-      where.estado = "DISPONIBLE";
+    // Lógica de visibilidad:
+    // Si NO se está filtrando por un arrendador específico, solo mostramos los DISPONIBLES
+    // a menos que sea ADMIN.
+    if (!arrendadorId) {
+        const isAdmin = authenticatedUser?.rol === "ADMIN";
+        if (!authenticatedUser || !isAdmin) {
+            where.estado = "DISPONIBLE";
+        }
     }
 
     const inmuebles = await db.inmueble.findMany({
@@ -48,10 +57,11 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         servicios: true,
         restricciones: true,
         imagenes: true,
-        calificaciones: { take: 5, orderBy: { fecha_creacion: "desc" } },
+        calificaciones: { take: 5 },
       },
-      orderBy: { fecha_creacion: "desc" },
     });
+    
+    console.log(`[Inmuebles] GET / - Encontrados: ${inmuebles.length}`);
     return inmuebles;
   }, {
     query: t.Object({
@@ -70,7 +80,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         servicios: true,
         restricciones: true,
         imagenes: true,
-        calificaciones: { include: { estudiante: { select: { nombre: true, apellidos: true } } }, orderBy: { fecha_creacion: "desc" } },
+        calificaciones: { include: { estudiante: { select: { nombre: true, apellidos: true } } } },
       },
     });
 
