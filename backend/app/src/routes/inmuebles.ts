@@ -1,55 +1,31 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-import jwt from "jsonwebtoken";
-
-type AuthUser = {
-  id_usuario?: string;
-  sub?: string;
-  rol?: string;
-};
-
-const getBearerToken = (authorization?: string) => {
-  if (!authorization) return null;
-  const [scheme, token] = authorization.split(" ");
-  if (scheme !== "Bearer" || !token) return null;
-  return token;
-};
-
-const authenticateRequest = (
-  headers: Record<string, string | undefined>,
-  set: { status?: number }
-) => {
-  const token = getBearerToken(headers.authorization);
-  const jwtSecret = process.env.JWT_SECRET || "super_secret_elysia_key";
-
-  if (!token) {
-    set.status = 401;
-    return null;
-  }
-
-  try {
-    return jwt.verify(token, jwtSecret) as AuthUser;
-  } catch (error) {
-    console.error("JWT Verify Error:", error);
-    set.status = 401;
-    return null;
-  }
-};
-
-const getAuthenticatedUserId = (authUser: AuthUser) =>
-  authUser.id_usuario ?? authUser.sub ?? null;
-
-const isAdmin = (authUser: AuthUser) => authUser.rol === "ADMIN";
-
-const canManageInmueble = (authUser: AuthUser, inmuebleArrendadorId: string) => {
-  const authenticatedUserId = getAuthenticatedUserId(authUser);
-  return isAdmin(authUser) || authenticatedUserId === inmuebleArrendadorId;
-};
+import { jwt } from "@elysiajs/jwt";
+import { existsSync, mkdirSync } from "node:fs";
 
 export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
+  .use(
+    jwt({
+      name: "jwt",
+      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
+    })
+  )
+  .derive(async ({ jwt, headers: { authorization } }) => {
+    if (!authorization?.startsWith("Bearer ")) {
+      return { authenticatedUser: null };
+    }
+    const token = authorization.slice(7);
+    const payload = await jwt.verify(token);
+    if (!payload || !payload.sub) {
+      return { authenticatedUser: null };
+    }
+    const user = await db.usuario.findUnique({
+      where: { id_usuario: payload.sub as string },
+    });
+    return { authenticatedUser: user };
+  })
   // 1. Listar todos los inmuebles (público, pero se puede filtrar)
-  .get("/", async ({ headers, set, query }) => {
-    const authUser = authenticateRequest(headers, set);
+  .get("/", async ({ authenticatedUser, query }) => {
     const { estado, tipo, arrendadorId } = query;
 
     const where: any = {};
@@ -57,8 +33,9 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
     if (tipo) where.tipo_inmueble = tipo;
     if (arrendadorId) where.id_arrendador = arrendadorId;
 
-    // Si no es admin ni arrendador, solo mostrar DISPONIBLE
-    if (!authUser || (!isAdmin(authUser) && !arrendadorId)) {
+    // Si no es admin ni arrendador del inmueble, solo mostrar DISPONIBLE por defecto
+    const isAdmin = authenticatedUser?.rol === "ADMIN";
+    if (!authenticatedUser || (!isAdmin && !arrendadorId)) {
       where.estado = "DISPONIBLE";
     }
 
@@ -83,8 +60,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   })
 
   // 2. Obtener un inmueble por ID
-  .get("/:id", async ({ params: { id }, headers, set }) => {
-    const authUser = authenticateRequest(headers, set);
+  .get("/:id", async ({ params: { id }, authenticatedUser, set }) => {
     const inmueble = await db.inmueble.findUnique({
       where: { id_inmueble: parseInt(id) },
       include: {
@@ -103,12 +79,12 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
 
     // Si está OCULTO, solo el arrendador o admin pueden verlo
     if (inmueble.estado === "OCULTO") {
-      if (!authUser) {
+      if (!authenticatedUser) {
         set.status = 401;
         return { error: "No autenticado" };
       }
-      const userId = getAuthenticatedUserId(authUser);
-      if (!isAdmin(authUser) && userId !== inmueble.id_arrendador) {
+      const isAdmin = authenticatedUser.rol === "ADMIN";
+      if (!isAdmin && authenticatedUser.id_usuario !== inmueble.id_arrendador) {
         set.status = 403;
         return { error: "No autorizado para ver este inmueble oculto" };
       }
@@ -120,51 +96,79 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   // 3. Crear un nuevo inmueble (solo arrendadores)
   .post(
     "/",
-    async ({ body, headers, set }) => {
-      const authUser = authenticateRequest(headers, set);
-      if (!authUser) {
+    async ({ body, authenticatedUser, set }) => {
+      if (!authenticatedUser) {
+        set.status = 401;
         return { error: "No autenticado" };
       }
-      const userId = getAuthenticatedUserId(authUser);
-      if (!userId) {
-        set.status = 401;
-        return { error: "Usuario no identificado" };
-      }
-      const user = await db.usuario.findUnique({ where: { id_usuario: userId } });
-      if (!user || user.rol !== "ARRENDADOR") {
+      if (authenticatedUser.rol !== "ARRENDADOR" && authenticatedUser.rol !== "ADMIN") {
         set.status = 403;
         return { error: "Solo los arrendadores pueden crear inmuebles" };
       }
 
-      const { precio_mensual, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, servicios, restricciones, imagenes } = body;
+      // Desestructurar y parsear datos del FormData
+      const precio_mensual = parseFloat(body.precio_mensual as string);
+      const { descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, titulo } = body;
+      
+      // Parsear servicios y restricciones si vienen como JSON string
+      let serviciosIds: number[] = [];
+      let restriccionesIds: number[] = [];
+      try {
+        if (typeof body.servicios === 'string') serviciosIds = JSON.parse(body.servicios);
+        if (typeof body.restricciones === 'string') restriccionesIds = JSON.parse(body.restricciones);
+      } catch (e) {
+        console.error("Error parsing JSON arrays:", e);
+      }
+
+      // Procesar imágenes/videos
+      const mediaPaths: string[] = [];
+      const housesDir = "./uploads/houses";
+      
+      if (!existsSync(housesDir)) {
+        mkdirSync(housesDir, { recursive: true });
+      }
+
+      const files = body.imagenes ? (Array.isArray(body.imagenes) ? body.imagenes : [body.imagenes]) : [];
+      
+      for (const file of files) {
+        if (file instanceof File) {
+          const fileName = `${Date.now()}-${file.name}`;
+          const destination = `${housesDir}/${fileName}`;
+          await Bun.write(destination, file);
+          mediaPaths.push(`/public/houses/${fileName}`);
+        }
+      }
 
       const nuevoInmueble = await db.inmueble.create({
         data: {
+          titulo: titulo as string || "Inmueble sin título",
           precio_mensual,
-          descripcion,
-          direccion_latitud: direccion_latitud ? parseFloat(direccion_latitud) : null,
-          direccion_longitud: direccion_longitud ? parseFloat(direccion_longitud) : null,
-          tipo_inmueble,
-          id_arrendador: userId,
-          servicios: servicios?.length ? { connect: servicios.map(id => ({ id_servicios: id })) } : undefined,
-          restricciones: restricciones?.length ? { connect: restricciones.map(id => ({ id_restriccion: id })) } : undefined,
-          imagenes: imagenes?.length ? { create: imagenes.map(img => ({ imagen: img })) } : undefined,
+          descripcion: descripcion as string,
+          direccion_latitud: direccion_latitud ? parseFloat(direccion_latitud as string) : null,
+          direccion_longitud: direccion_longitud ? parseFloat(direccion_longitud as string) : null,
+          tipo_inmueble: tipo_inmueble as any,
+          id_arrendador: authenticatedUser.id_usuario,
+          servicios: serviciosIds.length ? { connect: serviciosIds.map(id => ({ id_servicios: id })) } : undefined,
+          restricciones: restriccionesIds.length ? { connect: restriccionesIds.map(id => ({ id_restriccion: id })) } : undefined,
+          imagenes: mediaPaths.length ? { create: mediaPaths.map(path => ({ imagen: path })) } : undefined,
         },
         include: { servicios: true, restricciones: true, imagenes: true },
       });
+
       set.status = 201;
       return nuevoInmueble;
     },
     {
       body: t.Object({
-        precio_mensual: t.Number(),
+        titulo: t.Optional(t.String()),
+        precio_mensual: t.String(),
         descripcion: t.Optional(t.String()),
         direccion_latitud: t.Optional(t.String()),
         direccion_longitud: t.Optional(t.String()),
-        tipo_inmueble: t.Union([t.Literal("CASA"), t.Literal("DEPA"), t.Literal("CUARTO")]),
-        servicios: t.Optional(t.Array(t.Number())),
-        restricciones: t.Optional(t.Array(t.Number())),
-        imagenes: t.Optional(t.Array(t.String())),
+        tipo_inmueble: t.String(),
+        servicios: t.Optional(t.String()), // JSON string de array de IDs
+        restricciones: t.Optional(t.String()), // JSON string de array de IDs
+        imagenes: t.Optional(t.Files({ maxSize: '10m' })),
       }),
     }
   )
@@ -172,12 +176,11 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   // 4. Actualizar un inmueble (solo arrendador dueño o admin)
   .put(
     "/:id",
-    async ({ params: { id }, body, headers, set }) => {
-      const authUser = authenticateRequest(headers, set);
-      if (!authUser) {
+    async ({ params: { id }, body, authenticatedUser, set }) => {
+      if (!authenticatedUser) {
+        set.status = 401;
         return { error: "No autenticado" };
       }
-      const userId = getAuthenticatedUserId(authUser);
       const inmueble = await db.inmueble.findUnique({
         where: { id_inmueble: parseInt(id) },
       });
@@ -185,7 +188,9 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         set.status = 404;
         return { error: "Inmueble no encontrado" };
       }
-      if (!canManageInmueble(authUser, inmueble.id_arrendador)) {
+      
+      const isAdmin = authenticatedUser.rol === "ADMIN";
+      if (!isAdmin && authenticatedUser.id_usuario !== inmueble.id_arrendador) {
         set.status = 403;
         return { error: "No autorizado para modificar este inmueble" };
       }
@@ -236,9 +241,9 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   )
 
   // 5. Eliminar (ocultar) un inmueble – soft delete (cambiar a OCULTO)
-  .delete("/:id", async ({ params: { id }, headers, set }) => {
-    const authUser = authenticateRequest(headers, set);
-    if (!authUser) {
+  .delete("/:id", async ({ params: { id }, authenticatedUser, set }) => {
+    if (!authenticatedUser) {
+      set.status = 401;
       return { error: "No autenticado" };
     }
     const inmueble = await db.inmueble.findUnique({
@@ -248,7 +253,9 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
       set.status = 404;
       return { error: "Inmueble no encontrado" };
     }
-    if (!canManageInmueble(authUser, inmueble.id_arrendador)) {
+    
+    const isAdmin = authenticatedUser.rol === "ADMIN";
+    if (!isAdmin && authenticatedUser.id_usuario !== inmueble.id_arrendador) {
       set.status = 403;
       return { error: "No autorizado para eliminar este inmueble" };
     }

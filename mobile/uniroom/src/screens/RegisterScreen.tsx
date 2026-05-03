@@ -167,11 +167,11 @@ export default function RegisterScreen({ navigation, route }: any) {
 
             // setSuccessMessage('¡Tu cuenta ha sido creada! Por favor verifica tu correo electrónico.');
             
-            navigation.navigate('VerificarEmail', { 
-                email: email.trim(),
+            navigation.navigate('VerificarEmail', 
+                {email: email.trim(),
                 password: password, // <-- Se lo pasamos directamente a la siguiente pantalla
-                fromLogin: false
-            });
+                fromLogin: false}
+            );
 
         } catch (error: any) {
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');

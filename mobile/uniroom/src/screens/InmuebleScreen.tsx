@@ -65,13 +65,18 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
     const insets = useSafeAreaInsets()
     const scrollRef = useRef<ScrollView>(null)
-    const playerRef = useRef<any>(null)
 
-    // 👇 Validación después de TODOS los hooks, pero antes de usar hooks condicionales
+    // ── FIX 1, 3, 4: Todos los useState declarados primero, antes de cualquier lógica o return ──
+    const [favorito, setFavorito] = useState(false)
+    const [imagenActual, setImagenActual] = useState(0)
+    const [verComentarios, setVerComentarios] = useState(false)
+    const [modalTarifaVisible, setModalTarifaVisible] = useState(false) // FIX 4: estaba sin declarar
+
+    // ── FIX 1: esVideo y videoSource ahora usan imagenActual ya declarado arriba ──
     const esVideo = inmueble?.media?.[imagenActual]?.tipo === "video"
     const videoSource = esVideo ? inmueble?.media?.[imagenActual]?.src : null
 
-    // Solo crear el player si hay video y el modal está visible
+    // ── FIX 2: Un solo useVideoPlayer, eliminado el duplicado que estaba más abajo ──
     const player = useVideoPlayer(videoSource, player => {
         if (player && videoSource && visible) {
             player.loop = true
@@ -92,7 +97,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
     // Manejar el video cuando cambia el índice
     useEffect(() => {
         if (!visible) return
-        
+
         if (esVideo && player && videoSource) {
             try {
                 player.play()
@@ -106,7 +111,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                 // Ignorar
             }
         }
-        
+
         return () => {
             if (player) {
                 try {
@@ -118,34 +123,26 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
         }
     }, [imagenActual, esVideo, player, videoSource, visible])
 
-    // Si no hay inmueble, no mostrar nada
+    // ── FIX 3: Early return DESPUÉS de todos los hooks ──
     if (!inmueble) return null
 
-    const [favorito, setFavorito] = useState(false)
-    const [imagenActual, setImagenActual] = useState(0)
-    const [verComentarios, setVerComentarios] = useState(false)
-
-    const player = useVideoPlayer(
-        PROPIEDAD.media[imagenActual].tipo === "video" ? PROPIEDAD.media[imagenActual].src : null
-    )
-
-    return(
+    return (
         <View style={styles.container}>
             {/* Botones estáticos superiores */}
-            <TouchableOpacity 
-                style={[styles.btnCerrar, { top: insets.top + 16 }]} 
+            <TouchableOpacity
+                style={[styles.btnCerrar, { top: insets.top + 16 }]}
                 onPress={onClose}
             >
                 <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-                style={[styles.btnFavorito, { top: insets.top + 16 }]} 
+            <TouchableOpacity
+                style={[styles.btnFavorito, { top: insets.top + 16 }]}
                 onPress={() => setFavorito(!favorito)}
             >
-                <MaterialCommunityIcons 
-                    name={favorito ? "heart" : "heart-outline"} 
-                    size={26} 
+                <MaterialCommunityIcons
+                    name={favorito ? "heart" : "heart-outline"}
+                    size={26}
                     color={favorito ? "#e74c3c" : "#1a1a2e"}
                 />
             </TouchableOpacity>
@@ -153,71 +150,73 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
             <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
                 {/* Galeria */}
                 <View style={styles.galeriaContainer}>
-                    <ScrollView 
-                        ref={scrollRef} 
-                        horizontal 
-                        pagingEnabled 
-                        showsHorizontalScrollIndicator={false} 
+                    <ScrollView
+                        ref={scrollRef}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
                         onMomentumScrollEnd={(e) => {
                             const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width)
                             setImagenActual(index)
-                        }}>
-                            {PROPIEDAD.media.map((item, i) => (
-                                item.tipo === "imagen" ? (
-                                    <Image key={i} source={item.src} style={styles.imagenPrincipal}/>
-                                ) : (
-                                    <VideoView
+                        }}
+                    >
+                        {/* FIX 7: Usar inmueble.media en lugar de PROPIEDAD.media */}
+                        {inmueble.media.map((item: any, i: number) => (
+                            item.tipo === "imagen" ? (
+                                <Image key={i} source={item.src} style={styles.imagenPrincipal}/>
+                            ) : (
+                                <VideoView
                                     key={i}
                                     player={player}
                                     style={styles.imagenPrincipal}
                                     allowsFullscreen
-                                    allowsPictureInPicture/>
-                                )
-                            ))}
-                        </ScrollView>
+                                    allowsPictureInPicture
+                                />
+                            )
+                        ))}
+                    </ScrollView>
 
-                        {/* Miniautas */}
-                        <View style={styles.miniaturas}>
-                            {inmueble.media.map((item, i) => (
-                                <TouchableOpacity key={i} onPress={() => {
-                                    setImagenActual(i)
-                                    scrollRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true })
-                                }}>
-                                    {item.tipo === "imagen" ? (
-                                        <Image source={item.src} style={[styles.miniatura, imagenActual === i && styles.miniaturaActiva]}/>
-                                    ) : (
-                                        <View style={[styles.miniatura, styles.miniaturaVideo, imagenActual === i && styles.miniaturaActiva]}>
-                                            <MaterialCommunityIcons name="play-circle" size={28} color="#fff"/>
-                                        </View>
-                                    )}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
+                    {/* Miniaturas */}
+                    {/* FIX 5: Eliminado el )} extra que cerraba incorrectamente aquí */}
+                    <View style={styles.miniaturas}>
+                        {inmueble.media.map((item: any, i: number) => (
+                            <TouchableOpacity key={i} onPress={() => {
+                                setImagenActual(i)
+                                scrollRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true })
+                            }}>
+                                {item.tipo === "imagen" ? (
+                                    <Image source={item.src} style={[styles.miniatura, imagenActual === i && styles.miniaturaActiva]}/>
+                                ) : (
+                                    <View style={[styles.miniatura, styles.miniaturaVideo, imagenActual === i && styles.miniaturaActiva]}>
+                                        <MaterialCommunityIcons name="play-circle" size={28} color="#fff"/>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </View>
 
-                    {/* Informacion Principal */}
-                    <View style={styles.info}>
+                {/* Informacion Principal */}
+                <View style={styles.info}>
 
-                        {/* Titulo y calificaciones jsjs */}
-                        <Text style={styles.titulo}>{PROPIEDAD.titulo}</Text>
-                        
-                        <View style={styles.calificacionContainer}>
+                    {/* Titulo y calificaciones */}
+                    <Text style={styles.titulo}>{inmueble.titulo}</Text>
 
-                            <View style={styles.calificacionItem}>
-                                <Text style={styles.calificacionNumero}>{PROPIEDAD.calificacion}</Text>
-                                {/* La idea es que saca el promedio de las valoraciones de las resenas de los usuarios */}
-                                <View style={styles.estrellas}>
-                                    {[1, 2, 3, 4, 5].map((i) => (
-                                        <MaterialCommunityIcons
-                                            key={i}
-                                            name={i <= 4 ? "star" : "star-outline"}
-                                            size={25}
-                                            color="#f39c12"
-                                        />
-                                    ))}
-                                </View>
+                    <View style={styles.calificacionContainer}>
+                        <View style={styles.calificacionItem}>
+                            <Text style={styles.calificacionNumero}>{inmueble.calificacion}</Text>
+                            {/* La idea es que saca el promedio de las valoraciones de las resenas de los usuarios */}
+                            <View style={styles.estrellas}>
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                    <MaterialCommunityIcons
+                                        key={i}
+                                        name={i <= 4 ? "star" : "star-outline"}
+                                        size={25}
+                                        color="#f39c12"
+                                    />
+                                ))}
                             </View>
+                        </View>
 
                         <View style={styles.calificacionItem}>
                             <Text style={styles.calificacionNumero}>{inmueble.opiniones}</Text>
@@ -248,103 +247,107 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
                     {/* Descripción */}
                     <Text style={styles.descripcion}>{inmueble.descripcion}</Text>
-                    
+
                     <View style={styles.divider}/>
 
                     {/* Servicios */}
                     <Text style={styles.subtitulo}>Servicios incluidos</Text>
                     <View style={styles.tags}>
-                        {inmueble.servicios?.map((s, i) => (
+                        {inmueble.servicios?.map((s: string, i: number) => (
                             <View key={i} style={styles.tag}>
                                 <Text style={styles.tagTexto}>{s}</Text>
                             </View>
                         ))}
                     </View>
-                    
+
                     <View style={styles.divider}/>
 
                     {/* Reglas */}
                     <Text style={styles.subtitulo}>Reglas de la casa</Text>
                     <View style={styles.tags}>
-                        {inmueble.reglas?.map((r, i) => (
+                        {inmueble.reglas?.map((r: string, i: number) => (
                             <View key={i} style={[styles.tag, styles.tagRegla]}>
                                 <Text style={[styles.tagTexto, styles.tagTextoRegla]}>{r}</Text>
                             </View>
                         ))}
                     </View>
 
-                        <View style={styles.divider}/>
+                    <View style={styles.divider}/>
 
-                        {/* Comentarios predefinidos */}
-                        <View style={styles.comentarioEncabezado}>
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                                <MaterialCommunityIcons name="star" size={18} color="#f39c12" />
-                                <View>
-                                    <Text style={styles.comentarioEncabezadoTexto}>Reseñas del público</Text>
-                                    <Text style={{ fontSize: 12, color: "#185FA5" }}>{RESENAS.length} opiniones</Text>
+                    {/* Comentarios predefinidos */}
+                    <View style={styles.comentarioEncabezado}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                            <MaterialCommunityIcons name="star" size={18} color="#f39c12" />
+                            <View>
+                                <Text style={styles.comentarioEncabezadoTexto}>Reseñas del público</Text>
+                                <Text style={{ fontSize: 12, color: "#185FA5" }}>{RESENAS.length} opiniones</Text>
+                            </View>
+                        </View>
+                        {RESENAS.length > 0 && (
+                            <TouchableOpacity onPress={() => setVerComentarios(!verComentarios)}>
+                                <MaterialCommunityIcons
+                                    name={verComentarios ? "chevron-up" : "chevron-down"}
+                                    size={24}
+                                    color="#185FA5"
+                                />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {RESENAS.length === 0 ? (
+                        <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20 }}>
+                            Aún no hay reseñas para este lugar.
+                        </Text>
+                    ) : verComentarios ? (
+                        RESENAS.map((c, i) => (
+                            <View key={i} style={styles.comentario}>
+                                <Image source={ANFITRION} style={styles.comentarioAvatar}/>
+                                <View style={{flex: 1}}>
+                                    <View style={{ flexDirection: "column", justifyContent: "space-between" }}>
+                                        <Text style={styles.comentarioAutor}>{c.autor}</Text>
+                                        <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
+                                    </View>
+                                    <Text style={styles.comentarioTexto}>{c.texto}</Text>
                                 </View>
                             </View>
-                            {RESENAS.length > 0 && (
-                                <TouchableOpacity onPress={() => setVerComentarios(!verComentarios)}>
-                                    <MaterialCommunityIcons
-                                        name={verComentarios ? "chevron-up" : "chevron-down"}
-                                        size={24}
-                                        color="#185FA5"
-                                    />
-                                </TouchableOpacity>
-                            )}
-                        </View>
+                        ))
+                    ) : (
+                        <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20, fontSize: 13 }}>
+                            Toca la flecha para ver las reseñas.
+                        </Text>
+                    )}
 
-                        {RESENAS.length === 0 ? (
-                            <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20 }}>
-                                Aún no hay reseñas para este lugar.
-                            </Text>
-                        ) : verComentarios ? (
-                            RESENAS.map((c, i) => (
-                                <View key={i} style={styles.comentario}>
-                                    <Image source={ANFITRION} style={styles.comentarioAvatar}/>
-                                    <View style={{flex: 1}}>
-                                        <View style={{ flexDirection: "column", justifyContent: "space-between" }}>
-                                            <Text style={styles.comentarioAutor}>{c.autor}</Text>
-                                            <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
-                                        </View>
-                                        <Text style={styles.comentarioTexto}>{c.texto}</Text>
-                                    </View>
-                                </View>
-                            ))
-                        ) : (
-                            <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20, fontSize: 13 }}>
-                                Toca la flecha para ver las reseñas.
-                            </Text>
-                        )}
-                        
-                    </View>
-
-                </ScrollView>
-
-                {/* Footer */}
-                <View style={styles.footer}>
-                    <View>
-                        <Text style={styles.footerPrecio}>${PROPIEDAD.precio.toLocaleString('es-MX')}</Text>
-                        <Text style={styles.footerMes}>/ mes</Text>
-                    </View>
-
-                    <TouchableOpacity
-                        style={styles.btnContacto}
-                        onPress={() => {
-                            onClose()
-                            navigation.navigate("AgendarCita")}}>
-                        <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>
-                        <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
-                    </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.btnContacto} onPress={() => setModalTarifaVisible(true)}>
+            </ScrollView>
+
+            {/* FIX 6: Footer con ambos botones correctamente dentro del View */}
+            <View style={styles.footer}>
+                <View>
+                    <Text style={styles.footerPrecio}>${inmueble.precio.toLocaleString('es-MX')}</Text>
+                    <Text style={styles.footerMes}>/ mes</Text>
+                </View>
+
+                <TouchableOpacity
+                    style={styles.btnContacto}
+                    onPress={() => {
+                        onClose()
+                        navigation.navigate("AgendarCita")
+                    }}
+                >
+                    <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>
+                    <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.btnContacto}
+                    onPress={() => setModalTarifaVisible(true)}
+                >
                     <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
                     <Text style={styles.btnContactoTexto}>Contactar</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Modal de Tarifa de Servicio (Mantenemos este como modal interno) */}
+            {/* Modal de Tarifa de Servicio */}
             <Modal visible={modalTarifaVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
@@ -353,11 +356,11 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         <Text style={styles.modalText}>
                             Para proteger a nuestra comunidad y garantizar un servicio de calidad, cobramos una pequeña tarifa de $50 MXN para contactar a este arrendador.
                         </Text>
-                        <TouchableOpacity 
-                            style={styles.btnPagar} 
+                        <TouchableOpacity
+                            style={styles.btnPagar}
                             onPress={() => {
-                                setModalTarifaVisible(false);
-                                navigation.navigate("PaymentScreen", { token: token }); // Redirige a la pantalla de pagos
+                                setModalTarifaVisible(false)
+                                navigation.navigate("PaymentScreen", { token: token })
                             }}
                         >
                             <Text style={styles.btnPagarTexto}>Entendido, proceder al pago</Text>

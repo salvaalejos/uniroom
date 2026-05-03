@@ -1,33 +1,16 @@
+# ERRORES EN LA CREACIÓN DE INMUEBLE
+Al momento de querer ingresar una hora para un día de una casa, no permite poner los minutos (el teclado solo deja poner números exactos, no existe el dos puntos) 
+Las fechas para citas deben ser días de la semana, no días exactos del año
+También, en el mapa para seleccionar ubicación exacta al momento de dar de alta un inmueble dice "mover el mapa hasta que el marcador..." y no hay un marcador (en caso de que se vea, hacerlo más grande, más visible en el mini mapa). 
+
+
 ## IMPORTANTE!!! 
 1. Los mapas en la parte de rutas solamente pueden ejecutarse en móvil, no en web. (Si entran a esa pestaña por accidente en web, recargen la página). 
-2. El .env para las credenciales de los mapas se los voy a mandar por WhatsApp (deben guardarlo en /mobile/uniroom). 
-3. Para la conexión con la BD tambien hay que crear un .env (este debe guardarse en /backend en caso de que no lo tengan): 
-```env
-# Conexión a la BD (Usuario: uniroom_user / Pass: 12345 / Puerto: 5435)
-DATABASE_URL="postgresql://uniroom_user:12345@127.0.0.1:5435/uniroom?schema=public&connect_timeout=30&sslmode=disable"
 
-```
+# SETUP.ps1
+1. Abrir Docker para la BD. 
+2. Abrir un PowerShell y ejecutar el archivo en la carpeta raíz del proyecto (en caso que de no deje ejecutarlo por Windows chillón, dar permisos de ejecución). 
 
-# Pasos para ejecutar el proyecto con el Script RUN.sh
-1. Abrir Docker Desktop en tu Lap (si es Windows, si es Linux revisar que si este activo). [La ballena de la parte inferior izquierda debe estar en verde]. 
-2. Ejecutar este comando en terminal para los permisos de ejecución y luego ejecutar ahora si el script. 
-```bash
-chmod u+x RUN.sh
-./RUN.sh
-```
-3. Luego entrar a la carpeta mobile/uniroom para correr el proyecto con Expo
-```bash
-cd mobile
-cd uniroom 
-npx expo start
-```
-4. Ahora,  para visualizar la BD de manera visual, hay que volver a la carpeta raíz y entrar a la carpeta backend/app/, para despues ejecutar en otra terminal el siguiente comando.
-```bash
-cd backend/app/
-npx prisma studio
-```
----
-![./ignorepaso5.gif](https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSY5tnWvLBoT8CBqCzr_0oCO5drR0yLUbaaSQ&s)
 
 
 # Como correr en mobile este proyecto. 

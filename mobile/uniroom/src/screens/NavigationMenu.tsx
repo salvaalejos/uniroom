@@ -90,19 +90,18 @@ const Profile_Menu = ({ route }: any) => {
         )
 }
 
-const Tabs = [
+const StudentTabs = [
     {route : 'Inmuebles', label: 'Inmuebles', activeIcon: "map-search", inActiveIcon: "map-search-outline", component: CitaStackScreen},
     {route : 'Rutas Cercanas', label: 'Rutas Cercanas', activeIcon: "car", inActiveIcon: "car-outline", component: MapRouteScreen},
-    
-    // Ruta de la casa en renta
     {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: HomeScreen},
-    
-    // Ruta provicional para los inmuebles que esta renntando el arrendador
-    // {route : 'Tu inmueble', label: 'Tu inmueble', activeIcon: "home", inActiveIcon: "home-outline", component: InmuebleStackScreen},
-
-
     {route : 'Notificaciones', label: 'Notificaciones', activeIcon: 'bell', inActiveIcon: "bell-outline", component: NotificationScreen},
-    {route : 'ProfileTab', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: ProfileDataScreen}
+    {route : 'ProfileTab', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: Profile_Menu}
+]
+
+const LandlordTabs = [
+    {route : 'MisInmuebles', label: 'Mis Inmuebles', activeIcon: "home-city", inActiveIcon: "home-city-outline", component: InmuebleStackScreen},
+    {route : 'Notificaciones', label: 'Notificaciones', activeIcon: 'bell', inActiveIcon: "bell-outline", component: NotificationScreen},
+    {route : 'ProfileTab', label: 'Tu Perfil', activeIcon: "account", inActiveIcon: "account-outline", component: Profile_Menu}
 ]
 
 const TabButton = (props: any) => {
@@ -179,7 +178,7 @@ export default function NavigationMenu({ route }: any) {
 
     const userId = route.params?.userId
     const token = route.params?.token
-
+    
     const getUserData = async () => {
             try {
                 setIsLoading(true);

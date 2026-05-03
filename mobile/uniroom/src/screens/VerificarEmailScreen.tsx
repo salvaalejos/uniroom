@@ -126,7 +126,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                 throw new Error('Error al obtener los datos de acceso.');
             }
 
-            // Guardamos el token y limpiamos basura
+            // Guardamos el token y limpiamos basura (pausado por ahora xd)
             await AsyncStorage.setItem('token', token);
             await AsyncStorage.setItem('userId', String(userId));
             await AsyncStorage.removeItem('pendingAuth'); 

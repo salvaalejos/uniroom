@@ -4,16 +4,20 @@ import * as ImagePicker from 'expo-image-picker'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation, useRoute } from '@react-navigation/native'
-import { Video, ResizeMode } from 'expo-av'
+import { useVideoPlayer, VideoView } from 'expo-video'
 import { Calendar } from 'react-native-calendars'
 import Mapbox from '@rnmapbox/maps'
 import * as Location from 'expo-location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import Constants from 'expo-constants'
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
 Mapbox.setAccessToken(MAPBOX_TOKEN!)
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
+
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+const API_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 const SERVICIOS_OPCIONES = ["WiFi", "Agua", "Luz", "Gas", "Lavadora", "Estacionamiento", "Amueblado"]
 const REGLAS_OPCIONES = ["No mascotas", "No fumar", "No fiestas", "Solo estudiantes", "No visitas"]
@@ -51,7 +55,20 @@ type Formulario = {
     cuartosAdicionales: CuartoAdicional[]
 }
 
-const API_URL = 'http://localhost:3000'
+const VideoItem = ({ uri, style, useNativeControls = false }: { uri: string, style: any, useNativeControls?: boolean }) => {
+    const player = useVideoPlayer(uri, (p) => {
+        p.muted = true;
+        p.loop = true;
+    });
+    return (
+        <VideoView
+            player={player}
+            style={style}
+            contentFit="cover"
+            nativeControls={useNativeControls}
+        />
+    )
+}
 
 const Lessor_Renthouse = () => {
     const insets = useSafeAreaInsets()
@@ -187,52 +204,76 @@ const Lessor_Renthouse = () => {
         }))
     }
 
-    const subirImagenes = async (): Promise<string[]> => {
-        // TO DO: implementar subida real a servidor y devolver URLs
-        return form.medios.filter(m => m.tipo === "foto").map(m => m.uri)
-    }
-
     const guardarInmuebles = async () => {
         setCargando(true)
         try {
             const token = await AsyncStorage.getItem('token')
             if (!token) throw new Error('No autenticado')
-            const imagenesUrls = await subirImagenes()
-            const baseData = {
-                precio_mensual: parseFloat(form.precio),
-                descripcion: form.descripcion,
-                direccion_latitud: form.latitud,
-                direccion_longitud: form.longitud,
-                tipo_inmueble: form.tipoInmueble === "Casa" ? "CASA" : form.tipoInmueble === "Departamento" ? "DEPA" : "CUARTO",
-                servicios: form.servicios.map(s => SERVICIOS_OPCIONES.indexOf(s) + 1),
-                restricciones: form.reglas.map(r => REGLAS_OPCIONES.indexOf(r) + 1),
-                imagenes: imagenesUrls,
+
+            const formData = new FormData();
+            formData.append('precio_mensual', form.precio);
+            formData.append('descripcion', form.descripcion);
+            formData.append('direccion_latitud', form.latitud);
+            formData.append('direccion_longitud', form.longitud);
+            formData.append('titulo', form.titulo);
+            formData.append('tipo_inmueble', form.tipoInmueble === "Casa" ? "CASA" : form.tipoInmueble === "Departamento" ? "DEPA" : "CUARTO");
+            
+            // Enviar arreglos como strings JSON para que el backend los procese
+            formData.append('servicios', JSON.stringify(form.servicios.map(s => SERVICIOS_OPCIONES.indexOf(s) + 1)));
+            formData.append('restricciones', JSON.stringify(form.reglas.map(r => REGLAS_OPCIONES.indexOf(r) + 1)));
+
+            // Agregar archivos (fotos y videos)
+            for (let i = 0; i < form.medios.length; i++) {
+                const media = form.medios[i];
+                const uriParts = media.uri.split('.');
+                const fileType = uriParts[uriParts.length - 1];
+                const fileName = `media_${Date.now()}_${i}.${fileType}`;
+
+                formData.append('imagenes', {
+                    uri: Platform.OS === 'android' ? media.uri : media.uri.replace('file://', ''),
+                    name: fileName,
+                    type: media.tipo === "foto" ? `image/${fileType}` : `video/${fileType}`,
+                } as any);
             }
+
             const resp = await fetch(`${API_URL}/inmuebles`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(baseData),
+                headers: { 
+                    Authorization: `Bearer ${token}`
+                    // Nota: No poner 'Content-Type': 'multipart/form-data' manualmente,
+                    // fetch lo hace solo con el boundary correcto al pasar un FormData.
+                },
+                body: formData,
             })
-            if (!resp.ok) throw new Error('Error al guardar')
-            await resp.json()
+
+            const responseData = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(responseData.error || 'Error al guardar el inmueble')
+
             Alert.alert('Éxito', `${form.tipoInmueble} guardado correctamente`)
+
+            // Lógica para cuartos adicionales (Si es una casa)
             if (form.tipoInmueble === 'Casa' && form.cuartosAdicionales.length > 0) {
                 for (const cuarto of form.cuartosAdicionales) {
-                    const cuartoData = {
-                        ...baseData,
-                        precio_mensual: parseFloat(cuarto.precio),
-                        descripcion: cuarto.descripcion || `Cuarto dentro de ${form.titulo}`,
-                        tipo_inmueble: 'CUARTO',
-                    }
+                    const cuartoFormData = new FormData();
+                    cuartoFormData.append('precio_mensual', cuarto.precio);
+                    cuartoFormData.append('descripcion', cuarto.descripcion || `Cuarto dentro de ${form.titulo}`);
+                    cuartoFormData.append('titulo', cuarto.nombre);
+                    cuartoFormData.append('tipo_inmueble', 'CUARTO');
+                    cuartoFormData.append('direccion_latitud', form.latitud);
+                    cuartoFormData.append('direccion_longitud', form.longitud);
+                    // Los cuartos adicionales usualmente heredan o no tienen las mismas fotos
+                    // Por ahora los mandamos sin fotos o con las mismas si fuera necesario.
+
                     const cuartoResp = await fetch(`${API_URL}/inmuebles`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                        body: JSON.stringify(cuartoData),
+                        headers: { Authorization: `Bearer ${token}` },
+                        body: cuartoFormData,
                     })
                     if (!cuartoResp.ok) console.warn('Error guardando cuarto adicional')
                 }
                 Alert.alert('Éxito', `Se guardaron ${form.cuartosAdicionales.length} cuarto(s) adicional(es)`)
             }
+
             navigation.goBack()
         } catch (error: any) {
             Alert.alert('Error', error.message)
@@ -277,7 +318,7 @@ const Lessor_Renthouse = () => {
                             {media.tipo === "foto" ? (
                                 <Image source={{ uri: media.uri }} style={styles.foto} />
                             ) : (
-                                <Video source={{ uri: media.uri }} style={styles.foto} resizeMode={ResizeMode.COVER} shouldPlay={false} isMuted />
+                                <VideoItem uri={media.uri} style={styles.foto} />
                             )}
                             {media.tipo === "video" && (
                                 <View style={styles.videoIconOverlay}>
@@ -624,7 +665,7 @@ const Lessor_Renthouse = () => {
                             media.tipo === "foto" ? (
                                 <Image key={i} source={{ uri: media.uri }} style={styles.previaImagen} />
                             ) : (
-                                <Video key={i} source={{ uri: media.uri }} style={styles.previaImagen} resizeMode={ResizeMode.COVER} shouldPlay={false} useNativeControls />
+                                <VideoItem key={i} uri={media.uri} style={styles.previaImagen} useNativeControls />
                             )
                         ))}
                     </ScrollView>

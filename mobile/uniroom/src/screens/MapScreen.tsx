@@ -14,6 +14,11 @@ if (MAPBOX_TOKEN) {
   Mapbox.setAccessToken(MAPBOX_TOKEN);
 }
 
+import Constants from 'expo-constants';
+
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
+
 const { width, height } = Dimensions.get('window');
 
 // Ubicación del Tec de Morelia
@@ -66,33 +71,58 @@ export default function MapScreen({ route, navigation }: any) {
   const fetchInmuebles = async () => {
     try {
       // Fetch a la API de Said
-      const res = await fetch("http://localhost:3000/api/inmuebles/filtrar").catch(() => null);
+      const res = await fetch(`${API_BASE_URL}/api/inmuebles/filtrar`).catch(() => null);
       let data = res ? await res.json() : null;
       
       // Fallback a los datos mock de Said si el backend no está corriendo
       if (!data || data.length === 0) {
         data = [
           { 
-            id_inmueble: 1, precio_mensual: 3500, direccion_latitud: 19.723, direccion_longitud: -101.185,
+            id_inmueble: 1, 
+            titulo: "Departamento Mock",
+            precio_mensual: 3500, 
+            direccion_latitud: 19.723, 
+            direccion_longitud: -101.185,
+            arrendador: { nombre: "Anfitrión", apellidos: "Mock", numero_contacto: "1234567890" },
+            descripcion: "Descripción de prueba para el inmueble mock.",
             servicios: [{ nombre: 'WiFi' }, { nombre: 'Agua incluida' }],
             restricciones: [{ nombre: 'No mascotas' }],
             calificaciones: [{ calificacion: 5 }, { calificacion: 4 }],
-            imagenes: [{ src: require("../default_images/dreamhouse.jpg") }]
+            imagenes: [{ imagen: "../default_images/dreamhouse.jpg" }]
           }
         ];
       }
       
       const procesados = data.map((item: any) => {
         const total = item.calificaciones?.reduce((acc: number, c: any) => acc + c.calificacion, 0) || 0;
+        
+        // Unificar estructura de media para InmuebleScreen
+        const media = item.imagenes?.map((img: any) => {
+            // Si la imagen es una URL externa o local
+            const src = typeof img.imagen === 'string' && img.imagen.startsWith('..') 
+                ? require("../default_images/dreamhouse.jpg") // Fallback para mocks locales
+                : { uri: img.imagen.startsWith('http') ? img.imagen : `${API_BASE_URL}${img.imagen}` };
+            
+            return { tipo: "imagen", src };
+        }) || [];
+
         return {
           ...item,
+          anfitrion: item.arrendador ? `${item.arrendador.nombre} ${item.arrendador.apellidos}` : "Anónimo",
+          contacto: item.arrendador?.numero_contacto || "Sin contacto",
+          ubicacion: `Morelia, Mich. (a ${getDistancia(Number(item.direccion_latitud), Number(item.direccion_longitud))} km)`,
+          media,
           promedio: item.calificaciones?.length > 0 ? total / item.calificaciones.length : 0,
+          calificacion: item.calificaciones?.length > 0 ? (total / item.calificaciones.length).toFixed(1) : "0",
+          opiniones: item.calificaciones?.length || 0,
           distancia: parseFloat(getDistancia(Number(item.direccion_latitud), Number(item.direccion_longitud)))
         };
       });
 
       setInmuebles(procesados);
       setOriginales(procesados);
+    } catch (err) {
+      console.error("Error fetching inmuebles:", err);
     } finally {
       setCargando(false);
     }

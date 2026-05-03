@@ -1,59 +1,36 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
-import jwt from "jsonwebtoken";
-
-type AuthUser = {
-  id_usuario?: string;
-  sub?: string;
-  rol?: string;
-};
-
-const getBearerToken = (authorization?: string) => {
-  if (!authorization) return null;
-  const [scheme, token] = authorization.split(" ");
-  if (scheme !== "Bearer" || !token) return null;
-  return token;
-};
-
-const authenticateRequest = (
-  headers: Record<string, string | undefined>,
-  set: { status?: number | string }
-) => {
-  const token = getBearerToken(headers.authorization);
-  const jwtSecret = process.env.JWT_SECRET || "super_secret_elysia_key";
-
-  if (!token) {
-    set.status = 401;
-    return null;
-  }
-
-  try {
-    return jwt.verify(token, jwtSecret) as AuthUser;
-  } catch (error) {
-    console.error("JWT Verify Error:", error);
-    set.status = 401;
-    return null;
-  }
-};
-
-const getAuthenticatedUserId = (authUser: AuthUser) =>
-  authUser.id_usuario ?? authUser.sub ?? null;
-
-const isAdmin = (authUser: AuthUser) => authUser.rol === "ADMIN";
-
-const canAccessUser = (authUser: AuthUser, userId: string) => {
-  const authenticatedUserId = getAuthenticatedUserId(authUser);
-  return isAdmin(authUser) || authenticatedUserId === userId;
-};
+import { jwt } from "@elysiajs/jwt";
 
 export const usersRoutes = new Elysia({ prefix: "/users" })
-  .get("/", async ({ headers, set }) => {
-    const authUser = authenticateRequest(headers, set);
-    if (!authUser) {
-      return { error: "No autenticado" };
+  .use(
+    jwt({
+      name: "jwt",
+      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
+    })
+  )
+  .derive(async ({ jwt, headers: { authorization }, set }) => {
+    if (!authorization?.startsWith("Bearer ")) {
+      set.status = 401;
+      return { error: "No autorizado" };
     }
-
-    if (!isAdmin(authUser)) {
+    const token = authorization.slice(7);
+    const payload = await jwt.verify(token);
+    if (!payload || !payload.sub) {
+      set.status = 401;
+      return { error: "Token inválido" };
+    }
+    const user = await db.usuario.findUnique({
+      where: { id_usuario: payload.sub as string },
+    });
+    if (!user) {
+      set.status = 401;
+      return { error: "Usuario no encontrado" };
+    }
+    return { authenticatedUser: user };
+  })
+  .get("/", async ({ authenticatedUser, set }) => {
+    if (authenticatedUser.rol !== "ADMIN") {
       set.status = 403;
       return { error: "No autorizado" };
     }
@@ -72,19 +49,31 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     });
     return users;
   })
-  .get("/:id", async ({ params: { id }, headers, set }) => {
-    const authUser = authenticateRequest(headers, set);
-    if (!authUser) {
-      return { error: "No autenticado" };
-    }
-
-    if (!canAccessUser(authUser, id)) {
+  .get("/:id", async ({ params: { id }, authenticatedUser, set }) => {
+    const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
+    
+    if (!canAccess) {
       set.status = 403;
       return { error: "No autorizado" };
     }
 
     const user = await db.usuario.findUnique({
-      where: { id_usuario: id }
+      where: { id_usuario: id },
+      select: {
+        id_usuario: true,
+        email: true,
+        nombre: true,
+        apellidos: true,
+        rol: true,
+        estado: true,
+        numero_contacto: true,
+        genero: true,
+        edad: true,
+        foto: true,
+        visibilidad: true,
+        email_verificado: true,
+        fecha_creacion: true
+      }
     });
 
     if (!user) {
@@ -94,13 +83,10 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
 
     return user;
   })
-  .get("/:id/transactions", async ({ params: { id }, headers, set }) => {
-    const authUser = authenticateRequest(headers, set);
-    if (!authUser) {
-      return { error: "No autenticado" };
-    }
-
-    if (!canAccessUser(authUser, id)) {
+  .get("/:id/transactions", async ({ params: { id }, authenticatedUser, set }) => {
+    const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
+    
+    if (!canAccess) {
       set.status = 403;
       return { error: "No autorizado" };
     }
@@ -114,13 +100,10 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   })
   .put(
     "/:id",
-    async ({ params: { id }, body, headers, set }) => {
-      const authUser = authenticateRequest(headers, set);
-      if (!authUser) {
-        return { error: "No autenticado" };
-      }
+    async ({ params: { id }, body, authenticatedUser, set }) => {
+      const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
-      if (!canAccessUser(authUser, id)) {
+      if (!canAccess) {
         set.status = 403;
         return { error: "No autorizado" };
       }
@@ -169,13 +152,10 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       ),
     }
   )
-  .delete("/:id", async ({ params: { id }, headers, set }) => {
-    const authUser = authenticateRequest(headers, set);
-    if (!authUser) {
-      return { error: "No autenticado" };
-    }
+  .delete("/:id", async ({ params: { id }, authenticatedUser, set }) => {
+    const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
-    if (!canAccessUser(authUser, id)) {
+    if (!canAccess) {
       set.status = 403;
       return { error: "No autorizado" };
     }
