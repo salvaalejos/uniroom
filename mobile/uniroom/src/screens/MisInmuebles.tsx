@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Constants from 'expo-constants'
+import { useTheme } from '../context/ThemeContext'
 
 
 // ---- Tipo del Inmueble ----
@@ -34,6 +35,7 @@ const MisInmuebles = () => {
     const [cargando, setCargando] = useState(true)
     const [confirmarId, setConfirmarId] = useState<number | null>(null)
     const [menuAbierto, setMenuAbierto] = useState<number | null>(null)
+    const { colors, isDark } = useTheme()
 
     const fetchInmuebles = async () => {
         try {
@@ -148,12 +150,12 @@ const MisInmuebles = () => {
 
     return (
         
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
         
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
 
-                <Text style={styles.titulo}>
+                <Text style={[styles.titulo, { color: colors.textPrimary }]}>
                     Mis inmuebles
                 </Text>
 
@@ -185,7 +187,7 @@ const MisInmuebles = () => {
 
                     <View key={inmueble.id_inmueble}>
 
-                        <View style={styles.card}>
+                        <View style={[styles.card, { backgroundColor: colors.cardBackground, shadowColor: isDark ? 'transparent' : '#000' }]}>
 
                             <Image source={typeof inmueble.foto === 'object' ? inmueble.foto : { uri: inmueble.foto }} style={styles.cardFoto}/>
 
@@ -194,34 +196,34 @@ const MisInmuebles = () => {
                                 <View style={styles.cardInfoTop}>
 
                                     <View style={{ flex: 1 }}>
-                                        <Text style={styles.cardTitulo} numberOfLines={1}>
+                                        <Text style={[styles.cardTitulo, { color: colors.textPrimary }]} numberOfLines={1}>
                                             {inmueble.titulo}
                                         </Text>
                                         <View style={styles.cardUbicacionRow}>
-                                            <MaterialCommunityIcons name="map-marker" size={13} color="#205EA6"/>
-                                            <Text style={styles.cardUbicacion} numberOfLines={1}>
+                                            <MaterialCommunityIcons name="map-marker" size={13} color={colors.accent}/>
+                                            <Text style={[styles.cardUbicacion, { color: colors.textSecondary }]} numberOfLines={1}>
                                                 {inmueble.ubicacion}
                                             </Text>
                                         </View>
-                                        <Text style={styles.cardDescripcion} numberOfLines={2}>
+                                        <Text style={[styles.cardDescripcion, { color: colors.textSecondary }]} numberOfLines={2}>
                                             {inmueble.descripcion}
                                         </Text>
                                     </View>
 
                                     <TouchableOpacity style={styles.btnMenu} onPress={() => setMenuAbierto(menuAbierto === inmueble.id_inmueble ? null : inmueble.id_inmueble)}>
-                                        <MaterialCommunityIcons name="dots-vertical" size={22} color="#888"/>
+                                        <MaterialCommunityIcons name="dots-vertical" size={22} color={colors.textSecondary}/>
                                     </TouchableOpacity>
 
                                 </View>
 
                                 <View style={styles.cardFooter}>
 
-                                    <Text style={styles.cardPrecio}>
+                                    <Text style={[styles.cardPrecio, { color: colors.buttonMain }]}>
                                         ${inmueble.precio.toLocaleString('es-MX')}
-                                        <Text style={styles.cardMes}> / mes</Text>
+                                        <Text style={[styles.cardMes, { color: colors.textSecondary }]}> / mes</Text>
                                     </Text>
-                                    <View style={[styles.badge, inmueble.estado === "publicado" ? styles.badgePublicado : styles.badgePendiente]}>
-                                        <Text style={[styles.badgeTexto, inmueble.estado === "publicado" ? styles.badgeTextoPublicado : styles.badgeTextoPendiente]}>
+                                    <View style={[styles.badge, inmueble.estado === "publicado" ? [styles.badgePublicado, { backgroundColor: colors.accent, borderColor: colors.accent }] : [styles.badgePendiente, { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF', borderColor: colors.buttonMain }]]}>
+                                        <Text style={[styles.badgeTexto, inmueble.estado === "publicado" ? styles.badgeTextoPublicado : [styles.badgeTextoPendiente, { color: colors.buttonMain }]]}>
                                             {inmueble.estado === "publicado" ? "Publicado" : "Pendiente"}
                                         </Text>
                                     </View>
@@ -235,20 +237,20 @@ const MisInmuebles = () => {
                         {/* Menu desplegable */}
                         {menuAbierto === inmueble.id_inmueble && (
 
-                            <View style={styles.menuDesplegable}>
+                            <View style={[styles.menuDesplegable, { backgroundColor: colors.cardBackground, shadowColor: isDark ? 'transparent' : '#000', borderColor: colors.border, borderWidth: isDark ? 1 : 0 }]}>
 
                                 <TouchableOpacity style={styles.menuItem} onPress={() => editarInmueble(inmueble)}>
-                                    <MaterialCommunityIcons name="pencil" size={18} color="#205EA6"/>
-                                    <Text style={styles.menuItemTexto}>
+                                    <MaterialCommunityIcons name="pencil" size={18} color={colors.buttonMain}/>
+                                    <Text style={[styles.menuItemTexto, { color: colors.textPrimary }]}>
                                         Editar
                                     </Text>
                                 </TouchableOpacity>
 
-                                <View style={styles.menuDivider} />
+                                <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 
                                 <TouchableOpacity style={styles.menuItem} onPress={() => eliminarInmueble(inmueble.id_inmueble)}>
-                                    <MaterialCommunityIcons name="trash-can" size={18} color="#e74c3c"/>
-                                    <Text style={[styles.menuItemTexto, { color: "#e74c3c" }]}>
+                                    <MaterialCommunityIcons name="trash-can" size={18} color={colors.error}/>
+                                    <Text style={[styles.menuItemTexto, { color: colors.error }]}>
                                         Eliminar
                                     </Text>
                                 </TouchableOpacity>
@@ -268,15 +270,15 @@ const MisInmuebles = () => {
             {/* Modal de confirmacion */}
             {confirmarId !== null && (
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalCaja}>
-                        <Text style={styles.modalTitulo}>Eliminar inmueble</Text>
-                        <Text style={styles.modalTexto}>¿Estás seguro? Esta acción no se puede deshacer.</Text>
+                    <View style={[styles.modalCaja, { backgroundColor: colors.cardBackground }]}>
+                        <Text style={[styles.modalTitulo, { color: colors.textPrimary }]}>Eliminar inmueble</Text>
+                        <Text style={[styles.modalTexto, { color: colors.textSecondary }]}>¿Estás seguro? Esta acción no se puede deshacer.</Text>
                         <View style={styles.modalBotones}>
-                            <TouchableOpacity style={styles.modalBtnCancelar} onPress={() => setConfirmarId(null)}>
-                                <Text style={styles.modalBtnCancelarTexto}>Cancelar</Text>
+                            <TouchableOpacity style={[styles.modalBtnCancelar, { borderColor: colors.border }]} onPress={() => setConfirmarId(null)}>
+                                <Text style={[styles.modalBtnCancelarTexto, { color: colors.textSecondary }]}>Cancelar</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalBtnEliminar} onPress={confirmarEliminar}>
-                                <Text style={styles.modalBtnEliminarTexto}>Eliminar</Text>
+                            <TouchableOpacity style={[styles.modalBtnEliminar, { backgroundColor: colors.error }]} onPress={confirmarEliminar}>
+                                <Text style={[styles.modalBtnEliminarTexto, { color: colors.buttonText }]}>Eliminar</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

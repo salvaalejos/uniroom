@@ -7,11 +7,14 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
+import ThemeToggleButton from '../components/ThemeToggleButton';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
@@ -49,6 +52,8 @@ export default function LoginScreen({ navigation }: any) {
     const [errorMessage, setErrorMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [authenticatedUser, setAuthenticatedUser] = useState<AuthenticatedUser | null>(null);
+
+    const { colors, isDark } = useTheme();
 
     const loginEndpoint = useMemo(() => `${API_BASE_URL}/auth/login`, []);
 
@@ -88,6 +93,9 @@ export default function LoginScreen({ navigation }: any) {
 
             if (!response.ok) {
                 console.log("[Login] Error en respuesta:", payload);
+                if (payload?.needsVerification) {
+                    throw new Error('needsVerification');
+                }
                 const apiError = payload?.error ?? payload?.message ?? 'Credenciales incorrectas o problema para iniciar sesión.';
                 throw new Error(apiError);
             }
@@ -140,17 +148,22 @@ export default function LoginScreen({ navigation }: any) {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'android' ? 'padding' : 'height'}
-            style={styles.container}
+            style={[styles.container, { backgroundColor: colors.background }]}
         >
-            <View style={styles.headerContainer}>
-                <Text style={styles.title}>UniR00M</Text>
-                <Text style={styles.slogan}>Encuentra tu hogar cerca del campus</Text>
-            </View>
             <View style={styles.formContainer}>
+                <View style={styles.headerContainer}>
+                    <Image 
+                        source={isDark ? require('../../assets/dark-theme-logo.png') : require('../../assets/light-theme-logo.png')}
+                        style={styles.logo}
+                        resizeMode="contain"
+                    />
+                    <Text style={[styles.title, { color: colors.textPrimary }]}>UniRoomie</Text>
+                    <Text style={[styles.slogan, { color: colors.textSecondary }]}>Sin preocuparse de donde vivir</Text>
+                </View>
                 <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                     placeholder="Correo electrónico"
-                    placeholderTextColor="#abcdef"
+                    placeholderTextColor={colors.textSecondary}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={email}
@@ -159,8 +172,8 @@ export default function LoginScreen({ navigation }: any) {
                 />
 
                 <TextInput
-                    style={styles.input}
-                    placeholderTextColor="#abcdef"
+                    style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                    placeholderTextColor={colors.textSecondary}
                     placeholder="Contraseña"
                     secureTextEntry
                     value={password}
@@ -168,30 +181,33 @@ export default function LoginScreen({ navigation }: any) {
                     editable={!isLoading}
                 />
 
-                <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={isLoading}>
+                <TouchableOpacity style={[styles.loginButton, { backgroundColor: colors.buttonMain }]} onPress={handleLogin} disabled={isLoading}>
                     {isLoading ? (
-                        <ActivityIndicator color="#FFFFFF" />
+                        <ActivityIndicator color={colors.buttonText} />
                     ) : (
-                        <Text style={styles.loginButtonText}>Iniciar sesión</Text>
+                        <Text style={[styles.loginButtonText, { color: colors.buttonText }]}>Iniciar sesión</Text>
                     )}
                 </TouchableOpacity>
 
                 {errorMessage ? (
-                    <View style={styles.errorContainer}>
-                        <Ionicons name="alert-circle" size={20} color="#E74C3C" />
-                        <Text style={styles.errorTextUI}>{errorMessage}</Text>
+                    <View style={[styles.errorContainer, { backgroundColor: colors.errorBackground, borderColor: colors.error }]}>
+                        <Ionicons name="alert-circle" size={20} color={colors.error} />
+                        <Text style={[styles.errorTextUI, { color: colors.error }]}>{errorMessage}</Text>
                     </View>
                 ) : null}
 
                 <TouchableOpacity>
-                    <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+                    <Text style={[styles.forgotPasswordText, { color: colors.buttonMain }]}>¿Olvidaste tu contraseña?</Text>
                 </TouchableOpacity>
             </View>
             <View style={styles.footerContainer}>
-                <Text style={styles.footerText}>¿Eres nuevo aquí? </Text>
+                <Text style={[styles.footerText, { color: colors.textSecondary }]}>¿Eres nuevo aquí? </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                    <Text style={styles.registerText}>Regístrate</Text>
+                    <Text style={[styles.registerText, { color: colors.buttonMain }]}>Regístrate</Text>
                 </TouchableOpacity>
+            </View>
+            <View style={styles.bottomRightButtonContainer}>
+                <ThemeToggleButton />
             </View>
         </KeyboardAvoidingView>
     );
@@ -200,19 +216,23 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#DCEEFF',
         justifyContent: 'space-between',
         padding: 24,
     },
-    loggedContainer: {
-        flex: 1,
-        backgroundColor: '#F5F7FA',
-        justifyContent: 'center',
-        padding: 24,
+    bottomRightButtonContainer: {
+        position: 'absolute',
+        bottom: 40,
+        right: 24,
+        zIndex: 10,
     },
     headerContainer: {
-        marginTop: 80,
         alignItems: 'center',
+        marginBottom: 35,
+    },
+    logo: {
+        width: 120,
+        height: 120,
+        marginBottom: 10,
     },
     title: {
         fontSize: 42,

@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
@@ -32,6 +33,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
     const [errorMessage, setErrorMessage] = useState('');
     const [countdown, setCountdown] = useState(0);
     const [resending, setResending] = useState(false);
+    const { colors, isDark } = useTheme();
     
     const inputRefs = useRef<(TextInput | null)[]>([]);
 
@@ -206,17 +208,17 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'android' ? 'padding' : 'height'}
-            style={styles.container}
+            style={[styles.container, { backgroundColor: colors.background }]}
         >
-            <View style={styles.content}>
+            <View style={[styles.content, { backgroundColor: colors.background }]}>
                 <View style={styles.header}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="mail-unread" size={48} color="#6366f1" />
+                    <View style={[styles.iconContainer, { backgroundColor: isDark ? colors.cardBackground : '#EEF2FF' }]}>
+                        <Ionicons name="mail-unread" size={48} color={colors.accent} />
                     </View>
-                    <Text style={styles.title}>Verifica tu correo</Text>
-                    <Text style={styles.subtitle}>
+                    <Text style={[styles.title, { color: colors.textPrimary }]}>Verifica tu correo</Text>
+                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                         Te hemos enviado un código de 6 dígitos a{' '}
-                        <Text style={styles.emailText}>{email}</Text>
+                        <Text style={[styles.emailText, { color: colors.accent }]}>{email}</Text>
                     </Text>
                 </View>
 
@@ -227,8 +229,9 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                             ref={(ref) => (inputRefs.current[index] = ref)}
                             style={[
                                 styles.otpInput,
-                                otp[index] && styles.otpInputFilled,
-                                errorMessage && styles.otpInputError,
+                                { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary },
+                                otp[index] && [styles.otpInputFilled, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EEF2FF' }],
+                                errorMessage && [styles.otpInputError, { borderColor: colors.error, backgroundColor: colors.errorBackground }],
                             ]}
                             keyboardType="number-pad"
                             maxLength={2}
@@ -247,38 +250,39 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                 </View>
 
                 {errorMessage ? (
-                    <View style={styles.errorContainer}>
-                        <Ionicons name="alert-circle" size={20} color="#E74C3C" />
-                        <Text style={styles.errorText}>{errorMessage}</Text>
+                    <View style={[styles.errorContainer, { backgroundColor: colors.errorBackground, borderColor: colors.error }]}>
+                        <Ionicons name="alert-circle" size={20} color={colors.error} />
+                        <Text style={[styles.errorText, { color: colors.error }]}>{errorMessage}</Text>
                     </View>
                 ) : null}
 
                 <TouchableOpacity
                     style={[
                         styles.verifyButton,
+                        { backgroundColor: colors.buttonMain },
                         (isLoading || otp.length !== OTP_LENGTH) && styles.verifyButtonDisabled,
                     ]}
                     onPress={verifyCodeAndLogin}
                     disabled={isLoading || otp.length !== OTP_LENGTH}
                 >
                     {isLoading ? (
-                        <ActivityIndicator color="#FFFFFF" />
+                        <ActivityIndicator color={colors.buttonText} />
                     ) : (
-                        <Text style={styles.verifyButtonText}>Verificar código</Text>
+                        <Text style={[styles.verifyButtonText, { color: colors.buttonText }]}>Verificar código</Text>
                     )}
                 </TouchableOpacity>
 
                 <View style={styles.resendContainer}>
                     {countdown > 0 ? (
-                        <Text style={styles.resendText}>
+                        <Text style={[styles.resendText, { color: colors.textSecondary }]}>
                             Esperar {formatTime(countdown)} para reenviar
                         </Text>
                     ) : (
                         <TouchableOpacity onPress={handleResend} disabled={resending}>
                             {resending ? (
-                                <ActivityIndicator size="small" color="#6366f1" />
+                                <ActivityIndicator size="small" color={colors.accent} />
                             ) : (
-                                <Text style={styles.resendLink}>Reenviar código</Text>
+                                <Text style={[styles.resendLink, { color: colors.accent }]}>Reenviar código</Text>
                             )}
                         </TouchableOpacity>
                     )}
@@ -288,8 +292,8 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                     style={styles.backButton}
                     onPress={() => navigation.goBack()}
                 >
-                    <Ionicons name="arrow-back" size={20} color="#6366f1" />
-                    <Text style={styles.backLink}>Volver</Text>
+                    <Ionicons name="arrow-back" size={20} color={colors.textSecondary} />
+                    <Text style={[styles.backLink, { color: colors.textSecondary }]}>Volver</Text>
                 </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>

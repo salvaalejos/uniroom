@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
+import { useTheme } from "../context/ThemeContext"
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window")
 const ANFITRION = require("../default_images/anfi.jpg")
@@ -46,6 +47,7 @@ type Props = { navigation?: any }
 const HomeScreen = ({ navigation }: Props) => {
 
     const insets = useSafeAreaInsets()
+    const { colors, isDark } = useTheme()
     const [imagenActual, setImagenActual] = useState(0)
     const [menuVisible, setMenuVisible] = useState(false)
     const [modalCancelarVisible, setModalCancelarVisible] = useState(false)
@@ -74,7 +76,7 @@ useEffect(() => {
 }, [mediaActual])
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
 
@@ -110,7 +112,7 @@ useEffect(() => {
 
                     {/* Menú desplegable */}
                     {menuVisible && (
-                        <View style={styles.menuDesplegable}>
+                        <View style={[styles.menuDesplegable, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                             <TouchableOpacity
                                 style={styles.menuItem}
                                 onPress={() => {
@@ -125,7 +127,7 @@ useEffect(() => {
                     )}
                 </View>
 
-                <View style={styles.body}>
+                <View style={[styles.body, { backgroundColor: colors.background }]}>
 
                     {/* Miniaturas */}
                     <View style={styles.galeriaRow}>
@@ -144,7 +146,7 @@ useEffect(() => {
                     
                     {/* Contrato */}
                     <View style={styles.cardVacio}>
-                        <Text style={styles.cardLbl}>Contrato</Text>
+                        <Text style={[styles.cardLbl, { color: colors.textSecondary }]}>Contrato</Text>
                         <View style={styles.timeline}>
 
                             <View style={styles.tlItem}>
@@ -153,8 +155,8 @@ useEffect(() => {
                                     <View style={styles.tlLinea} />
                                 </View>
                                 <View style={styles.tlContent}>
-                                    <Text style={styles.tlLbl}>Inicio</Text>
-                                    <Text style={styles.tlVal}>{RENTA_ACTIVA.fechaInicio}</Text>
+                                    <Text style={[styles.tlLbl, { color: colors.textSecondary }]}>Inicio</Text>
+                                    <Text style={[styles.tlVal, { color: colors.textPrimary }]}>{RENTA_ACTIVA.fechaInicio}</Text>
                                 </View>
                             </View>
 
@@ -163,11 +165,11 @@ useEffect(() => {
                                     <View style={[styles.tlDot, styles.tlDotFin]} />
                                 </View>
                                 <View style={styles.tlContent}>
-                                    <Text style={styles.tlLbl}>Fin</Text>
-                                    <Text style={styles.tlVal}>{RENTA_ACTIVA.fechaFin}</Text>
-                                    <View style={styles.tlPill}>
-                                        <MaterialCommunityIcons name="clock-outline" size={11} color="#205EA6" />
-                                        <Text style={styles.tlPillTxt}>{RENTA_ACTIVA.diasRestantes} días restantes</Text>
+                                    <Text style={[styles.tlLbl, { color: colors.textSecondary }]}>Fin</Text>
+                                    <Text style={[styles.tlVal, { color: colors.textPrimary }]}>{RENTA_ACTIVA.fechaFin}</Text>
+                                    <View style={[styles.tlPill, { backgroundColor: isDark ? colors.backgroundSecondary : '#EEF4FF' }]}>
+                                        <MaterialCommunityIcons name="clock-outline" size={11} color={colors.buttonMain} />
+                                        <Text style={[styles.tlPillTxt, { color: colors.buttonMain }]}>{RENTA_ACTIVA.diasRestantes} días restantes</Text>
                                     </View>
                                 </View>
                             </View>
@@ -176,43 +178,43 @@ useEffect(() => {
                     </View>
 
                     {/* Arrendador */}
-                    <View style={styles.cardDouble}>
+                    <View style={[styles.cardDouble, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.cardLbl}>Arrendador</Text>
+                            <Text style={[styles.cardLbl, { color: colors.textSecondary }]}>Arrendador</Text>
                             <View style={styles.arrenRow}>
                                 <Image source={ANFITRION} style={styles.avatar} />
                                 <View>
-                                    <Text style={styles.arrenNombre}>{RENTA_ACTIVA.arrendador}</Text>
-                                    <Text style={styles.arrenSub}>Arrendador verificado</Text>
+                                    <Text style={[styles.arrenNombre, { color: colors.textPrimary }]}>{RENTA_ACTIVA.arrendador}</Text>
+                                    <Text style={[styles.arrenSub, { color: colors.textSecondary }]}>Arrendador verificado</Text>
                                 </View>
                             </View>
                         </View>
                         <View style={{ flex: 1, alignItems: "flex-end" }}>
-                            <Text style={[styles.cardLbl, styles.contactarLbl]}>Contactar:</Text>
-                            <Text style={styles.contactarVal}>{RENTA_ACTIVA.contactoTel}</Text>
-                            <Text style={styles.contactarVal}>{RENTA_ACTIVA.contactoEmail}</Text>
+                            <Text style={[styles.cardLbl, styles.contactarLbl, { color: colors.textSecondary }]}>Contactar:</Text>
+                            <Text style={[styles.contactarVal, { color: colors.buttonMain }]}>{RENTA_ACTIVA.contactoTel}</Text>
+                            <Text style={[styles.contactarVal, { color: colors.buttonMain }]}>{RENTA_ACTIVA.contactoEmail}</Text>
                         </View>
                     </View>
 
                     {/* Servicios */}
-                    <View style={styles.card}>
-                        <Text style={styles.cardLbl}>Servicios incluidos</Text>
+                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                        <Text style={[styles.cardLbl, { color: colors.textSecondary }]}>Servicios incluidos</Text>
                         <View style={styles.chips}>
                             {RENTA_ACTIVA.servicios.map((s, i) => (
-                                <View key={i} style={styles.chip}>
-                                    <Text style={styles.chipTxt}>{s}</Text>
+                                <View key={i} style={[styles.chip, { backgroundColor: isDark ? colors.backgroundSecondary : '#EEF4FF' }]}>
+                                    <Text style={[styles.chipTxt, { color: colors.buttonMain }]}>{s}</Text>
                                 </View>
                             ))}
                         </View>
                     </View>
 
                     {/* Reglas */}
-                    <View style={styles.card}>
-                        <Text style={styles.cardLbl}>Reglas de la vivienda</Text>
+                    <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                        <Text style={[styles.cardLbl, { color: colors.textSecondary }]}>Reglas de la vivienda</Text>
                         <View style={styles.chips}>
                             {RENTA_ACTIVA.reglas.map((r, i) => (
-                                <View key={i} style={[styles.chip, styles.chipRegla]}>
-                                    <Text style={[styles.chipTxt, styles.chipTxtRegla]}>{r}</Text>
+                                <View key={i} style={[styles.chip, styles.chipRegla, { backgroundColor: colors.errorBackground }]}>
+                                    <Text style={[styles.chipTxt, styles.chipTxtRegla, { color: colors.error }]}>{r}</Text>
                                 </View>
                             ))}
                         </View>
@@ -288,19 +290,19 @@ useEffect(() => {
             {/* Modal cancelar contrato */}
             <Modal visible={modalCancelarVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
+                    <View style={[styles.modalCard, { backgroundColor: colors.cardBackground }]}>
 
-                        <View style={styles.modalIcono}>
+                        <View style={[styles.modalIcono, { backgroundColor: colors.error }]}>
                             <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#ffffff" />
                         </View>
 
-                        <Text style={styles.modalTitulo}>¿Cancelar contrato?</Text>
-                        <Text style={styles.modalSubtitulo}>
+                        <Text style={[styles.modalTitulo, { color: colors.textPrimary }]}>¿Cancelar contrato?</Text>
+                        <Text style={[styles.modalSubtitulo, { color: colors.textSecondary }]}>
                             Esta acción cancelará tu contrato activo. No podrás deshacerlo una vez enviada la solicitud.
                         </Text>
 
                         <TouchableOpacity
-                            style={styles.modalBtnPeligro}
+                            style={[styles.modalBtnPeligro, { backgroundColor: colors.error }]}
                             onPress={() => {
                                 setModalCancelarVisible(false)
                                 // aquí va la lógica real cuando conectes la API
@@ -313,7 +315,7 @@ useEffect(() => {
                             style={styles.modalBtnVolver}
                             onPress={() => setModalCancelarVisible(false)}
                         >
-                            <Text style={styles.modalBtnVolverTxt}>Volver</Text>
+                            <Text style={[styles.modalBtnVolverTxt, { color: colors.textSecondary }]}>Volver</Text>
                         </TouchableOpacity>
 
                     </View>

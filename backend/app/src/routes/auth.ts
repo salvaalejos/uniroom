@@ -60,7 +60,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         cost: 10,
       });
 
-      // Crear el nuevo usuario (sin verificar email, modificado temporalmente a true)
+        // Crear el nuevo usuario (sin verificar email por defecto)
       const newUser = await db.usuario.create({
         data: {
           email: body.email,
@@ -71,12 +71,11 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
           numero_contacto: body.numero_contacto,
           genero: body.genero,
           foto: fotoPath,
-          email_verificado: true // <--- CAMBIO TEMPORAL PARA DESACTIVAR VERIFICACIÓN
+          email_verificado: false
         },
       });
 
-      // Generar y guardar código OTP (COMENTADO TEMPORALMENTE)
-      /*
+      // Generar y guardar código OTP
       const otpCode = generateOTP();
       await db.verificacionEmail.create({
         data: {
@@ -88,15 +87,14 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
 
       // Enviar correo con código
       await sendOTPEmail(body.email, otpCode);
-      */
 
       const { password_hash: _, ...userWithoutPassword } = newUser;
 
       set.status = 201;
       return { 
-        message: "Cuenta creada exitosamente",
+        message: "Cuenta creada exitosamente. Por favor verifica tu correo.",
         user: userWithoutPassword,
-        pendingVerification: false // <--- Cambiado a false para saltar pantalla de verificación
+        pendingVerification: true
       };
     },
     {

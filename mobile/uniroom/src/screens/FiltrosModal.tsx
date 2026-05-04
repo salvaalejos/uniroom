@@ -33,7 +33,7 @@ export default function FiltrosModal({ visible, onApply, onClose }: any) {
             <View style={styles.overlay}>
                 <View style={styles.container}>
                     <View style={styles.header}>
-                        <Text style={styles.titulo}>Filtros UniRoom</Text>
+                        <Text style={styles.titulo}>Filtros UniRoomie</Text>
                         <TouchableOpacity onPress={onClose}>
                             <MaterialCommunityIcons name="close" size={26} color="#444" />
                         </TouchableOpacity>

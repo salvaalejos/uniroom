@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
@@ -47,6 +48,8 @@ export default function RegisterScreen({ navigation, route }: any) {
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+
+    const { colors, isDark } = useTheme();
 
     const getUserId = (payload: any) => {
     if (!payload || typeof payload !== 'object') return '';
@@ -194,12 +197,12 @@ export default function RegisterScreen({ navigation, route }: any) {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'android' ? 'padding' : 'height'}
-            style={styles.container}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            style={[styles.container, { backgroundColor: colors.background }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.background }]}>
                 {/* Encabezado */}
                 <View style={styles.title_container}>
-                    <Text style={styles.title}>Crea tu cuenta</Text>
-                    <Text style={styles.subtitle}>Únete a UniR00M</Text>
+                    <Text style={[styles.title, { color: colors.textPrimary }]}>Crea tu cuenta</Text>
+                    <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Únete a UniRoomie</Text>
                 </View>
                 <View style={styles.headerContainer}>
                     <Pressable onPress={selectPic} style={{justifyContent: "center", alignItems: "center"}}>
@@ -207,23 +210,23 @@ export default function RegisterScreen({ navigation, route }: any) {
                             /* Si hay foto, mostramos la imagen normal */
                             <Image
                                 id='foto_de_perfil'
-                                style={styles.profile_picture}
+                                style={[styles.profile_picture, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}
                                 source={{uri: picture}} 
                             />
                         ) : (
                             /* Si NO hay foto, mostramos un círculo con borde punteado y la cámara */
-                            <View style={styles.profile_placeholder}>
-                                <MaterialCommunityIcons name='camera-plus' size={40} color="#3498DB" />
-                                <Text style={styles.addPhotoText}>Subir foto</Text>
+                            <View style={[styles.profile_placeholder, { backgroundColor: isDark ? colors.cardBackground : '#EBF5FB', borderColor: colors.accent }]}>
+                                <MaterialCommunityIcons name='camera-plus' size={40} color={colors.accent} />
+                                <Text style={[styles.addPhotoText, { color: colors.accent }]}>Subir foto</Text>
                             </View>
                         )}
                     </Pressable>
                 </View>
 
                 {errorMessage ? (
-                    <View style={styles.errorContainer}>
-                        <Ionicons name="alert-circle" size={20} color="#E74C3C" />
-                        <Text style={styles.errorTextUI}>{errorMessage}</Text>
+                    <View style={[styles.errorContainer, { backgroundColor: colors.errorBackground, borderColor: colors.error }]}>
+                        <Ionicons name="alert-circle" size={20} color={colors.error} />
+                        <Text style={[styles.errorTextUI, { color: colors.error }]}>{errorMessage}</Text>
                     </View>
                 ) : null}
 
@@ -244,18 +247,18 @@ export default function RegisterScreen({ navigation, route }: any) {
                 {!successMessage && (
                     <View style={styles.formContainer}>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                         placeholder="Nombre completo"
-                        placeholderTextColor="#abcdef"
+                        placeholderTextColor={colors.textSecondary}
                         autoCapitalize="words"
                         value={fullName}
                         onChangeText={setFullName}
                     />
 
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                         placeholder="Correo electrónico"
-                        placeholderTextColor="#abcdef"
+                        placeholderTextColor={colors.textSecondary}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         value={email}
@@ -263,51 +266,53 @@ export default function RegisterScreen({ navigation, route }: any) {
                     />
 
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                         placeholder="Número de teléfono"
-                        placeholderTextColor="#abcdef"
+                        placeholderTextColor={colors.textSecondary}
                         keyboardType="phone-pad"
                         value={phone}
                         onChangeText={setPhone}
                     />
 
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                         placeholder="Contraseña"
-                        placeholderTextColor="#abcdef"
+                        placeholderTextColor={colors.textSecondary}
                         secureTextEntry
                         value={password}
                         onChangeText={setPassword}
                     />
 
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                         placeholder="Confirmar contraseña"
-                        placeholderTextColor="#abcdef"
+                        placeholderTextColor={colors.textSecondary}
                         secureTextEntry
                         value={confirmPassword}
                         onChangeText={setConfirmPassword}
                     />
 
                     {/* Selección de Rol ---------------------------------------------------------------------------------*/}
-                    <Text style={styles.roleLabel}>¿Cómo usarás la app?</Text>
+                    <Text style={[styles.roleLabel, { color: colors.textPrimary }]}>¿Cómo usarás la app?</Text>
                     <View style={styles.roleContainer}>
                         {/* Botón Estudiante */}
                         <TouchableOpacity
                             style={[
                                 styles.roleCard,
-                                role === 'student' && styles.roleCardActive
+                                { backgroundColor: colors.cardBackground, borderColor: colors.border },
+                                role === 'student' && [styles.roleCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
                             ]}
                             onPress={() => setRole('student')}
                             >
                             <Ionicons
                                 name="school-outline"
                                 size={32}
-                                color={role === 'student' ? '#3498DB' : '#7F8C8D'}
+                                color={role === 'student' ? colors.accent : colors.textSecondary}
                             />
                             <Text style={[
                                 styles.roleText,
-                                role === 'student' && styles.roleTextActive
+                                { color: colors.textSecondary },
+                                role === 'student' && [styles.roleTextActive, { color: colors.accent }]
                             ]}>Estudiante</Text>
                         </TouchableOpacity>
 
@@ -315,72 +320,77 @@ export default function RegisterScreen({ navigation, route }: any) {
                         <TouchableOpacity
                             style={[
                                 styles.roleCard,
-                                role === 'landlord' && styles.roleCardActive
+                                { backgroundColor: colors.cardBackground, borderColor: colors.border },
+                                role === 'landlord' && [styles.roleCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
                             ]}
                             onPress={() => setRole('landlord')}
                         >
                             <Ionicons
                                 name="home-outline"
                                 size={32}
-                                color={role === 'landlord' ? '#3498DB' : '#7F8C8D'}
+                                color={role === 'landlord' ? colors.accent : colors.textSecondary}
                             />
                             <Text style={[
                                 styles.roleText,
-                                role === 'landlord' && styles.roleTextActive
+                                { color: colors.textSecondary },
+                                role === 'landlord' && [styles.roleTextActive, { color: colors.accent }]
                             ]}>Arrendador</Text>
                         </TouchableOpacity>
                     </View>
                     {/* Selección de SEXO ---------------------------------------------------------------------------------*/}
-                    <Text style={styles.roleLabel}>¿Con qué género te identificas?</Text>
+                    <Text style={[styles.roleLabel, { color: colors.textPrimary }]}>¿Con qué género te identificas?</Text>
                     <View id='seleccion_de_genero' style={styles.roleContainer}>
                         <TouchableOpacity id='man_button'
-                        style={[styles.genderCard, gender === 'man' && styles.genderCardActive]}
+                        style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'man' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
                         onPress={() => setGenger('man')}
                         >
                             <MaterialCommunityIcons 
                             name='human-male'
                             size={32}
-                            color={gender === 'man' ? '#3498DB' : '#7F8C8D'} />
+                            color={gender === 'man' ? colors.accent : colors.textSecondary} />
                             <Text style={[
                                 styles.roleText,
-                                gender === 'man' && styles.roleTextActive
+                                { color: colors.textSecondary },
+                                gender === 'man' && [styles.roleTextActive, { color: colors.accent }]
                             ]}>Hombre</Text>
                         </TouchableOpacity>
                         <TouchableOpacity id='woman_button'
-                        style={[styles.genderCard, gender === 'woman' && styles.genderCardActive]}
+                        style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'woman' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
                         onPress={() => setGenger('woman')}>
                             <MaterialCommunityIcons 
                             name='human-female'
                             size={32}
-                            color={gender === 'woman' ? '#3498DB' : '#7F8C8D'} />
+                            color={gender === 'woman' ? colors.accent : colors.textSecondary} />
                             <Text style={[
                                 styles.roleText,
-                                role === 'woman' && styles.roleTextActive
+                                { color: colors.textSecondary },
+                                gender === 'woman' && [styles.roleTextActive, { color: colors.accent }]
                             ]}>Mujer</Text>
                         </TouchableOpacity>
                         <TouchableOpacity id='helicopter_button'
-                        style={[styles.genderCard, gender === 'non-binary' && styles.genderCardActive]}
+                        style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'non-binary' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
                         onPress={() => setGenger('non-binary')}>
                             <MaterialCommunityIcons 
                             name='human-non-binary'
                             size={32}
-                            color={gender === 'non-binary' ? '#3498DB' : '#7F8C8D'} />
+                            color={gender === 'non-binary' ? colors.accent : colors.textSecondary} />
                             <Text style={[
                                 styles.roleText,
-                                role === 'non-binary' && styles.roleTextActive
+                                { color: colors.textSecondary },
+                                gender === 'non-binary' && [styles.roleTextActive, { color: colors.accent }]
                             ]}>No Binario</Text>
                         </TouchableOpacity>
                     </View>
                     {/* Botón Continuar */}
                     <TouchableOpacity 
-                        style={[styles.registerButton, isLoading && styles.registerButtonDisabled]} 
+                        style={[styles.registerButton, { backgroundColor: colors.buttonMain }, isLoading && styles.registerButtonDisabled]} 
                         onPress={handleRegister}
                         disabled={isLoading}
                     >
                         {isLoading ? (
-                            <ActivityIndicator color="#FFFFFF" />
+                            <ActivityIndicator color={colors.buttonText} />
                         ) : (
-                            <Text style={styles.registerButtonText}>Continuar</Text>
+                            <Text style={[styles.registerButtonText, { color: colors.buttonText }]}>Continuar</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -388,9 +398,9 @@ export default function RegisterScreen({ navigation, route }: any) {
 
                 {/* Footer */}
                 <View style={styles.footerContainer}>
-                    <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
+                    <Text style={[styles.footerText, { color: colors.textSecondary }]}>¿Ya tienes cuenta? </Text>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
-                        <Text style={styles.loginText}>Iniciar sesión</Text>
+                        <Text style={[styles.loginText, { color: colors.buttonMain }]}>Iniciar sesión</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>

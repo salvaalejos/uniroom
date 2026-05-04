@@ -1,6 +1,15 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
+import { sendOTPEmail } from "../lib/email";
+
+function generateOTP(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function generateExpiryMinutes(minutes: number): Date {
+  return new Date(Date.now() + minutes * 60 * 1000);
+}
 
 export const usersRoutes = new Elysia({ prefix: "/users" })
   .use(
@@ -176,8 +185,43 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         ...body
       };
 
+      let emailChanged = false;
+
+      // Si el email viene en el body y es distinto al actual
+      if (body.email && body.email !== existingUser.email) {
+        const emailInUse = await db.usuario.findUnique({
+          where: { email: body.email }
+        });
+        if (emailInUse) {
+          set.status = 400;
+          return { error: "El email proporcionado ya está en uso" };
+        }
+        
+        updateData.email_verificado = false;
+        emailChanged = true;
+
+        // Invalidar códigos anteriores y generar nuevo
+        const otpCode = generateOTP();
+        await db.verificacionEmail.updateMany({
+          where: { email: body.email, used: false },
+          data: { used: true },
+        });
+
+        await db.verificacionEmail.create({
+          data: {
+            email: body.email,
+            codigo: otpCode,
+            expiresAt: generateExpiryMinutes(10),
+          },
+        });
+
+        // Enviar correo con código
+        await sendOTPEmail(body.email, otpCode);
+      }
+
       if (updateData.password) {
-        updateData.password = await Bun.password.hash(updateData.password);
+        updateData.password_hash = await Bun.password.hash(updateData.password);
+        delete updateData.password;
       }
 
       if (body.foto) {
@@ -206,10 +250,14 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           estado: true,
           visibilidad: true,
           fecha_creacion: true,
+          email_verificado: true
         },
       });
 
-      return updatedUser;
+      return {
+        ...updatedUser,
+        emailChanged
+      };
     },
     {
       body: t.Partial(

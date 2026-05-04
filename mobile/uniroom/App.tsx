@@ -12,10 +12,12 @@ import NavigationMenu from './src/screens/NavigationMenu';
 import InmuebleScreen from './src/screens/InmuebleScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+
 // Crea el Stack
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+function MainApp() {
     const [isLoading, setIsLoading] = useState(true);
     const [initialRoute, setInitialRoute] = useState<string>("Login");
     const [authParams, setAuthParams] = useState<any>(null);
@@ -43,17 +45,26 @@ export default function App() {
         checkToken();
     }, []);
 
+    const { colors } = useTheme();
+
     if (isLoading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#DCEEFF' }}>
-                <ActivityIndicator size="large" color="#205EA6" />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+                <ActivityIndicator size="large" color={colors.buttonMain} />
             </View>
         );
     }
 
     return (
         <NavigationContainer>
-            <Stack.Navigator initialRouteName={initialRoute}>
+            <Stack.Navigator 
+                initialRouteName={initialRoute}
+                screenOptions={{
+                    headerStyle: { backgroundColor: colors.background },
+                    headerTintColor: colors.textPrimary,
+                    headerTitleStyle: { color: colors.textPrimary },
+                }}
+            >
                 <Stack.Screen 
                     name="Navigator"
                     component={NavigationMenu}
@@ -96,8 +107,16 @@ export default function App() {
                     options={{ title: 'Editar Perfil', headerShown: true }}
                 />
             </Stack.Navigator>
-            <View style={{height: 50, backgroundColor: "#DCEEFF"}}>
+            <View style={{height: 50, backgroundColor: colors.background}}>
             </View>
         </NavigationContainer>
+    );
+}
+
+export default function App() {
+    return (
+        <ThemeProvider>
+            <MainApp />
+        </ThemeProvider>
     );
 }
