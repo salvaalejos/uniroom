@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     StyleSheet,
     View,
@@ -15,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
@@ -34,13 +33,18 @@ export default function ProfileScreen({ navigation, route }: any) {
     useEffect(() => {
         const parent = navigation.getParent()
         if (parent) parent.setOptions({ headerShown: false });
-        getUserData();
         return () => {
             if (parent) {
                 parent.setOptions({headerShown: true})
             }
         }
     }, [navigation, userId])
+
+    useFocusEffect(
+        useCallback(() => {
+            getUserData();
+        }, [userId, token])
+    );
 
     const handleLogout = async () => {
         try {
@@ -166,14 +170,13 @@ export default function ProfileScreen({ navigation, route }: any) {
                         value={userData.numero_contacto} 
                     />
                 </View>
-                {/* <TouchableOpacity 
+                <TouchableOpacity 
                     style={styles.editButton}
-                    onPress={() => navigation.navigate('Register', { userToEdit: userData })}
+                    onPress={() => navigation.navigate('EditProfile', { userData: userData, token: token })}
                 >
-                    AUN PENDIENTES LOS BOTONTES DE EDITAR PERFIL Y CALIFICACIONES ------------------------------------------------------------------------------------------------------------
                     <MaterialCommunityIcons name="account-edit-outline" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Editar Perfil</Text>
-                </TouchableOpacity> */}
+                </TouchableOpacity>
                 {/* Botón de Temas, pendiente */}
                 {/* <TouchableOpacity
                 style={styles.editButton}>
@@ -183,7 +186,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                 <TouchableOpacity 
                     style={styles.editButton}
                     onPress={fetchTransactions}>
-                    <MaterialCommunityIcons name="receipt" size={24} color="#FFFFFF" />
+                    <MaterialCommunityIcons name="text-box-check-outline" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Historial de Pagos</Text>
                 </TouchableOpacity>
                     {/* calificaciones lol */}

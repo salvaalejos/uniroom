@@ -15,7 +15,8 @@ import {
     ScrollView,
     Image,
     Pressable,
-    ActivityIndicator
+    ActivityIndicator,
+    Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -87,10 +88,10 @@ export default function RegisterScreen({ navigation, route }: any) {
             return;
         }
 
-        if (!picture) {
-            setErrorMessage("Por favor, selecciona una foto de perfil")
-            return
-        }
+        // if (!picture) {
+        //     setErrorMessage("Por favor, selecciona una foto de perfil")
+        //     return
+        // }
 
         // Validar formato de email antes de enviar al backend
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -167,11 +168,22 @@ export default function RegisterScreen({ navigation, route }: any) {
 
             // setSuccessMessage('¡Tu cuenta ha sido creada! Por favor verifica tu correo electrónico.');
             
-            navigation.navigate('VerificarEmail', 
-                {email: email.trim(),
-                password: password, // <-- Se lo pasamos directamente a la siguiente pantalla
-                fromLogin: false}
-            );
+            // navigation.navigate('VerificarEmail', 
+            //     {email: email.trim(),
+            //     password: password, // <-- Se lo pasamos directamente a la siguiente pantalla
+            //     fromLogin: false}
+            // );
+            
+            if (data.pendingVerification === false) {
+                 Alert.alert("¡Éxito!", "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.");
+                 navigation.navigate('Login');
+            } else {
+                 navigation.navigate('VerificarEmail', {
+                     email: email.trim(),
+                     password: password,
+                     fromLogin: false
+                 });
+            }
 
         } catch (error: any) {
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
