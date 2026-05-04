@@ -16,6 +16,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../context/ThemeContext';
+import ThemeToggleButton from '../components/ThemeToggleButton';
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
 const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
@@ -27,6 +29,8 @@ export default function ProfileScreen({ navigation, route }: any) {
     const [showTransactions, setShowTransactions] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+    const { colors, isDark, toggleTheme } = useTheme();
 
     const userId = route.params?.userId;
     const token = route.params?.token;
@@ -114,9 +118,9 @@ export default function ProfileScreen({ navigation, route }: any) {
 
     if (isLoading) {
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color="#205EA6" />
-                <Text style={{ marginTop: 10, color: '#0F2C4F' }}>Cargando UNIROOM...</Text>
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }]}>
+                <ActivityIndicator size="large" color={colors.buttonMain} />
+                <Text style={{ marginTop: 10, color: colors.textPrimary }}>Cargando UniRoomie...</Text>
             </View>
         );
     }
@@ -131,31 +135,31 @@ export default function ProfileScreen({ navigation, route }: any) {
 
     const InfoRow = ({ icon, label, value }: any) => (
         <View style={styles.infoRow}>
-            <View style={styles.iconContainer}>
-                <MaterialCommunityIcons name={icon} size={24} color="#205EA6" />
+            <View style={[styles.iconContainer, { backgroundColor: colors.background }]}>
+                <MaterialCommunityIcons name={icon} size={24} color={colors.buttonMain} />
             </View>
             <View style={styles.textContainer}>
-                <Text style={styles.label}>{label}</Text>
-                <Text style={styles.value}>{value}</Text>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+                <Text style={[styles.value, { color: colors.textPrimary }]}>{value}</Text>
             </View>
         </View>
     );
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 {/* Header con Foto y Rating */}
                 <View style={styles.header}>
-                    <Image source={imagenPerfil} style={styles.profilePic} />
-                    <Text style={styles.userName}>{userData.nombre + " " + userData.apellidos}</Text>
-                    <View style={styles.ratingBadge}>
+                    <Image source={imagenPerfil} style={[styles.profilePic, { borderColor: colors.cardBackground }]} />
+                    <Text style={[styles.userName, { color: colors.textPrimary }]}>{userData.nombre + " " + userData.apellidos}</Text>
+                    <View style={[styles.ratingBadge, { backgroundColor: isDark ? colors.cardBackground : '#0F2C4F' }]}>
                         <Text style={styles.ratingText}>{userData.rating > 0 ? userData.rating : "0"}</Text>
                         <Ionicons name="star" size={16} color="#FFD700" />
                     </View>
                 </View>
 
                 {/* Contenedor de Información */}
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
                     <InfoRow 
                         icon="account-outline" 
                         label="Rol" 
@@ -178,35 +182,32 @@ export default function ProfileScreen({ navigation, route }: any) {
                     />
                 </View>
                 <TouchableOpacity 
-                    style={styles.editButton}
+                    style={[styles.editButton, { backgroundColor: colors.buttonMain }]}
                     onPress={() => navigation.navigate('EditProfile', { userId, token, userData })}
                 >
-                    <MaterialCommunityIcons name="account-edit-outline" size={24} color="#FFFFFF" />
-                    <Text style={styles.editButtonText}>Editar Perfil</Text>
+                    <MaterialCommunityIcons name="account-edit-outline" size={24} color={colors.buttonText} />
+                    <Text style={[styles.editButtonText, { color: colors.buttonText }]}>Editar Perfil</Text>
                 </TouchableOpacity>
-                {/* Botón de Temas, pendiente */}
-                {/* <TouchableOpacity
-                style={styles.editButton}>
-                    <MaterialCommunityIcons name='format-paint' size={24} color={"#FFFFFF"}/>
-                    <Text style={styles.editButtonText}>Temas de colores (Pendiente) </Text>
-                </TouchableOpacity> */}
                 <TouchableOpacity 
-                    style={styles.editButton}
+                    style={[styles.editButton, { backgroundColor: colors.buttonMain }]}
+                    onPress={toggleTheme}
+                >
+                    <MaterialCommunityIcons name={isDark ? "white-balance-sunny" : "moon-waning-crescent"} size={24} color={colors.buttonText} />
+                    <Text style={[styles.editButtonText, { color: colors.buttonText }]}>
+                        {isDark ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.editButton, { backgroundColor: colors.buttonMain }]}
                     onPress={fetchTransactions}>
-                    <MaterialCommunityIcons name="text-box-check-outline" size={24} color="#FFFFFF" />
-                    <Text style={styles.editButtonText}>Historial de Pagos</Text>
+                    <MaterialCommunityIcons name="text-box-check-outline" size={24} color={colors.buttonText} />
+                    <Text style={[styles.editButtonText, { color: colors.buttonText }]}>Historial de Pagos</Text>
                 </TouchableOpacity>
-                    {/* calificaciones lol */}
-                {/* <TouchableOpacity 
-                    style={styles.editButton}>
-                    <MaterialCommunityIcons name="star" size={24} color="#FFFFFF" />
-                    <Text style={styles.editButtonText}>Calificaciones</Text>
-                </TouchableOpacity> */}
                 <TouchableOpacity 
-                    style={styles.final_button}
+                    style={[styles.final_button, { backgroundColor: colors.buttonMain }]}
                     onPress={() => setShowLogoutModal(true)}>
-                    <MaterialCommunityIcons name="logout" size={24} color="#FFFFFF" />
-                    <Text style={styles.editButtonText}>Cerrar Sesión</Text>
+                    <MaterialCommunityIcons name="logout" size={24} color={colors.buttonText} />
+                    <Text style={[styles.editButtonText, { color: colors.buttonText }]}>Cerrar Sesión</Text>
                 </TouchableOpacity>
             </ScrollView>
 
@@ -218,45 +219,45 @@ export default function ProfileScreen({ navigation, route }: any) {
                 onRequestClose={() => setShowTransactions(false)}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Historial de Pagos</Text>
+                            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Historial de Pagos</Text>
                             <TouchableOpacity onPress={() => setShowTransactions(false)}>
-                                <MaterialCommunityIcons name="close" size={24} color="#0F2C4F" />
+                                <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
                             </TouchableOpacity>
                         </View>
                         
                         {loadingTransactions ? (
-                            <ActivityIndicator size="large" color="#205EA6" style={{ margin: 20 }} />
+                            <ActivityIndicator size="large" color={colors.buttonMain} style={{ margin: 20 }} />
                         ) : transactions.length === 0 ? (
-                            <Text style={styles.noTransactionsText}>No tienes transacciones registradas.</Text>
+                            <Text style={[styles.noTransactionsText, { color: colors.textSecondary }]}>No tienes transacciones registradas.</Text>
                         ) : (
                             <FlatList
                                 data={transactions}
                                 keyExtractor={(item) => item.id_transaccion}
                                 showsVerticalScrollIndicator={false}
                                 renderItem={({ item }) => (
-                                    <View style={styles.transactionCard}>
+                                    <View style={[styles.transactionCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                         <View style={styles.transactionHeader}>
-                                            <Text style={styles.transactionDate}>
+                                            <Text style={[styles.transactionDate, { color: colors.textSecondary }]}>
                                                 {new Date(item.fecha_creacion).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
                                             </Text>
                                             <View style={[
                                                 styles.statusBadge, 
-                                                { backgroundColor: item.estado === 'approved' ? '#EAFAF1' : '#FDEDEC' }
+                                                { backgroundColor: item.estado === 'approved' ? colors.successBackground : colors.errorBackground }
                                             ]}>
                                                 <Text style={[
                                                     styles.statusText,
-                                                    { color: item.estado === 'approved' ? '#27AE60' : '#E74C3C' }
+                                                    { color: item.estado === 'approved' ? colors.success : colors.error }
                                                 ]}>
                                                     {item.estado === 'approved' ? 'Aprobado' : item.estado}
                                                 </Text>
                                             </View>
                                         </View>
-                                        <Text style={styles.transactionAmount}>${parseFloat(item.monto).toFixed(2)} MXN</Text>
-                                        <Text style={styles.transactionDesc}>{item.descripcion}</Text>
+                                        <Text style={[styles.transactionAmount, { color: colors.textPrimary }]}>${parseFloat(item.monto).toFixed(2)} MXN</Text>
+                                        <Text style={[styles.transactionDesc, { color: colors.textPrimary }]}>{item.descripcion}</Text>
                                         {item.payment_id && (
-                                            <Text style={styles.transactionId}>MP ID: {item.payment_id}</Text>
+                                            <Text style={[styles.transactionId, { color: colors.textSecondary }]}>MP ID: {item.payment_id}</Text>
                                         )}
                                     </View>
                                 )}
@@ -269,21 +270,21 @@ export default function ProfileScreen({ navigation, route }: any) {
             {/* Modal de Confirmación de Cerrar Sesión */}
             <Modal visible={showLogoutModal} transparent animationType="fade">
                 <View style={styles.logoutOverlay}>
-                    <View style={styles.logoutCard}>
-                        <MaterialCommunityIcons name="alert-circle-outline" size={56} color="#205EA6" style={{ marginBottom: 16 }} />
-                        <Text style={styles.logoutTitle}>¿Cerrar sesión?</Text>
-                        <Text style={styles.logoutMessage}>
+                    <View style={[styles.logoutCard, { backgroundColor: colors.cardBackground }]}>
+                        <MaterialCommunityIcons name="alert-circle-outline" size={56} color={colors.buttonMain} style={{ marginBottom: 16 }} />
+                        <Text style={[styles.logoutTitle, { color: colors.textPrimary }]}>¿Cerrar sesión?</Text>
+                        <Text style={[styles.logoutMessage, { color: colors.textSecondary }]}>
                             ¿Estás seguro de que deseas cerrar sesión? Tendrás que iniciar sesión nuevamente para acceder a tu cuenta.
                         </Text>
                         <View style={styles.logoutButtons}>
                             <TouchableOpacity 
-                                style={[styles.logoutBtn, styles.logoutBtnCancel]}
+                                style={[styles.logoutBtn, styles.logoutBtnCancel, { backgroundColor: colors.background, borderColor: colors.border }]}
                                 onPress={() => setShowLogoutModal(false)}
                             >
-                                <Text style={styles.logoutBtnCancelText}>Cancelar</Text>
+                                <Text style={[styles.logoutBtnCancelText, { color: colors.textPrimary }]}>Cancelar</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
-                                style={[styles.logoutBtn, styles.logoutBtnConfirm]}
+                                style={[styles.logoutBtn, styles.logoutBtnConfirm, { backgroundColor: colors.error }]}
                                 onPress={handleLogout}
                             >
                                 <Text style={styles.logoutBtnConfirmText}>Cerrar sesión</Text>
@@ -299,7 +300,6 @@ export default function ProfileScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#DCEEFF',
     },
     scrollContent: {
         padding: 20,
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     header: {
         alignItems: 'center',
         marginBottom: 30,
-        marginTop: 70,
+        marginTop: 50,
     },
     profilePic: {
         width: 150,

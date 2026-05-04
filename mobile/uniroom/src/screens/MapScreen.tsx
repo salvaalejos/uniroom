@@ -16,6 +16,7 @@ if (MAPBOX_TOKEN) {
 
 import Constants from 'expo-constants';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from '../context/ThemeContext';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
@@ -47,6 +48,7 @@ export default function MapScreen({ route, navigation }: any) {
   const [mapaListo, setMapaListo] = useState(false);
   const [modalFiltros, setModalFiltros] = useState(false);
   const cameraRef = useRef<Mapbox.Camera>(null);
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     const inicializar = async () => {
@@ -152,27 +154,27 @@ export default function MapScreen({ route, navigation }: any) {
 
   if (cargando) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#205EA6" />
-        <Text style={styles.textoCarga}>Cargando mapa e inmuebles...</Text>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.buttonMain} />
+        <Text style={[styles.textoCarga, { color: colors.textSecondary }]}>Cargando mapa e inmuebles...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Encabezado con Filtros (Rama Said) */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitulo}>UniRoom Morelia</Text>
-        <TouchableOpacity style={styles.btnFiltro} onPress={() => setModalFiltros(true)}>
-          <MaterialCommunityIcons name="tune" size={24} color="#fff" />
+      <View style={[styles.header, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitulo, { color: colors.textPrimary }]}>UniRoomie Morelia</Text>
+        <TouchableOpacity style={[styles.btnFiltro, { backgroundColor: colors.buttonMain }]} onPress={() => setModalFiltros(true)}>
+          <MaterialCommunityIcons name="tune" size={24} color={colors.buttonText} />
         </TouchableOpacity>
       </View>
 
       {/* Mapa Principal (Tu Rama HEAD) */}
       <Mapbox.MapView
         style={styles.map}
-        styleURL="mapbox://styles/mapbox/streets-v12"
+        styleURL={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12"}
         logoEnabled={false}
         attributionEnabled={false}
         onDidFinishLoadingMap={() => setMapaListo(true)}
@@ -197,8 +199,8 @@ export default function MapScreen({ route, navigation }: any) {
             coordinate={[Number(prop.direccion_longitud), Number(prop.direccion_latitud)]}
             onSelected={() => abrirDetalle(prop)}
           >
-            <View style={styles.pin}>
-              <Text style={styles.pinText}>
+            <View style={[styles.pin, { backgroundColor: colors.buttonMain, borderColor: isDark ? colors.border : '#fff' }]}>
+              <Text style={[styles.pinText, { color: colors.buttonText }]}>
                 ${Number(prop.precio_mensual).toLocaleString('es-MX')}
               </Text>
             </View>

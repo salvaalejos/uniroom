@@ -11,6 +11,7 @@ function loadEmailTemplate(otpCode: string, email: string): string {
   html = html.replace("{{OTP_CODE}}", otpCode);
   html = html.replace("{{EMAIL}}", email);
   html = html.replace("{{EXPIRES_MINUTES}}", "10");
+  html = html.replace("{{YEAR}}", new Date().getFullYear().toString());
   return html;
 }
 
@@ -19,7 +20,7 @@ export async function sendOTPEmail(email: string, otpCode: string): Promise<{ su
     const html = loadEmailTemplate(otpCode, email);
 
     const result = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "uniroomie@uniroomie.tech",
       to: email,
       subject: "Verifica tu correo electrónico - Código UniRoom",
       html,

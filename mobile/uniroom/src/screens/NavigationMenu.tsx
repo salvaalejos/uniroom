@@ -9,9 +9,9 @@ import CalendarScreen from "./CalendarScreen"
 import { ComponentType } from "react"
 import HomeScreen from './HomeScreen'
 import Themes from "./Themes"
-import {red, blue, bluePrimaryColor, blueSecondColor} from "../styles"
 import ProfileScreen from "./ProfileScreen"
-import EditProfileScreen from "./EditProfile"
+import EditProfileScreen from "./EditProfileScreen"
+import { useTheme } from "../context/ThemeContext"
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import NotificationScreen from "./NotificationScreen";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -62,12 +62,13 @@ const Stack = createNativeStackNavigator()
 const Profile_Menu = ({ route }: any) => {
     const userId = route.params?.userId;
     const token = route.params?.token;
+    const { colors } = useTheme();
     return (
             <Stack.Navigator initialRouteName="ProfileScreen"
             screenOptions={{
                 headerShown: false,
-                headerStyle: { backgroundColor: bluePrimaryColor },
-                headerTintColor: blueSecondColor,
+                headerStyle: { backgroundColor: colors.background },
+                headerTintColor: colors.textPrimary,
             }}>
                 <Stack.Screen
                 name="ProfileScreen"
@@ -114,6 +115,7 @@ const LandlordTabs = [
 
 const TabButton = (props: any) => {
     const { item, onPress, accessibilityState } = props
+    const { colors } = useTheme();
     const activeRouteName = useNavigationState((state) => {
         if (!state) return '';
         return state.routeNames[state.index];
@@ -150,27 +152,27 @@ const TabButton = (props: any) => {
     }, [focused]);
 
     return (
-        <TouchableOpacity style={blue.navigation_menu_container} onPress={onPress} activeOpacity={1}>
+        <TouchableOpacity style={{ flex: 1, alignItems: "center", justifyContent: "center" }} onPress={onPress} activeOpacity={1}>
             <Animatable.View
                 ref={viewRef}
                 animation="zoomIn"
                 duration={750}
-                style={blue.navigation_menu_container}>
-                <View style={blue.navigation_menu_button}>
+                style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: 50, height: 50, borderRadius: 25, borderWidth: 6, borderColor: colors.background, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
                     <Animatable.View
                         ref={circleRef}
-                        style={{ ...StyleSheet.absoluteFillObject, backgroundColor: blueSecondColor, borderRadius: 25 }} />
+                        style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.buttonMain, borderRadius: 25 }} />
                     <Animatable.View
                         ref={iconRef}
                         duration={1250}>
                         <MaterialCommunityIcons name={item.activeIcon}
                             size={33}
-                            color={focused ? bluePrimaryColor : blueSecondColor} />
+                            color={focused ? colors.background : colors.buttonMain} />
                     </Animatable.View>
                 </View>
                 <Animatable.Text
                     ref={textRef}
-                    style={{ fontSize: 12, color: blueSecondColor }}>
+                    style={{ fontSize: 12, color: colors.buttonMain }}>
                     {item.label}
                 </Animatable.Text>
             </Animatable.View>
@@ -183,6 +185,7 @@ const Tab = createBottomTabNavigator()
 export default function NavigationMenu({ route }: any) {
     const [userData, setUserData] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const { colors } = useTheme();
 
     const userId = route.params?.userId
     const token = route.params?.token
@@ -219,8 +222,8 @@ export default function NavigationMenu({ route }: any) {
     // Si ya tenemos datos, permitimos que el Navigator se mantenga montado.
     if (isLoading && !userData) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: bluePrimaryColor }}>
-                <ActivityIndicator size="large" color={blueSecondColor} />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+                <ActivityIndicator size="large" color={colors.buttonMain} />
             </View>
         );
     }
@@ -232,7 +235,15 @@ export default function NavigationMenu({ route }: any) {
     return (
         <Tab.Navigator
             screenOptions={{
-                tabBarStyle: blue.tabBarStyle,
+                tabBarStyle: {
+                    height: 70,
+                    position: "absolute",
+                    left: 1,
+                    right: 1,
+                    backgroundColor: colors.background,
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border
+                },
                 
             }}
         >
@@ -245,8 +256,8 @@ export default function NavigationMenu({ route }: any) {
                     options={{
                         headerShown: false,
                         headerTitle: item.label,
-                        headerStyle: { backgroundColor: bluePrimaryColor },
-                        headerTintColor: blueSecondColor,
+                        headerStyle: { backgroundColor: colors.background },
+                        headerTintColor: colors.textPrimary,
                         tabBarShowLabel: false,
                         tabBarButton: (props) => <TabButton {...props} item={item} />
                     }}
