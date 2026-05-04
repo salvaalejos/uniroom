@@ -215,15 +215,25 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                             <Text style={styles.calificacionNumero}>{inmueble.calificacion}</Text>
                             {/* La idea es que saca el promedio de las valoraciones de las resenas de los usuarios */}
                             <View style={styles.estrellas}>
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                    <MaterialCommunityIcons
-                                        key={i}
-                                        name={i <= 4 ? "star" : "star-outline"}
-                                        size={25}
-                                        color="#f39c12"
-                                    />
-                                ))}
-                            </View>
+                            {(() => {
+                                const rating = Number(inmueble.calificacion) || 0
+                                return [1, 2, 3, 4, 5].map((i) => {
+                                    const icon = i <= Math.floor(rating)
+                                        ? "star"
+                                        : i === Math.ceil(rating) && rating % 1 !== 0
+                                            ? "star-half"
+                                            : "star-outline"
+                                    return (
+                                        <MaterialCommunityIcons
+                                            key={i}
+                                            name={icon}
+                                            size={25}
+                                            color="#f39c12"
+                                        />
+                                    )
+                                })
+                            })()}
+                        </View>
                         </View>
 
                         <View style={styles.calificacionItem}>
