@@ -98,6 +98,53 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
 
     return transactions;
   })
+  .post(
+    "/:id/upload-foto",
+    async ({ params: { id }, body, authenticatedUser, set }) => {
+      const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
+
+      if (!canAccess) {
+        set.status = 403;
+        return { error: "No autorizado" };
+      }
+
+      const existingUser = await db.usuario.findUnique({
+        where: { id_usuario: id },
+      });
+
+      if (!existingUser) {
+        set.status = 404;
+        return { error: "Usuario no encontrado" };
+      }
+
+      if (!body.foto) {
+        set.status = 400;
+        return { error: "No se recibió ninguna imagen" };
+      }
+
+      const fileName = `${Date.now()}-${id}${body.foto.name.match(/\.[a-zA-Z]+$/)?.[0] || '.jpg'}`;
+      const destination = `./uploads/${fileName}`;
+
+      await Bun.write(destination, body.foto);
+
+      const fotoPath = `/public/${fileName}`;
+
+      await db.usuario.update({
+        where: { id_usuario: id },
+        data: { foto: fotoPath },
+      });
+
+      return { mensaje: "Foto actualizada correctamente", foto: fotoPath };
+    },
+    {
+      body: t.Object({
+        foto: t.File({
+          type: ['image/jpeg', 'image/png', 'image/jpg'],
+          maxSize: '5m',
+        }),
+      }),
+    }
+  )
   .put(
     "/:id",
     async ({ params: { id }, body, authenticatedUser, set }) => {

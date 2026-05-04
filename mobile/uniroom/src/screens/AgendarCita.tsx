@@ -1,21 +1,11 @@
-import React, { useState, useRef } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Animated } from "react-native"
+import React, { useState, useRef, useEffect } from "react"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Animated, Alert, ActivityIndicator } from "react-native"
 import { Calendar } from "react-native-calendars"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import Constants from "expo-constants"
 
-// ─ Datos falsos del arrendador edsfedf ─
-// Aquí eventualmente vendrá de la API
-
-const DISPONIBILIDAD: Record<string, string[]> = {
-    "2026-05-05": ["10:00", "12:00", "16:00"],
-    "2026-05-07": ["09:00", "11:00"],
-    "2026-05-10": ["10:00", "13:00", "15:00", "17:00"],
-    "2026-05-14": ["11:00", "14:00"],
-    "2026-05-16": ["09:00", "12:00", "16:00"],
-}
-
-
+// ─ Utilidades de formato ─
 const formatFechaLarga = (f: string) =>
     new Date(f + "T12:00:00").toLocaleDateString("es-MX", {
         weekday: "long", day: "numeric", month: "long"
@@ -35,14 +25,80 @@ const formatHora = (h: string) => {
 
 // ─ Componente ─
 
-const AgendarCita = ({ navigation }: any): React.ReactElement => {
+const AgendarCita = ({ navigation, route }: any): React.ReactElement => {
 
     const insets = useSafeAreaInsets()
+    const { inmueble, token } = route.params || {}
     const [fechaSeleccionada, setFechaSeleccionada] = useState<string | null>(null)
     const [horaSeleccionada, setHoraSeleccionada] = useState<string | null>(null)
+    const [disponibilidad, setDisponibilidad] = useState<Record<string, string[]>>({})
+    const [loading, setLoading] = useState(false)
+    const [enviando, setEnviando] = useState(false)
+    const [showExito, setShowExito] = useState(false)
+    const [modalVisible, setModalVisible] = useState(false)
+
+    const hostUri = Constants.expoConfig?.hostUri?.split(":").shift();
+    const API_URL = hostUri ? `http://${hostUri}:3000` : "http://localhost:3000";
+
+    // Cargar disponibilidad real del inmueble
+    useEffect(() => {
+        const fetchDisponibilidad = async () => {
+            if (!inmueble?.id_inmueble) return;
+            setLoading(true);
+            try {
+                const resp = await fetch(`${API_URL}/inmuebles/${inmueble.id_inmueble}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await resp.json();
+                if (data.disponibilidad) {
+                    const dispMap: Record<string, string[]> = {};
+                    data.disponibilidad.forEach((d: any) => {
+                        dispMap[d.fecha] = d.horas;
+                    });
+                    setDisponibilidad(dispMap);
+                }
+            } catch (error) {
+                console.error("Error al cargar disponibilidad:", error);
+                Alert.alert("Error", "No se pudo cargar la disponibilidad del inmueble.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchDisponibilidad();
+    }, [inmueble]);
+
+    const handleConfirmarCita = async () => {
+        if (!fechaSeleccionada || !horaSeleccionada) return;
+        
+        setEnviando(true);
+        try {
+            const fechaHora = `${fechaSeleccionada}T${horaSeleccionada}:00`;
+            const resp = await fetch(`${API_URL}/citas/solicitar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    id_inmueble: inmueble.id_inmueble,
+                    fecha_hora: fechaHora
+                })
+            });
+
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || "Error al agendar la cita");
+
+            setModalVisible(false);
+            setShowExito(true);
+        } catch (error: any) {
+            Alert.alert("Error", error.message);
+        } finally {
+            setEnviando(false);
+        }
+    }
 
     const markedDates: Record<string, any> = {}
-    Object.keys(DISPONIBILIDAD).forEach(fecha => {
+    Object.keys(disponibilidad).forEach(fecha => {
         const seleccionado = fecha === fechaSeleccionada
         markedDates[fecha] = {
             selected: seleccionado,
@@ -53,16 +109,13 @@ const AgendarCita = ({ navigation }: any): React.ReactElement => {
     })
 
     const onDayPress = (day: { dateString: string }) => {
-        // Solo reaccionar si el día tiene disponibilidad
-        if (!DISPONIBILIDAD[day.dateString]) return
+        if (!disponibilidad[day.dateString]) return
         setFechaSeleccionada(day.dateString)
-        setHoraSeleccionada(null) // reset hora al cambiar día
+        setHoraSeleccionada(null)
     }
 
-    const horasDelDia = fechaSeleccionada ? DISPONIBILIDAD[fechaSeleccionada] : []
+    const horasDelDia = fechaSeleccionada ? disponibilidad[fechaSeleccionada] : []
     const listo = !!fechaSeleccionada && !!horaSeleccionada
-
-    const [modalVisible, setModalVisible] = useState(false)
 
     const fadeAnim = useRef(new Animated.Value(1)).current
 
@@ -79,10 +132,7 @@ const AgendarCita = ({ navigation }: any): React.ReactElement => {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.btnBack} onPress={() => {
-                    setModalVisible(false)
-                    cerrarConFade()
-                }}>
+                <TouchableOpacity style={styles.btnBack} onPress={cerrarConFade}>
                     <MaterialCommunityIcons name="chevron-left" size={26} color="#1a1a2e" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitulo}>Agendar visita</Text>
@@ -95,116 +145,90 @@ const AgendarCita = ({ navigation }: any): React.ReactElement => {
                 <View style={styles.hintContainer}>
                     <MaterialCommunityIcons name="calendar-search" size={15} color="#205EA6" />
                     <Text style={styles.hint}>
-                        {!fechaSeleccionada
+                        {loading ? "Cargando disponibilidad..." : !fechaSeleccionada
                             ? "Toca un día disponible para visitarlo"
-                            : !horaSeleccionada
-                            ? "Ahora elige la hora de tu visita"
-                            : "¡Todo listo! Confirma tu visita"}
+                            : !horaSeleccionada ? "Ahora selecciona una hora" : "¡Todo listo para tu visita!"}
                     </Text>
                 </View>
 
-                {/* Calendario */}
-                <View style={styles.calendarioWrapper}>
-                    <Calendar
-                        onDayPress={onDayPress}
-                        markingType="dot"
-                        markedDates={markedDates}
-                        minDate={new Date().toISOString().split("T")[0]}
-                        disableAllTouchEventsForDisabledDays
-                        theme={{
-                            backgroundColor: "transparent",
-                            calendarBackground: "transparent",
-                            todayTextColor: "#205EA6",
-                            todayBackgroundColor: "#EEF4FF",
-                            arrowColor: "#205EA6",
-                            textDayFontWeight: "600",
-                            textMonthFontWeight: "800",
-                            textDayHeaderFontWeight: "700",
-                            dayTextColor: "#1a1a2e",
-                            textDisabledColor: "#ccc",
-                            monthTextColor: "#1a1a2e",
-                            textMonthFontSize: 16,
-                        }}
-                    />
-                </View>
+                {loading ? (
+                    <ActivityIndicator size="large" color="#205EA6" style={{ marginTop: 20 }} />
+                ) : (
+                    <>
+                        {/* Calendario */}
+                        <View style={styles.calendarioWrapper}>
+                            <Calendar
+                                onDayPress={onDayPress}
+                                markedDates={markedDates}
+                                minDate={new Date().toISOString().split("T")[0]}
+                                theme={{
+                                    backgroundColor: '#ffffff',
+                                    calendarBackground: '#ffffff',
+                                    textSectionTitleColor: '#b6c1cd',
+                                    selectedDayBackgroundColor: '#205EA6',
+                                    selectedDayTextColor: '#ffffff',
+                                    todayTextColor: '#205EA6',
+                                    dayTextColor: '#2d4150',
+                                    textDisabledColor: '#d9e1e8',
+                                    dotColor: '#205EA6',
+                                    arrowColor: '#205EA6',
+                                    monthTextColor: '#1a1a2e',
+                                    indicatorColor: 'blue',
+                                    textDayFontWeight: '600',
+                                    textMonthFontWeight: 'bold',
+                                    textDayHeaderFontWeight: '400',
+                                    textDayFontSize: 14,
+                                    textMonthFontSize: 16,
+                                    textDayHeaderFontSize: 12
+                                }}
+                            />
 
-                {/* Leyenda */}
-                <View style={styles.leyendaContainer}>
-                    <View style={styles.leyendaItem}>
-                        <View style={styles.leyendaDot} />
-                        <Text style={styles.leyendaTexto}>Días disponibles</Text>
-                    </View>
-                    <View style={styles.leyendaItem}>
-                        <View style={[styles.leyendaDot, { backgroundColor: "#ccc" }]} />
-                        <Text style={styles.leyendaTexto}>No disponible</Text>
-                    </View>
-                </View>
-
-                {/* Selector de horas */}
-                {fechaSeleccionada && (
-                    <View style={styles.horasContainer}>
-
-                        <View style={styles.horasHeader}>
-                            <MaterialCommunityIcons name="clock-outline" size={16} color="#205EA6" />
-                            <Text style={styles.horasTitulo}>
-                                Horarios · {formatFechaLarga(fechaSeleccionada)}
-                            </Text>
+                            <View style={styles.leyendaContainer}>
+                                <View style={styles.leyendaItem}>
+                                    <View style={styles.leyendaDot} />
+                                    <Text style={styles.leyendaTexto}>Disponible</Text>
+                                </View>
+                            </View>
                         </View>
 
-                        <View style={styles.horasGrid}>
-                            {horasDelDia.map(hora => {
-                                const activa = hora === horaSeleccionada
-                                return (
-                                    <TouchableOpacity
-                                        key={hora}
-                                        style={[styles.horaChip, activa && styles.horaChipActiva]}
-                                        onPress={() => setHoraSeleccionada(hora)}
-                                    >
-                                        <MaterialCommunityIcons
-                                            name="clock-time-four-outline"
-                                            size={14}
-                                            color={activa ? "#fff" : "#205EA6"}
-                                        />
-                                        <Text style={[styles.horaTexto, activa && styles.horaTextoActiva]}>
-                                            {formatHora(hora)}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )
-                            })}
-                        </View>
-
-                    </View>
+                        {/* Horas */}
+                        {fechaSeleccionada && (
+                            <View style={styles.seccionHoras}>
+                                <Text style={styles.seccionTitulo}>Horarios para el {formatFechaCorta(fechaSeleccionada)}</Text>
+                                <View style={styles.horasGrid}>
+                                    {horasDelDia.map(hora => {
+                                        const activo = hora === horaSeleccionada
+                                        return (
+                                            <TouchableOpacity
+                                                key={hora}
+                                                style={[styles.horaChip, activo && styles.horaChipActivo]}
+                                                onPress={() => setHoraSeleccionada(hora)}
+                                            >
+                                                <Text style={[styles.horaTexto, activo && styles.horaTextoActivo]}>
+                                                    {formatHora(hora)}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )
+                                    })}
+                                </View>
+                            </View>
+                        )}
+                    </>
                 )}
 
-                {/* Resumen de la visita */}
+                {/* Resumen */}
                 {listo && (
-                    <View style={styles.resumenContainer}>
-                        <View style={styles.resumenBanner}>
-
-                            <View style={styles.resumenBannerItem}>
-                                <MaterialCommunityIcons name="calendar-check" size={20} color="rgba(255,255,255,0.8)" />
-                                <Text style={styles.resumenBannerLabel}>Fecha</Text>
-                                <Text style={styles.resumenBannerFecha}>{formatFechaCorta(fechaSeleccionada!)}</Text>
-                                <Text style={styles.resumenBannerAno}>
-                                    {new Date(fechaSeleccionada! + "T12:00:00").getFullYear()}
+                    <View style={styles.resumen}>
+                        <View style={styles.resumenHeader}>
+                            <View style={styles.resumenIcon}>
+                                <MaterialCommunityIcons name="clock-check" size={24} color="#fff" />
+                            </View>
+                            <View>
+                                <Text style={styles.resumenTitulo}>Tu cita seleccionada</Text>
+                                <Text style={styles.resumenInfo}>
+                                    {formatFechaLarga(fechaSeleccionada!)} a las {formatHora(horaSeleccionada!)}
                                 </Text>
                             </View>
-
-                            <View style={styles.resumenBannerDivider} />
-
-                            <View style={styles.resumenBannerItem}>
-                                <MaterialCommunityIcons name="clock-check-outline" size={20} color="rgba(255,255,255,0.8)" />
-                                <Text style={styles.resumenBannerLabel}>Hora</Text>
-                                <Text style={styles.resumenBannerFecha}>{formatHora(horaSeleccionada!)}</Text>
-                                <Text style={styles.resumenBannerAno}>hora de visita</Text>
-                            </View>
-
-                        </View>
-
-                        <View style={styles.resumenBody}>
-                            <Text style={styles.resumenNota}>
-                                Asegúrate de ingresar los datos correctamente. Tu solicitud será revisada por el arrendador y te notificaremos una vez que haya sido aprobada.
-                            </Text>
                         </View>
                     </View>
                 )}
@@ -218,347 +242,99 @@ const AgendarCita = ({ navigation }: any): React.ReactElement => {
 
             </ScrollView>
 
-            {/* Modal de Tarifa */}
+            {/* Modal de Confirmación / Pago */}
             <Modal visible={modalVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
-
-                        {/* Iconos */}
-                        <View style={{ flexDirection: "row", justifyContent: "center", gap: 12, marginBottom: 16 }}>
-                            <MaterialCommunityIcons name="shield-check" size={36} color="#205EA6" />
-                        </View>
-
+                        <MaterialCommunityIcons name="shield-check" size={48} color="#205EA6" style={{ marginBottom: 16 }} />
                         <Text style={styles.modalTitulo}>Confirmar visita</Text>
-                        <Text style={styles.modalSubtitulo}>Revisa los detalles antes de proceder</Text>
-
-                        {/* Resumen de fecha y hora */}
+                        <Text style={styles.modalSubtitulo}>Para contactar al arrendador y agendar, se requiere el pago de una tarifa de servicio de $50 MXN.</Text>
+                        
                         <View style={styles.modalResumen}>
-                            <View style={styles.modalFila}>
-                                <MaterialCommunityIcons name="calendar" size={16} color="#205EA6" />
-                                <Text style={styles.modalFilaTexto}>{fechaSeleccionada ? formatFechaLarga(fechaSeleccionada) : ""}</Text>
-                            </View>
-                            <View style={styles.modalFila}>
-                                <MaterialCommunityIcons name="clock-outline" size={16} color="#205EA6" />
-                                <Text style={styles.modalFilaTexto}>{horaSeleccionada ? formatHora(horaSeleccionada) : ""}</Text>
-                            </View>
-                        </View>
+                             <View style={styles.modalFila}>
+                                 <MaterialCommunityIcons name="calendar" size={16} color="#205EA6" />
+                                 <Text style={styles.modalFilaTexto}>{fechaSeleccionada ? formatFechaLarga(fechaSeleccionada) : ""}</Text>
+                             </View>
+                             <View style={styles.modalFila}>
+                                 <MaterialCommunityIcons name="clock-outline" size={16} color="#205EA6" />
+                                 <Text style={styles.modalFilaTexto}>{horaSeleccionada ? formatHora(horaSeleccionada) : ""}</Text>
+                             </View>
+                         </View>
 
-                        {/* Tarifa */}
-                        <View style={{ backgroundColor: "#f0f5fc", borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                            <Text style={{ fontSize: 13, color: "#185FA5", lineHeight: 20 }}>
-                                Para garantizar un servicio de calidad, se cobra una tarifa de{" "}
-                                <Text style={{ fontWeight: "700" }}>$50 MXN</Text>{" "}
-                                para contactar a este arrendador.
-                            </Text>
-                        </View>
-
-                        {/* Botones */}
                         <TouchableOpacity
                             style={styles.btnPagar}
-                            onPress={() => {
-                                setModalVisible(false)
-                                navigation.navigate("PaymentScreen", { token: token })
-                            }}
+                            onPress={handleConfirmarCita}
+                            disabled={enviando}
                         >
-                            <Text style={styles.btnPagarTexto}>Entendido, proceder al pago</Text>
+                            {enviando ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.btnPagarTexto}>Confirmar y proceder</Text>
+                            )}
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalVisible(false)}>
+                        <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalVisible(false)} disabled={enviando}>
                             <Text style={styles.btnCancelarTexto}>Cancelar</Text>
                         </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
+            {/* Modal de Éxito */}
+            <Modal visible={showExito} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <MaterialCommunityIcons name="check-circle" size={60} color="#2ecc71" style={{ marginBottom: 16 }} />
+                        <Text style={styles.modalTitulo}>¡Solicitud enviada!</Text>
+                        <Text style={styles.modalSubtitulo}>Tu cita para el {fechaSeleccionada && formatFechaLarga(fechaSeleccionada)} a las {horaSeleccionada && formatHora(horaSeleccionada)} ha sido enviada al arrendador.</Text>
+                        <TouchableOpacity style={styles.btnPagar} onPress={cerrarConFade}>
+                            <Text style={styles.btnPagarTexto}>Regresar</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
 
         </Animated.View>
-
     )
 }
 
 export default AgendarCita
 
-// ─ Estilos ─
-
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#f7f9ff",
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        backgroundColor: "#fff",
-        borderBottomWidth: 1,
-        borderBottomColor: "#eef2ff",
-    },
-    btnBack: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: "#EEF4FF",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    headerTitulo: {
-        fontSize: 17,
-        fontWeight: "800",
-        color: "#1a1a2e",
-    },
-    hintContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-        paddingVertical: 14,
-    },
-    hint: {
-        fontSize: 13,
-        color: "#205EA6",
-        fontWeight: "600",
-    },
-    calendarioWrapper: {
-        marginHorizontal: 12,
-        backgroundColor: "#fff",
-        borderRadius: 20,
-        padding: 8,
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-    },
-    leyendaContainer: {
-        flexDirection: "row",
-        justifyContent: "center",
-        gap: 20,
-        marginTop: 12,
-        marginBottom: 4,
-    },
-    leyendaItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-    },
-    leyendaDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: "#205EA6",
-    },
-    leyendaTexto: {
-        fontSize: 12,
-        color: "#666",
-    },
-    horasContainer: {
-        margin: 16,
-        backgroundColor: "#fff",
-        borderRadius: 20,
-        padding: 20,
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-    },
-    horasHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 16,
-    },
-    horasTitulo: {
-        fontSize: 13,
-        fontWeight: "700",
-        color: "#1a1a2e",
-        textTransform: "capitalize",
-        flex: 1,
-    },
-    horasGrid: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 10,
-    },
-    horaChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-        borderWidth: 1.5,
-        borderColor: "#205EA6",
-        backgroundColor: "#EEF4FF",
-    },
-    horaChipActiva: {
-        backgroundColor: "#205EA6",
-        borderColor: "#205EA6",
-    },
-    horaTexto: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#205EA6",
-    },
-    horaTextoActiva: {
-        color: "#fff",
-    },
-    resumenContainer: {
-        marginHorizontal: 16,
-        marginBottom: 16,
-        borderRadius: 20,
-        overflow: "hidden",
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-    },
-    resumenBanner: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-evenly",
-        paddingVertical: 24,
-        paddingHorizontal: 20,
-        backgroundColor: "#205EA6",
-    },
-    resumenBannerItem: {
-        alignItems: "center",
-        gap: 4,
-    },
-    resumenBannerDivider: {
-        width: 1,
-        height: 60,
-        backgroundColor: "rgba(255,255,255,0.25)",
-    },
-    resumenBannerLabel: {
-        fontSize: 10,
-        color: "rgba(255,255,255,0.7)",
-        fontWeight: "700",
-        letterSpacing: 1,
-        textTransform: "uppercase",
-    },
-    resumenBannerFecha: {
-        fontSize: 24,
-        fontWeight: "800",
-        color: "#fff",
-        marginTop: 2,
-    },
-    resumenBannerAno: {
-        fontSize: 12,
-        color: "rgba(255,255,255,0.6)",
-    },
-    resumenBody: {
-        backgroundColor: "#fff",
-        padding: 16,
-    },
-    resumenNota: {
-        fontSize: 13,
-        color: "#666",
-        lineHeight: 20,
-        textAlign: "center",
-    },
-    btnConfirmar: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        paddingVertical: 16,
-        borderRadius: 30,
-        backgroundColor: "#205EA6",
-        width: 200,
-        alignSelf: "center",
-    },
-    btnConfirmarTexto: {
-        color: "#fff",
-        fontWeight: "700",
-        fontSize: 15,
-        right: 13,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.45)",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 24,
-    },
-    modalCard: {
-        backgroundColor: "#fff",
-        borderRadius: 24,
-        padding: 28,
-        width: "80%",
-        alignItems: "center",
-        gap: 12,
-        elevation: 8,
-        shadowColor: "#000",
-        shadowOpacity: 0.15,
-        shadowRadius: 16,
-    },
-    modalIcono: {
-        width: 72,
-        height: 72,
-        borderRadius: 36,
-        backgroundColor: "#EEF4FF",
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 4,
-    },
-    modalTitulo: {
-        fontSize: 22,
-        fontWeight: "900",
-        color: "#1a1a2e",
-    },
-    modalSubtitulo: {
-        fontSize: 14,
-        color: "#666",
-        textAlign: "center",
-    },
-    modalResumen: {
-        backgroundColor: "#f7f9ff",
-        borderRadius: 14,
-        padding: 16,
-        width: "100%",
-        gap: 10,
-        marginVertical: 4,
-    },
-    modalFila: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-    },
-    modalFilaTexto: {
-        fontSize: 14,
-        fontWeight: "600",
-        color: "#1a1a2e",
-        textTransform: "capitalize",
-    },
-    btnPagar: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        paddingVertical: 16,
-        borderRadius: 30,
-        backgroundColor: "#205EA6",
-        width: 250,
-        alignSelf: "center",
-    },
-    btnPagarTexto: {
-        color: "#fff",
-        fontWeight: "700",
-    },
-    btnCancelar: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        paddingVertical: 16,
-        borderRadius: 30,
-        backgroundColor: "#eb695b",
-        width: 120,
-        alignSelf: "center",
-    },
-    btnCancelarTexto: {
-        color: "#fff",
-        fontWeight: "700",
-    },
+    container: { flex: 1, backgroundColor: "#f7f9ff" },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#eef2ff" },
+    btnBack: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#EEF4FF", justifyContent: "center", alignItems: "center" },
+    headerTitulo: { fontSize: 17, fontWeight: "800", color: "#1a1a2e" },
+    hintContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 14 },
+    hint: { fontSize: 13, color: "#205EA6", fontWeight: "600" },
+    calendarioWrapper: { marginHorizontal: 12, backgroundColor: "#fff", borderRadius: 20, padding: 8, elevation: 2, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8 },
+    leyendaContainer: { flexDirection: "row", justifyContent: "center", gap: 20, marginTop: 12, marginBottom: 4 },
+    leyendaItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+    leyendaDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#205EA6" },
+    leyendaTexto: { fontSize: 11, color: "#888", fontWeight: "600" },
+    seccionHoras: { padding: 20 },
+    seccionTitulo: { fontSize: 15, fontWeight: "700", color: "#1a1a2e", marginBottom: 16 },
+    horasGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    horaChip: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#eef2ff", minWidth: (Constants.statusBarHeight > 0 ? 80 : 100) },
+    horaChipActivo: { backgroundColor: "#205EA6", borderColor: "#205EA6" },
+    horaTexto: { fontSize: 14, fontWeight: "700", color: "#205EA6" },
+    horaTextoActivo: { color: "#fff" },
+    resumen: { marginHorizontal: 20, marginTop: 10, backgroundColor: "#205EA6", borderRadius: 20, padding: 16 },
+    resumenHeader: { flexDirection: "row", alignItems: "center", gap: 14 },
+    resumenIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
+    resumenTitulo: { fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: "600", marginBottom: 2 },
+    resumenInfo: { fontSize: 15, color: "#fff", fontWeight: "800" },
+    btnConfirmar: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 20, paddingVertical: 14, marginHorizontal: 20, marginTop: 24, alignItems: "center", justifyContent: "center", gap: 10, borderWidth: 1.5, borderColor: "#205EA6" },
+    btnConfirmarTexto: { color: "#205EA6", fontWeight: "800", fontSize: 16 },
+    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 },
+    modalCard: { backgroundColor: "#fff", borderRadius: 24, padding: 32, alignItems: "center", width: "100%", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+    modalTitulo: { fontSize: 20, fontWeight: "800", color: "#1a1a2e", marginBottom: 8 },
+    modalSubtitulo: { fontSize: 14, color: "#666", textAlign: "center", lineHeight: 20, marginBottom: 20 },
+    modalResumen: { width: '100%', backgroundColor: '#f7f9ff', borderRadius: 16, padding: 16, marginBottom: 20, gap: 10 },
+    modalFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    modalFilaTexto: { fontSize: 14, fontWeight: '700', color: '#1a1a2e' },
+    btnPagar: { backgroundColor: "#205EA6", width: "100%", padding: 16, borderRadius: 12, alignItems: "center", marginBottom: 12 },
+    btnPagarTexto: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+    btnCancelar: { padding: 12 },
+    btnCancelarTexto: { color: "#888", fontWeight: "600", fontSize: 15 },
 })

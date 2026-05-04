@@ -157,7 +157,10 @@ const Lessor_Renthouse = () => {
                 tipoInmueble: tipoMapInverso[raw.tipo_inmueble] || "Cuarto",
                 latitud: lat.toString(),
                 longitud: lng.toString(),
-                horariosVisita: [],
+                horariosVisita: raw.disponibilidad?.map((d: any) => ({
+                    fecha: d.fecha,
+                    horas: d.horas
+                })) || [],
                 cuartosAdicionales: [],
             });
             setMapaCoords({ latitude: lat, longitude: lng });
@@ -343,6 +346,11 @@ const Lessor_Renthouse = () => {
             formData.append('servicios', JSON.stringify(form.servicios.map(s => SERVICIOS_OPCIONES.indexOf(s) + 1)));
             formData.append('restricciones', JSON.stringify(form.reglas.map(r => REGLAS_OPCIONES.indexOf(r) + 1)));
             
+            // AGREGAR HORARIOS DE VISITA
+            if (form.horariosVisita.length > 0) {
+                formData.append('horariosVisita', JSON.stringify(form.horariosVisita));
+            }
+
             if (esEdicionReal) {
                 formData.append('ids_borrados', JSON.stringify(idsBorrados));
             }

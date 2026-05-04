@@ -35,10 +35,14 @@ export default function ProfileScreen({ navigation, route }: any) {
         const parent = navigation.getParent()
         if (parent) parent.setOptions({ headerShown: false });
         getUserData();
+        
+        const unsubscribe = navigation.addListener('focus', () => {
+            getUserData();
+        });
+        
         return () => {
-            if (parent) {
-                parent.setOptions({headerShown: true})
-            }
+            if (parent) parent.setOptions({ headerShown: true });
+            unsubscribe();
         }
     }, [navigation, userId])
 
@@ -166,14 +170,13 @@ export default function ProfileScreen({ navigation, route }: any) {
                         value={userData.numero_contacto} 
                     />
                 </View>
-                {/* <TouchableOpacity 
+                <TouchableOpacity 
                     style={styles.editButton}
-                    onPress={() => navigation.navigate('Register', { userToEdit: userData })}
+                    onPress={() => navigation.navigate('EditProfile', { userId, token, userData })}
                 >
-                    AUN PENDIENTES LOS BOTONTES DE EDITAR PERFIL Y CALIFICACIONES ------------------------------------------------------------------------------------------------------------
                     <MaterialCommunityIcons name="account-edit-outline" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Editar Perfil</Text>
-                </TouchableOpacity> */}
+                </TouchableOpacity>
                 {/* Botón de Temas, pendiente */}
                 {/* <TouchableOpacity
                 style={styles.editButton}>

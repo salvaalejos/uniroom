@@ -57,6 +57,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         servicios: true,
         restricciones: true,
         imagenes: true,
+        disponibilidad: true,
         calificaciones: { take: 5 },
       },
     });
@@ -85,6 +86,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         servicios: true,
         restricciones: true,
         imagenes: true,
+        disponibilidad: true,
         calificaciones: { include: { estudiante: { select: { nombre: true, apellidos: true } } } },
       },
     });
@@ -123,7 +125,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
           return { error: "No autenticado" };
         }
 
-        const { titulo, precio_mensual, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, servicios, restricciones, imagenes } = body as any;
+        const { titulo, precio_mensual, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, servicios, restricciones, imagenes, horariosVisita } = body as any;
 
         console.log("[Inmuebles] Datos básicos:", { titulo, tipo_inmueble, precio_mensual });
 
@@ -146,11 +148,13 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         // Parsear arrays
         let sIds: number[] = [];
         let rIds: number[] = [];
+        let hVisita: any[] = [];
         try {
           if (servicios) sIds = typeof servicios === 'string' ? JSON.parse(servicios) : servicios;
           if (restricciones) rIds = typeof restricciones === 'string' ? JSON.parse(restricciones) : restricciones;
+          if (horariosVisita) hVisita = typeof horariosVisita === 'string' ? JSON.parse(horariosVisita) : horariosVisita;
         } catch (e) {
-          console.warn("[Inmuebles] Error parseando servicios/restricciones");
+          console.warn("[Inmuebles] Error parseando servicios/restricciones/horarios");
         }
 
         // VALIDACIÓN PREVIA DE IDs (Para evitar error P2025)
@@ -201,6 +205,12 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
             servicios: filteredSIds.length ? { connect: filteredSIds.map(id => ({ id_servicios: id })) } : undefined,
             restricciones: filteredRIds.length ? { connect: filteredRIds.map(id => ({ id_restriccion: id })) } : undefined,
             imagenes: mediaPaths.length ? { create: mediaPaths.map(p => ({ imagen: p })) } : undefined,
+            disponibilidad: hVisita.length ? {
+                create: hVisita.map(h => ({
+                    fecha: h.fecha,
+                    horas: h.horas
+                }))
+            } : undefined
           }
         });
 
@@ -227,8 +237,9 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
           return { error: "No autenticado" };
         }
 
+        const idNum = parseInt(id);
         const inmueble = await db.inmueble.findUnique({
-          where: { id_inmueble: parseInt(id) },
+          where: { id_inmueble: idNum },
         });
 
         if (!inmueble) {
@@ -242,7 +253,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
           return { error: "No autorizado para modificar este inmueble" };
         }
 
-        const { titulo, precio_mensual, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, servicios, restricciones, imagenes, ids_borrados } = body as any;
+        const { titulo, precio_mensual, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, servicios, restricciones, imagenes, ids_borrados, horariosVisita } = body as any;
 
         const updateData: any = {};
         
@@ -288,6 +299,22 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
           updateData.restricciones = { set: existR.map(r => ({ id_restriccion: r.id_restriccion })) };
         }
 
+        // Actualizar disponibilidad
+        if (horariosVisita !== undefined) {
+            let hVisita: any[] = typeof horariosVisita === 'string' ? JSON.parse(horariosVisita) : horariosVisita;
+            // Borramos los anteriores
+            await db.disponibilidad.deleteMany({ where: { id_inmueble: idNum } });
+            // Creamos los nuevos
+            if (hVisita.length > 0) {
+                updateData.disponibilidad = {
+                    create: hVisita.map(h => ({
+                        fecha: h.fecha,
+                        horas: h.horas
+                    }))
+                };
+            }
+        }
+
         // Manejo de nuevas imágenes y videos
         if (imagenes !== undefined) {
           const mediaPaths: string[] = [];
@@ -311,9 +338,9 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         }
 
         const inmuebleActualizado = await db.inmueble.update({
-          where: { id_inmueble: parseInt(id) },
+          where: { id_inmueble: idNum },
           data: updateData,
-          include: { servicios: true, restricciones: true, imagenes: true },
+          include: { servicios: true, restricciones: true, imagenes: true, disponibilidad: true },
         });
 
         console.log(`[Inmuebles] ¡Actualizado! ID: ${id}`);

@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
 import { useNavigation } from "@react-navigation/native"
+import AgendarCita from "./AgendarCita"
 
 // ─ Constantes ─
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -344,7 +345,13 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     style={styles.btnContacto}
                     onPress={() => {
                         onClose()
-                        navigation.navigate("AgendarCita")
+                        navigation.navigate("Navigator", {
+                            screen: "Inmuebles",
+                            params: {
+                                screen: "AgendarCita",
+                                params: { inmueble, token }
+                            }
+                        })
                     }}
                 >
                     <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>

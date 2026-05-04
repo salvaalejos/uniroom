@@ -100,8 +100,19 @@ model Inmueble {
   calificaciones  Calificacion[]
   imagenes        Imagenes[]
   citas           Cita[]
+  disponibilidad  Disponibilidad[]
 
   fecha_creacion  DateTime        @default(now())
+}
+
+// [NUEVO] Entidad: Disponibilidad de horarios para visitas
+model Disponibilidad {
+  id_disponibilidad Int      @id @default(autoincrement())
+  fecha            String   // Almacenado como YYYY-MM-DD
+  horas            String[] // Arreglo de horas ["10:00", "12:00"]
+  
+  id_inmueble      Int
+  inmueble         Inmueble @relation(fields: [id_inmueble], references: [id_inmueble])
 }
 
 // [PDF] Entidad: Servicios
