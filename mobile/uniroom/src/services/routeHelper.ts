@@ -1,5 +1,5 @@
 import { getRouteWithTraffic } from './MapboxService';
-import { TRANSPORT_ROUTES_BY_CATEGORY, TransportRoute } from './TransportRoutes';
+import { TRANSPORT_ROUTES, TransportRoute } from './TransportRoutes';
 
 const TEC_ITM = { latitude: 19.721869, longitude: -101.185483 };
 
@@ -31,51 +31,49 @@ export type NearbyRoute = {
   routeId: number;
   routeName: string;
   color: string;
-  direction: 'A' | 'B';
   distanceToStop: number; // metros
-  coords: number[][]; // línea de ruta completa (opcional, se puede calcular después)
+  coords: number[][]; // línea de ruta completa
 };
 
 // Obtener todas las rutas que tengan una parada a menos de 150 m del origen
 export async function getNearbyRoutes(originLat: number, originLng: number): Promise<NearbyRoute[]> {
-  const allRoutes = Object.values(TRANSPORT_ROUTES_BY_CATEGORY).flat();
+  const allRoutes = TRANSPORT_ROUTES;
   const nearby: NearbyRoute[] = [];
 
   for (const route of allRoutes) {
-    for (const dir of ['A', 'B'] as const) {
-      const stops = dir === 'A' ? route.directionA : route.directionB;
-      const { distanceMeters } = findNearestStop(originLat, originLng, stops);
-      if (distanceMeters <= 150) {
-        // Calcular la ruta completa desde la parada cercana hasta la escuela
-        // (para mostrar el trazado en el mapa)
-        const schoolStopIndex = findNearestStop(TEC_ITM.latitude, TEC_ITM.longitude, stops).index;
-        const userStopIndex = findNearestStop(originLat, originLng, stops).index;
-        if (schoolStopIndex === -1 || userStopIndex === -1) continue;
+    const stops = route.stops;
+    const { distanceMeters } = findNearestStop(originLat, originLng, stops);
+    
+    if (distanceMeters <= 250) { // Umbral aumentado para desarrollo
+      const schoolStopIndex = findNearestStop(TEC_ITM.latitude, TEC_ITM.longitude, stops).index;
+      const userStopIndex = findNearestStop(originLat, originLng, stops).index;
+      
+      if (schoolStopIndex === -1 || userStopIndex === -1) continue;
 
-        let start = userStopIndex;
-        let end = schoolStopIndex;
-        let step = start <= end ? 1 : -1;
-        const selectedStops = [];
-        for (let i = start; step === 1 ? i <= end : i >= end; i += step) {
-          selectedStops.push(stops[i]);
-        }
-        if (selectedStops.length < 2) continue;
+      let start = userStopIndex;
+      let end = schoolStopIndex;
+      
+      let step = start <= end ? 1 : -1;
+      const selectedStops = [];
+      for (let i = start; step === 1 ? i <= end : i >= end; i += step) {
+        selectedStops.push(stops[i]);
+      }
+      
+      if (selectedStops.length < 2) continue;
 
-        try {
-          const routeData = await getRouteWithTraffic(selectedStops);
-          if (routeData && routeData.coords.length > 0) {
-            nearby.push({
-              routeId: route.id,
-              routeName: route.name,
-              color: route.color,
-              direction: dir,
-              distanceToStop: distanceMeters,
-              coords: routeData.coords.map(c => [c.longitude, c.latitude]),
-            });
-          }
-        } catch (e) {
-          console.warn(`Error calculando ruta para ${route.name} dir ${dir}`);
+      try {
+        const routeData = await getRouteWithTraffic(selectedStops);
+        if (routeData && routeData.coords.length > 0) {
+          nearby.push({
+            routeId: route.id,
+            routeName: route.name,
+            color: route.color,
+            distanceToStop: distanceMeters,
+            coords: routeData.coords.map(c => [c.longitude, c.latitude]),
+          });
         }
+      } catch (e) {
+        console.warn(`Error calculando ruta para ${route.name}`);
       }
     }
   }

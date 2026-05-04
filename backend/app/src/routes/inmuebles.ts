@@ -53,13 +53,18 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
     const inmuebles = await db.inmueble.findMany({
       where,
       include: {
-        arrendador: { select: { nombre: true, apellidos: true, numero_contacto: true } },
+        arrendador: { select: { nombre: true, apellidos: true, numero_contacto: true, foto: true } },
         servicios: true,
         restricciones: true,
         imagenes: true,
         calificaciones: { take: 5 },
       },
     });
+    
+    // Log para depuración
+    if (inmuebles.length > 0) {
+        console.log("[Inmuebles] Ejemplo de arrendador:", JSON.stringify(inmuebles[0].arrendador));
+    }
     
     console.log(`[Inmuebles] GET / - Encontrados: ${inmuebles.length}`);
     return inmuebles;
@@ -76,7 +81,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
     const inmueble = await db.inmueble.findUnique({
       where: { id_inmueble: parseInt(id) },
       include: {
-        arrendador: { select: { nombre: true, apellidos: true, numero_contacto: true } },
+        arrendador: { select: { nombre: true, apellidos: true, numero_contacto: true, foto: true } },
         servicios: true,
         restricciones: true,
         imagenes: true,
@@ -101,7 +106,8 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         return { error: "No autorizado para ver este inmueble oculto" };
       }
     }
-
+    
+    // Si no está oculto, cualquier usuario autenticado (estudiante o arrendador) lo puede ver
     return inmueble;
   })
 

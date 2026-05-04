@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import Mapbox from "@rnmapbox/maps";
 import * as Location from "expo-location";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,49 +28,34 @@ const TEC_ITM = {
 };
 
 const { width, height } = Dimensions.get('window');
-const MAX_DISTANCE_TO_ROUTE = 3; // km para considerar una ruta "cercana" al usuario
 const TAB_BAR_HEIGHT = 70;
 const BOTTOM_SPACING = TAB_BAR_HEIGHT + 16;
 
-// 📏 Umbrales de distancia a la escuela (en metros)
-const DISTANCE_NEAR_SCHOOL = 50;      // ≤50m: dentro de la escuela
-const DISTANCE_VERY_CLOSE = 200;      // 50-200m: muy cerca (sugerencia opcional)
-const DISTANCE_FAR_FROM_SCHOOL = 200; // >200m: lejos, mostrar rutas normalmente
+const DISTANCE_NEAR_SCHOOL = 50;
+const DISTANCE_VERY_CLOSE = 200;
 
 export default function MapScreen() {
   const [activeRoutes, setActiveRoutes] = useState<TransportRoute[]>([]);
   const [routesCoords, setRoutesCoords] = useState<{ [key: number]: number[][] }>({});
-  const [routesDirection, setRoutesDirection] = useState<{ [key: number]: string }>({});
   const [routesTime, setRoutesTime] = useState<{ [key: number]: number }>({});
   const [routesDistance, setRoutesDistance] = useState<{ [key: number]: number }>({});
   const [showRoutes, setShowRoutes] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [recommendedRoute, setRecommendedRoute] = useState<TransportRoute | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [showSubRoutes, setShowSubRoutes] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [isLoadingRoute, setIsLoadingRoute] = useState<number | null>(null);
   const [initialCameraSet, setInitialCameraSet] = useState(false);
-  const [nearbyRoutes, setNearbyRoutes] = useState<string[]>([]);
   const [distanceToSchool, setDistanceToSchool] = useState<number | null>(null);
   const [userNearSchool, setUserNearSchool] = useState(false);
   
   const cameraRef = useRef<Mapbox.Camera>(null);
   const routeCache = useRef<{ [key: number]: number[][] }>({});
-  const timeCache = useRef<{ [key: number]: number }>({});
-  const distanceCache = useRef<{ [key: number]: number }>({});
 
-  const categories = useMemo(() => Object.keys(TRANSPORT_ROUTES), []);
-  
-  const currentSubRoutes = useMemo(() => 
-    selectedCategory ? TRANSPORT_ROUTES[selectedCategory] : [],
-    [selectedCategory]
-  );
+  const allRoutes = TRANSPORT_ROUTES;
 
-  // 📏 Calcular distancia entre dos puntos (en metros)
   const getDistanceInMeters = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371000; // Radio de la Tierra en metros
+    const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat / 2) ** 2 +
@@ -80,150 +65,63 @@ export default function MapScreen() {
   }, []);
 
   const getDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) ** 2;
-    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-  }, []);
+    return getDistanceInMeters(lat1, lon1, lat2, lon2) / 1000;
+  }, [getDistanceInMeters]);
 
   const getRouteWithRealTimeTraffic = useCallback(async (stops: { latitude: number; longitude: number }[]) => {
     try {
-      const result = await getRouteWithTraffic(stops);
-      if (result && result.coords.length > 0) {
-        return {
-          coords: result.coords,
-          duration: result.duration,
-          distance: result.distance,
-        };
-      }
-      return null;
+      return await getRouteWithTraffic(stops);
     } catch (error) {
       console.error("Error obteniendo ruta con tráfico:", error);
       return null;
     }
   }, []);
 
-  const getMinDistanceToRoute = useCallback((route: TransportRoute, userLat: number, userLon: number) => {
-    let minDistance = Infinity;
-    const allStops = [...route.directionA, ...route.directionB];
-    for (const stop of allStops) {
-      const distance = getDistance(userLat, userLon, stop.latitude, stop.longitude);
-      if (distance < minDistance) {
-        minDistance = distance;
+  const getOptimizedStops = useCallback((route: TransportRoute, userLat: number, userLon: number) => {
+    let nearestIndex = -1;
+    let minUserDist = Infinity;
+    
+    for (let i = 0; i < route.stops.length; i++) {
+      const dist = getDistance(userLat, userLon, route.stops[i].latitude, route.stops[i].longitude);
+      if (dist < minUserDist) {
+        minUserDist = dist;
+        nearestIndex = i;
       }
     }
-    return minDistance;
-  }, [getDistance]);
 
-  const findExactSchoolStop = useCallback((route: TransportRoute, useDirection: 'A' | 'B') => {
-    const stopsToUse = useDirection === 'A' ? route.directionA : route.directionB;
-    let minDistance = Infinity;
     let schoolIndex = -1;
-
-    for (let i = 0; i < stopsToUse.length; i++) {
-      const stop = stopsToUse[i];
-      const distance = getDistance(TEC_ITM.latitude, TEC_ITM.longitude, stop.latitude, stop.longitude);
-      if (distance < minDistance) {
-        minDistance = distance;
+    let minSchoolDist = Infinity;
+    for (let i = 0; i < route.stops.length; i++) {
+      const dist = getDistance(TEC_ITM.latitude, TEC_ITM.longitude, route.stops[i].latitude, route.stops[i].longitude);
+      if (dist < minSchoolDist) {
+        minSchoolDist = dist;
         schoolIndex = i;
       }
     }
 
-    return { schoolIndex, schoolStop: schoolIndex !== -1 ? stopsToUse[schoolIndex] : null };
-  }, [getDistance]);
+    if (nearestIndex === -1 || schoolIndex === -1) return null;
 
-  const getOptimizedStops = useCallback((route: TransportRoute, userIndex: number, schoolIndex: number, direction: 'A' | 'B') => {
-    const stopsToUse = direction === 'A' ? route.directionA : route.directionB;
-    const optimizedStops = [];
-    
-    if (schoolIndex >= userIndex) {
-      for (let i = userIndex; i <= schoolIndex; i++) {
-        optimizedStops.push(stopsToUse[i]);
-      }
+    const optimized = [];
+    if (schoolIndex >= nearestIndex) {
+      for (let i = nearestIndex; i <= schoolIndex; i++) optimized.push(route.stops[i]);
     } else {
-      for (let i = userIndex; i >= schoolIndex; i--) {
-        optimizedStops.push(stopsToUse[i]);
-      }
+      for (let i = nearestIndex; i >= schoolIndex; i--) optimized.push(route.stops[i]);
     }
-    
-    return optimizedStops;
-  }, []);
-
-  const evaluateRouteForRecommendation = useCallback(async (route: TransportRoute, userLat: number, userLon: number) => {
-    const distanceToRoute = getMinDistanceToRoute(route, userLat, userLon);
-    if (distanceToRoute > MAX_DISTANCE_TO_ROUTE) {
-      return null;
-    }
-    
-    let bestResult = null;
-    const directions = ['A', 'B'] as const;
-    
-    for (const dir of directions) {
-      const stops = dir === 'A' ? route.directionA : route.directionB;
-      
-      let nearestIndex = -1;
-      let minUserDist = Infinity;
-      for (let i = 0; i < stops.length; i++) {
-        const dist = getDistance(userLat, userLon, stops[i].latitude, stops[i].longitude);
-        if (dist < minUserDist) {
-          minUserDist = dist;
-          nearestIndex = i;
-        }
-      }
-      
-      const { schoolIndex } = findExactSchoolStop(route, dir);
-      
-      if (nearestIndex !== -1 && schoolIndex !== -1) {
-        const optimizedStops = getOptimizedStops(route, nearestIndex, schoolIndex, dir);
-        
-        if (optimizedStops.length > 0) {
-          const routeWithTraffic = await getRouteWithRealTimeTraffic(optimizedStops);
-          
-          if (routeWithTraffic) {
-            const score = (routeWithTraffic.duration / 60) * 0.5 + (routeWithTraffic.distance * 2);
-            
-            if (!bestResult || score < bestResult.score) {
-              bestResult = {
-                direction: dir,
-                score: score,
-                estimatedTime: Math.round(routeWithTraffic.duration / 60),
-                distance: routeWithTraffic.distance,
-                optimizedStops,
-              };
-            }
-          }
-        }
-      }
-    }
-    
-    return bestResult;
-  }, [getDistance, getMinDistanceToRoute, findExactSchoolStop, getOptimizedStops, getRouteWithRealTimeTraffic]);
+    return optimized;
+  }, [getDistance]);
 
   useEffect(() => {
     let isMounted = true;
-    
     async function getUserLocation() {
       try {
-        setIsLoading(true);
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
-          if (isMounted) {
-            Alert.alert("Ubicación requerida", "Para usar esta aplicación, necesitamos acceder a tu ubicación.");
-            setIsLoading(false);
-          }
+          setIsLoading(false);
           return;
         }
-        const location = await Location.getCurrentPositionAsync({ 
-          accuracy: Location.Accuracy.High
-        });
+        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
         if (isMounted) {
-          setUserLocation({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          });
+          setUserLocation({ latitude: location.coords.latitude, longitude: location.coords.longitude });
         }
       } catch (error) {
         console.error("Error obteniendo ubicación:", error);
@@ -231,9 +129,7 @@ export default function MapScreen() {
         if (isMounted) setIsLoading(false);
       }
     }
-    
     getUserLocation();
-    
     return () => { isMounted = false; };
   }, []);
 
@@ -248,81 +144,36 @@ export default function MapScreen() {
     }
   }, [userLocation, mapReady, initialCameraSet]);
 
-  const centerOnUserLocation = useCallback(() => {
+  const centerOnUserLocation = () => {
     if (userLocation && cameraRef.current) {
-      cameraRef.current.setCamera({
-        centerCoordinate: [userLocation.longitude, userLocation.latitude],
-        zoomLevel: 15,
-        animationDuration: 500,
-      });
+      cameraRef.current.setCamera({ centerCoordinate: [userLocation.longitude, userLocation.latitude], zoomLevel: 15, animationDuration: 500 });
     }
-  }, [userLocation]);
+  };
 
-  const centerOnSchool = useCallback(() => {
+  const centerOnSchool = () => {
     if (cameraRef.current) {
-      cameraRef.current.setCamera({
-        centerCoordinate: [TEC_ITM.longitude, TEC_ITM.latitude],
-        zoomLevel: 16,
-        animationDuration: 500,
-      });
+      cameraRef.current.setCamera({ centerCoordinate: [TEC_ITM.longitude, TEC_ITM.latitude], zoomLevel: 16, animationDuration: 500 });
     }
-  }, []);
+  };
 
-  // 📍 Detectar si el usuario está cerca de la escuela
   useEffect(() => {
     if (!userLocation) return;
-    
-    const distance = getDistanceInMeters(
-      userLocation.latitude,
-      userLocation.longitude,
-      TEC_ITM.latitude,
-      TEC_ITM.longitude
-    );
-    
+    const distance = getDistanceInMeters(userLocation.latitude, userLocation.longitude, TEC_ITM.latitude, TEC_ITM.longitude);
     setDistanceToSchool(Math.round(distance));
     setUserNearSchool(distance <= DISTANCE_NEAR_SCHOOL);
-    
   }, [userLocation, getDistanceInMeters]);
 
-  // 🚌 Evaluar rutas solo si el usuario NO está dentro de la escuela
   useEffect(() => {
-    if (!userLocation) return;
-    
-    // Si está cerca de la escuela (≤50m), no evaluar rutas
-    if (userNearSchool) {
+    if (!userLocation || userNearSchool) {
       setRecommendedRoute(null);
-      setNearbyRoutes([]);
       return;
     }
-    
-    const evaluateRoutes = async () => {
-      let bestRoute: TransportRoute | null = null;
-      let bestEvaluation: any = null;
-      const nearbyRoutesList: string[] = [];
-      
-      const allRoutes = Object.values(TRANSPORT_ROUTES).flat();
-      
-      for (const route of allRoutes) {
-        const evaluation = await evaluateRouteForRecommendation(route, userLocation.latitude, userLocation.longitude);
-        if (evaluation) {
-          nearbyRoutesList.push(route.name);
-          if (!bestEvaluation || evaluation.score < bestEvaluation.score) {
-            bestEvaluation = evaluation;
-            bestRoute = route;
-            timeCache.current[route.id] = evaluation.estimatedTime;
-            distanceCache.current[route.id] = evaluation.distance;
-          }
-        }
-      }
-      
-      setNearbyRoutes(nearbyRoutesList);
-      setRecommendedRoute(bestRoute);
-    };
-    
-    evaluateRoutes();
-  }, [userLocation, userNearSchool, evaluateRouteForRecommendation]);
+    if (allRoutes.length > 0) {
+      setRecommendedRoute(allRoutes[0]);
+    }
+  }, [userLocation, userNearSchool]);
 
-  const handleRoutePress = useCallback(async (route: TransportRoute) => {
+  const handleRoutePress = async (route: TransportRoute) => {
     try {
       const exists = activeRoutes.find((r) => r.id === route.id);
       if (exists) {
@@ -331,7 +182,6 @@ export default function MapScreen() {
       }
       
       if (!userLocation) return;
-      
       setIsLoadingRoute(route.id);
       
       if (routeCache.current[route.id]) {
@@ -341,115 +191,37 @@ export default function MapScreen() {
         return;
       }
       
-      let bestResult: {
-        direction: 'A' | 'B';
-        coords: any[];
-        duration: number;
-        distance: number;
-        optimizedStops: any[];
-      } | null = null;
-      
-      const directions = ['A', 'B'] as const;
-      
-      for (const dir of directions) {
-        const stops = dir === 'A' ? route.directionA : route.directionB;
-        
-        let nearestIndex = -1;
-        let minUserDist = Infinity;
-        for (let i = 0; i < stops.length; i++) {
-          const dist = getDistance(userLocation.latitude, userLocation.longitude, stops[i].latitude, stops[i].longitude);
-          if (dist < minUserDist) {
-            minUserDist = dist;
-            nearestIndex = i;
-          }
-        }
-        
-        const { schoolIndex } = findExactSchoolStop(route, dir);
-        
-        if (nearestIndex !== -1 && schoolIndex !== -1) {
-          const optimizedStops = getOptimizedStops(route, nearestIndex, schoolIndex, dir);
-          
-          if (optimizedStops.length > 0) {
-            const routeWithTraffic = await getRouteWithRealTimeTraffic(optimizedStops);
-            
-            if (routeWithTraffic) {
-              const currentScore = (routeWithTraffic.duration / 60) * 0.5 + (routeWithTraffic.distance * 2);
-              
-              if (!bestResult) {
-                bestResult = {
-                  direction: dir,
-                  coords: routeWithTraffic.coords,
-                  duration: routeWithTraffic.duration,
-                  distance: routeWithTraffic.distance,
-                  optimizedStops,
-                };
-              } else {
-                const bestScore = (bestResult.duration / 60) * 0.5 + (bestResult.distance * 2);
-                if (currentScore < bestScore) {
-                  bestResult = {
-                    direction: dir,
-                    coords: routeWithTraffic.coords,
-                    duration: routeWithTraffic.duration,
-                    distance: routeWithTraffic.distance,
-                    optimizedStops,
-                  };
-                }
-              }
-            }
-          }
-        }
-      }
-      
-      if (!bestResult) {
+      const optimizedStops = getOptimizedStops(route, userLocation.latitude, userLocation.longitude);
+      if (!optimizedStops || optimizedStops.length < 2) {
         setIsLoadingRoute(null);
-        Alert.alert("Ruta no disponible", "No se pudo encontrar un camino válido hacia la escuela.");
+        Alert.alert("Ruta no disponible", "No estás cerca de esta ruta o no lleva a la escuela.");
         return;
       }
-      
-      setRoutesDirection(prev => ({ ...prev, [route.id]: bestResult.direction }));
-      setRoutesTime(prev => ({ ...prev, [route.id]: Math.round(bestResult.duration / 60) }));
-      setRoutesDistance(prev => ({ ...prev, [route.id]: bestResult.distance }));
-      
-      const formattedCoords = bestResult.coords.map((c: any) => [c.longitude, c.latitude]);
-      routeCache.current[route.id] = formattedCoords;
-      
-      setRoutesCoords(prev => ({ ...prev, [route.id]: formattedCoords }));
-      setActiveRoutes((prev) => [...prev, route]);
+
+      const result = await getRouteWithRealTimeTraffic(optimizedStops);
+      if (result) {
+        const formattedCoords = result.coords.map((c: any) => [c.longitude, c.latitude]);
+        routeCache.current[route.id] = formattedCoords;
+        setRoutesCoords(prev => ({ ...prev, [route.id]: formattedCoords }));
+        setRoutesTime(prev => ({ ...prev, [route.id]: Math.round(result.duration / 60) }));
+        setRoutesDistance(prev => ({ ...prev, [route.id]: result.distance }));
+        setActiveRoutes((prev) => [...prev, route]);
+      } else {
+        Alert.alert("Error", "No se pudo trazar la ruta.");
+      }
       setIsLoadingRoute(null);
-      
     } catch (error) {
-      console.error("Error al seleccionar ruta:", error);
+      console.error(error);
       setIsLoadingRoute(null);
-      Alert.alert("Error", "No se pudo cargar la ruta seleccionada.");
     }
-  }, [activeRoutes, userLocation, getDistance, findExactSchoolStop, getOptimizedStops, getRouteWithRealTimeTraffic]);
+  };
 
-  const handleClearAllRoutes = useCallback(() => {
-    Alert.alert(
-      "Limpiar rutas",
-      "¿Deseas eliminar todas las rutas seleccionadas del mapa?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Limpiar", onPress: () => {
-          setActiveRoutes([]);
-          setRoutesCoords({});
-          setRoutesDirection({});
-          setRoutesTime({});
-          setRoutesDistance({});
-        }, style: "destructive" },
-      ]
-    );
-  }, []);
-
-  const handleCategorySelect = useCallback((categoryName: string) => {
-    setSelectedCategory(categoryName);
-    setShowSubRoutes(true);
-  }, []);
-
-  const handleBackToCategories = useCallback(() => {
-    setShowSubRoutes(false);
-    setSelectedCategory(null);
-  }, []);
+  const handleClearAllRoutes = () => {
+    setActiveRoutes([]);
+    setRoutesCoords({});
+    setRoutesTime({});
+    setRoutesDistance({});
+  };
 
   const formatTime = (minutes: number) => {
     if (minutes < 1) return "< 1 min";
@@ -464,15 +236,10 @@ export default function MapScreen() {
     return `${km.toFixed(1)} km`;
   };
 
-  // 🎯 Mensaje según distancia a la escuela
   const getProximityMessage = () => {
     if (!distanceToSchool) return null;
-    if (distanceToSchool <= DISTANCE_NEAR_SCHOOL) {
-      return "🎓 ¡Ya estás en la escuela! No necesitas una ruta.";
-    }
-    if (distanceToSchool <= DISTANCE_VERY_CLOSE) {
-      return "Estás muy cerca de la escuela. ¿Seguro que necesitas una ruta?";
-    }
+    if (distanceToSchool <= DISTANCE_NEAR_SCHOOL) return "🎓 ¡Ya estás en la escuela!";
+    if (distanceToSchool <= DISTANCE_VERY_CLOSE) return "Estás muy cerca de la escuela.";
     return null;
   };
 
@@ -480,8 +247,7 @@ export default function MapScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#205EA6" />
-        <Text style={styles.loadingText}>Localizando tu posición...</Text>
-        <Text style={styles.loadingSubtext}>Buscando las mejores rutas para ti</Text>
+        <Text style={styles.loadingText}>Localizando...</Text>
       </View>
     );
   }
@@ -506,7 +272,7 @@ export default function MapScreen() {
           >
             <View style={styles.userMarker}>
               <View style={styles.userMarkerPulse} />
-              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              <Ionicons name="person" size={24} color="#FFFFFF" />
             </View>
           </Mapbox.PointAnnotation>
         )}
@@ -516,7 +282,7 @@ export default function MapScreen() {
           coordinate={[TEC_ITM.longitude, TEC_ITM.latitude]}
         >
           <View style={styles.schoolMarker}>
-            <Ionicons name="business" size={22} color="#FFFFFF" />
+            <Ionicons name="school" size={26} color="#FFFFFF" />
           </View>
         </Mapbox.PointAnnotation>
 
@@ -533,16 +299,6 @@ export default function MapScreen() {
                 geometry: { type: "LineString", coordinates: coords },
               }}
             >
-              <Mapbox.LineLayer
-                id={`outline-${route.id}`}
-                style={{
-                  lineWidth: 10,
-                  lineColor: "#FFFFFF",
-                  lineOpacity: 0.85,
-                  lineCap: "round",
-                  lineJoin: "round",
-                }}
-              />
               <Mapbox.LineLayer
                 id={`line-${route.id}`}
                 style={{
@@ -568,7 +324,7 @@ export default function MapScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Botón principal de rutas - solo visible si no está dentro de la escuela */}
+      {/* Botón principal de rutas */}
       {!userNearSchool && (
         <TouchableOpacity
           style={styles.mainButton}
@@ -592,14 +348,7 @@ export default function MapScreen() {
         <View style={styles.panel}>
           <View style={styles.panelHeader}>
             <View style={styles.headerLeft}>
-              {showSubRoutes && (
-                <TouchableOpacity style={styles.iconBtn} onPress={handleBackToCategories}>
-                  <Ionicons name="arrow-back" size={22} color="#205EA6" />
-                </TouchableOpacity>
-              )}
-              <Text style={styles.panelTitle}>
-                {showSubRoutes ? `Rutas ${selectedCategory}` : "Líneas de Transporte"}
-              </Text>
+              <Text style={styles.panelTitle}>Rutas de Transporte</Text>
             </View>
             <View style={styles.headerRight}>
               {activeRoutes.length > 0 && (
@@ -613,103 +362,52 @@ export default function MapScreen() {
             </View>
           </View>
 
-          {recommendedRoute && !userNearSchool && (
-            <View style={styles.recommendBox}>
-              <View style={styles.recommendHeader}>
-                <Ionicons name="star" size={14} color="#FFB800" />
-                <Text style={styles.recommendTitle}>Ruta Recomendada</Text>
-                <View style={styles.recommendBadge}>
-                  <Text style={styles.recommendBadgeText}>MÁS RÁPIDA</Text>
-                </View>
+          {recommendedRoute && !activeRoutes.some(r => r.id === recommendedRoute.id) && (
+            <TouchableOpacity
+              style={styles.recommendCard}
+              onPress={() => handleRoutePress(recommendedRoute)}
+            >
+              <View style={[styles.recommendColor, { backgroundColor: recommendedRoute.color }]} />
+              <View style={styles.recommendInfo}>
+                <Text style={styles.recommendText}>Recomendada: {recommendedRoute.name}</Text>
               </View>
-              <TouchableOpacity
-                style={[
-                  styles.recommendCard,
-                  activeRoutes.some(r => r.id === recommendedRoute.id) && styles.activeRecommend
-                ]}
-                onPress={() => handleRoutePress(recommendedRoute)}
-              >
-                <View style={[styles.recommendColor, { backgroundColor: recommendedRoute.color }]} />
-                <View style={styles.recommendInfo}>
-                  <Text style={styles.recommendText}>{recommendedRoute.name}</Text>
-                  <Text style={styles.recommendTime}>
-                    <Ionicons name="time-outline" size={12} color="#6C757D" /> {formatTime(timeCache.current[recommendedRoute.id] || 15)} • 
-                    <Ionicons name="resize-outline" size={12} color="#6C757D" /> {formatDistance(distanceCache.current[recommendedRoute.id] || 0)}
-                  </Text>
-                </View>
-                {isLoadingRoute === recommendedRoute.id ? (
-                  <ActivityIndicator size="small" color="#205EA6" />
-                ) : activeRoutes.some(r => r.id === recommendedRoute.id) && (
-                  <Ionicons name="checkmark-circle" size={22} color="#2B9348" />
-                )}
-              </TouchableOpacity>
-            </View>
+              {isLoadingRoute === recommendedRoute.id ? (
+                <ActivityIndicator size="small" color="#205EA6" />
+              ) : (
+                <Ionicons name="star" size={18} color="#FFB800" />
+              )}
+            </TouchableOpacity>
           )}
 
-          {!showSubRoutes ? (
-            <FlatList
-              data={categories}
-              keyExtractor={(item) => item}
-              showsVerticalScrollIndicator={false}
-              removeClippedSubviews={true}
-              renderItem={({ item }) => {
-                const color = TRANSPORT_ROUTES_BY_CATEGORY[item][0]?.color || "#ccc";
-                const count = TRANSPORT_ROUTES_BY_CATEGORY[item].length;
-                const hasNearby = nearbyRoutes.some(name => 
-                  TRANSPORT_ROUTES_BY_CATEGORY[item].some(r => r.name === name)
-                );
-                return (
-                  <TouchableOpacity style={styles.categoryCard} onPress={() => handleCategorySelect(item)}>
-                    <View style={styles.categoryLeft}>
-                      <View style={[styles.categoryCircle, { backgroundColor: color }]} />
-                      <View>
-                        <Text style={styles.categoryName}>{item}</Text>
-                        <Text style={styles.categoryCount}>{count} {count === 1 ? "ruta" : "rutas"}</Text>
-                      </View>
-                    </View>
-                    {hasNearby && (
-                      <View style={styles.nearbyBadge}>
-                        <Text style={styles.nearbyBadgeText}>Cerca</Text>
-                      </View>
+          <FlatList
+            data={allRoutes}
+            keyExtractor={(item) => item.id.toString()}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const isActive = activeRoutes.some((r) => r.id === item.id);
+              const estimatedTime = routesTime[item.id];
+              const estimatedDistance = routesDistance[item.id];
+              return (
+                <TouchableOpacity
+                  style={[styles.routeCard, isActive && styles.activeRoute]}
+                  onPress={() => handleRoutePress(item)}
+                >
+                  <View style={[styles.routeDot, { backgroundColor: item.color }]} />
+                  <View style={styles.routeInfo}>
+                    <Text style={styles.routeName}>{item.name}</Text>
+                    {estimatedTime && (
+                      <Text style={styles.routeDetail}>
+                        {formatTime(estimatedTime)} • {formatDistance(estimatedDistance)}
+                      </Text>
                     )}
-                    <Ionicons name="chevron-forward" size={20} color="#CED4DA" />
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          ) : (
-            <FlatList
-              data={currentSubRoutes}
-              keyExtractor={(item) => item.id.toString()}
-              showsVerticalScrollIndicator={false}
-              removeClippedSubviews={true}
-              renderItem={({ item }) => {
-                const isActive = activeRoutes.some((r) => r.id === item.id);
-                const direction = routesDirection[item.id];
-                const estimatedTime = routesTime[item.id];
-                const estimatedDistance = routesDistance[item.id];
-                return (
-                  <TouchableOpacity
-                    style={[styles.routeCard, isActive && styles.activeRoute]}
-                    onPress={() => handleRoutePress(item)}
-                  >
-                    <View style={[styles.routeDot, { backgroundColor: item.color }]} />
-                    <View style={styles.routeInfo}>
-                      <Text style={styles.routeName}>{item.name}</Text>
-                      {direction && estimatedTime && (
-                        <Text style={styles.routeDetail}>
-                          {direction === 'A' ? 'Sentido normal' : 'Sentido inverso'} • {formatTime(estimatedTime)} • {formatDistance(estimatedDistance)}
-                        </Text>
-                      )}
-                    </View>
-                    {isLoadingRoute === item.id ? (
-                      <ActivityIndicator size="small" color="#205EA6" />
-                    ) : isActive && <Ionicons name="checkmark" size={18} color="#2B9348" />}
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          )}
+                  </View>
+                  {isLoadingRoute === item.id ? (
+                    <ActivityIndicator size="small" color="#205EA6" />
+                  ) : isActive && <Ionicons name="checkmark" size={18} color="#2B9348" />}
+                </TouchableOpacity>
+              );
+            }}
+          />
         </View>
       )}
     </View>
@@ -736,12 +434,6 @@ const styles = StyleSheet.create({
     color: "#DCEEFF",
     fontWeight: "600",
   },
-  loadingSubtext: {
-    marginTop: 8,
-    fontSize: 14,
-    color: "#FFFFFF",
-    opacity: 0.8,
-  },
   controlButtons: {
     position: "absolute",
     right: 16,
@@ -749,9 +441,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   controlBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
@@ -807,19 +499,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
   },
+  userMarkerContainer: {
+    width: 64,
+    height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
   userMarker: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#205EA6",
     borderWidth: 3,
     borderColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#0F2C4F",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
     elevation: 6,
   },
   userMarkerPulse: {
@@ -827,6 +526,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
+    backgroundColor: "#205EA6",
     opacity: 0.3,
   },
   schoolMarker: {
@@ -849,7 +549,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: height * 0.55,
+    height: height * 0.5,
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
@@ -891,135 +591,46 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0F2C4F",
   },
-  recommendBox: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E9ECEF",
-    backgroundColor: "#DCEEFF",
-  },
-  recommendHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
-  },
-  recommendTitle: {
-    fontSize: 13,
-    color: "#205EA6",
-    fontWeight: "600",
-  },
-  recommendBadge: {
-    backgroundColor: "#FFB800",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  recommendBadgeText: {
-    fontSize: 9,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
   recommendCard: {
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
-    backgroundColor: "#FFFFFF",
+    margin: 15,
+    backgroundColor: "#F0F7FF",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#DCEEFF",
   },
-  activeRecommend: {
-    backgroundColor: "#F0F7FF",
-    borderColor: "#205EA6",
-  },
   recommendColor: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginRight: 10,
   },
   recommendInfo: {
     flex: 1,
   },
   recommendText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: "#0F2C4F",
-  },
-  recommendTime: {
-    fontSize: 11,
-    color: "#6C757D",
-    marginTop: 2,
-  },
-  categoryCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E9ECEF",
-  },
-  categoryLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  categoryCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    shadowColor: "#0F2C4F",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  categoryName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#0F2C4F",
-    marginBottom: 2,
-  },
-  categoryCount: {
-    fontSize: 12,
-    color: "#6C757D",
-  },
-  nearbyBadge: {
-    backgroundColor: "#2B9348",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  nearbyBadgeText: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#FFFFFF",
   },
   routeCard: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 15,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#E9ECEF",
   },
   activeRoute: {
-    backgroundColor: "#DCEEFF",
+    backgroundColor: "#F8F9FA",
   },
   routeDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     marginRight: 12,
-    borderWidth: 1.5,
-    borderColor: "#FFFFFF",
   },
   routeInfo: {
     flex: 1,
@@ -1030,7 +641,7 @@ const styles = StyleSheet.create({
     color: "#0F2C4F",
   },
   routeDetail: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#6C757D",
     marginTop: 2,
   },

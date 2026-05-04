@@ -33,11 +33,11 @@ const PROPIEDAD = {
 }
 
 // Reseñas de inquilinos anteriores ksdhfsjf
-const RESENAS = [
-    { autor: "Ana G.", texto: "Muy buen lugar, limpio y tranquilo.", fecha: "12 de enero de 2025 a las 3:25 p.m." },
-    { autor: "Carlos M.", texto: "Excelente ubicación, el anfitrión muy amable.", fecha: "3 de febrero de 2025 a las 8:46 a.m." },
-    { autor: "Sofía R.", texto: "Todo como se describe, lo recomiendo.", fecha: "28 de marzo de 2025 a las 2:07 p.m." },
-]
+// const RESENAS = [
+//     { autor: "Ana G.", texto: "Muy buen lugar, limpio y tranquilo.", fecha: "12 de enero de 2025 a las 3:25 p.m." },
+//     { autor: "Carlos M.", texto: "Excelente ubicación, el anfitrión muy amable.", fecha: "3 de febrero de 2025 a las 8:46 a.m." },
+//     { autor: "Sofía R.", texto: "Todo como se describe, lo recomiendo.", fecha: "28 de marzo de 2025 a las 2:07 p.m." },
+// ]
 
 
 
@@ -124,6 +124,13 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
     }, [imagenActual, esVideo, player, videoSource, visible])
 
     // ── FIX 3: Early return DESPUÉS de todos los hooks ──
+    useEffect(() => {
+        if (inmueble) {
+            console.log("[Detail] Inmueble cargado:", inmueble.titulo);
+            console.log("[Detail] Foto Anfitrión:", inmueble.fotoAnfitrion);
+        }
+    }, [inmueble]);
+
     if (!inmueble) return null
 
     return (
@@ -136,7 +143,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                 <MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2a"/>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
                 style={[styles.btnFavorito, { top: insets.top + 16 }]}
                 onPress={() => setFavorito(!favorito)}
             >
@@ -145,7 +152,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     size={26}
                     color={favorito ? "#e74c3c" : "#1a1a2e"}
                 />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
                 {/* Galeria */}
@@ -169,8 +176,8 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                                     key={i}
                                     player={player}
                                     style={styles.imagenPrincipal}
-                                    allowsFullscreen
-                                    allowsPictureInPicture
+                                    nativeControls
+                                    contentFit="cover"
                                 />
                             )
                         ))}
@@ -228,7 +235,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
                     {/* Anfitrion */}
                     <View style={styles.anfitrionRow}>
-                        <Image source={ANFITRION} style={styles.avatarImagen}/>
+                        <Image source={inmueble.fotoAnfitrion || ANFITRION} style={styles.avatarImagen}/>
                         <View>
                             <Text style={styles.anfitrionLabel}>Anfitrión</Text>
                             <Text style={styles.anfitrionNombre}>{inmueble.anfitrion}</Text>
@@ -253,9 +260,9 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     {/* Servicios */}
                     <Text style={styles.subtitulo}>Servicios incluidos</Text>
                     <View style={styles.tags}>
-                        {inmueble.servicios?.map((s: string, i: number) => (
+                        {inmueble.servicios?.map((s: any, i: number) => (
                             <View key={i} style={styles.tag}>
-                                <Text style={styles.tagTexto}>{s}</Text>
+                                <Text style={styles.tagTexto}>{typeof s === 'object' ? s.nombre : s}</Text>
                             </View>
                         ))}
                     </View>
@@ -265,9 +272,15 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     {/* Reglas */}
                     <Text style={styles.subtitulo}>Reglas de la casa</Text>
                     <View style={styles.tags}>
-                        {inmueble.reglas?.map((r: string, i: number) => (
+                        {inmueble.restricciones?.map((r: any, i: number) => (
                             <View key={i} style={[styles.tag, styles.tagRegla]}>
-                                <Text style={[styles.tagTexto, styles.tagTextoRegla]}>{r}</Text>
+                                <Text style={[styles.tagTexto, styles.tagTextoRegla]}>{typeof r === 'object' ? r.nombre : r}</Text>
+                            </View>
+                        ))}
+                        {/* Fallback para cuando vienen como 'reglas' (mocks) */}
+                        {inmueble.reglas?.map((r: any, i: number) => (
+                            <View key={`regla-${i}`} style={[styles.tag, styles.tagRegla]}>
+                                <Text style={[styles.tagTexto, styles.tagTextoRegla]}>{typeof r === 'object' ? r.nombre : r}</Text>
                             </View>
                         ))}
                     </View>
@@ -275,7 +288,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     <View style={styles.divider}/>
 
                     {/* Comentarios predefinidos */}
-                    <View style={styles.comentarioEncabezado}>
+                    {/* <View style={styles.comentarioEncabezado}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                             <MaterialCommunityIcons name="star" size={18} color="#f39c12" />
                             <View>
@@ -315,7 +328,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20, fontSize: 13 }}>
                             Toca la flecha para ver las reseñas.
                         </Text>
-                    )}
+                    )} */}
 
                 </View>
             </ScrollView>
@@ -323,7 +336,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
             {/* FIX 6: Footer con ambos botones correctamente dentro del View */}
             <View style={styles.footer}>
                 <View>
-                    <Text style={styles.footerPrecio}>${inmueble.precio.toLocaleString('es-MX')}</Text>
+                    <Text style={styles.footerPrecio}>${(Number(inmueble.precio_mensual) || Number(inmueble.precio) || 0).toLocaleString('es-MX')}</Text>
                     <Text style={styles.footerMes}>/ mes</Text>
                 </View>
 
