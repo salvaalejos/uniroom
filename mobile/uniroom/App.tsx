@@ -11,7 +11,7 @@ import Upload_renta from './src/screens/Upload_Renta';
 import NavigationMenu from './src/screens/NavigationMenu';
 import InmuebleScreen from './src/screens/InmuebleScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
-
+import EditProfileScreen from './src/screens/EditProfileScreen';
 // Crea el Stack
 const Stack = createNativeStackNavigator();
 
@@ -89,6 +89,11 @@ export default function App() {
                     name="InmuebleScreen"
                     component={InmuebleScreen}
                     options={{ presentation: 'modal', headerShown: false }}
+                />
+                <Stack.Screen
+                    name="EditProfile"
+                    component={EditProfileScreen}
+                    options={{ title: 'Editar Perfil', headerShown: true }}
                 />
             </Stack.Navigator>
             <View style={{height: 50, backgroundColor: "#DCEEFF"}}>

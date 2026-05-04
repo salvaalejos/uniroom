@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   headerTitulo: { fontSize: 20, fontWeight: '800', color: '#1E293B' },
   btnFiltro: { backgroundColor: '#205EA6', padding: 8, borderRadius: 12 },
-  map: { flex: 1 },
+  map: { flex: 1, width: '100%', height: '100%' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
   textoCarga: { marginTop: 15, fontSize: 16, color: '#64748B', fontWeight: '500' },
   pin: { 

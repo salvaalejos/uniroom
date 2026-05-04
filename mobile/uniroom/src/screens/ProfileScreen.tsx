@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     StyleSheet,
     View,
@@ -15,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
@@ -46,6 +45,12 @@ export default function ProfileScreen({ navigation, route }: any) {
             unsubscribe();
         }
     }, [navigation, userId])
+
+    useFocusEffect(
+        useCallback(() => {
+            getUserData();
+        }, [userId, token])
+    );
 
     const handleLogout = async () => {
         try {
@@ -188,7 +193,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                 <TouchableOpacity 
                     style={styles.editButton}
                     onPress={fetchTransactions}>
-                    <MaterialCommunityIcons name="receipt" size={24} color="#FFFFFF" />
+                    <MaterialCommunityIcons name="text-box-check-outline" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Historial de Pagos</Text>
                 </TouchableOpacity>
                     {/* calificaciones lol */}

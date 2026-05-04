@@ -164,9 +164,35 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         return { error: "Usuario no encontrado" };
       }
 
+      let fotoPath = existingUser.foto;
+      if (body.foto) {
+        const fileName = `${Date.now()}-${body.foto.name}`;
+        const destination = `./uploads/${fileName}`;
+        await Bun.write(destination, body.foto);
+        fotoPath = `/public/${fileName}`;
+      }
+
+      const updateData: any = {
+        ...body
+      };
+
+      if (updateData.password) {
+        updateData.password = await Bun.password.hash(updateData.password);
+      }
+
+      if (body.foto) {
+        updateData.foto = fotoPath;
+      } else {
+        delete updateData.foto;
+      }
+
+      if (updateData.edad) updateData.edad = parseInt(updateData.edad as string, 10);
+      if (updateData.visibilidad === 'true') updateData.visibilidad = true;
+      if (updateData.visibilidad === 'false') updateData.visibilidad = false;
+
       const updatedUser = await db.usuario.update({
         where: { id_usuario: id },
-        data: body,
+        data: updateData,
         select: {
           id_usuario: true,
           email: true,
@@ -192,9 +218,14 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           apellidos: t.String(),
           numero_contacto: t.String(),
           genero: t.Union([t.Literal("MASCULINO"), t.Literal("FEMENINO"), t.Literal("OTRO")]),
-          edad: t.Integer({ minimum: 0 }),
-          foto: t.String(),
-          visibilidad: t.Boolean(),
+          edad: t.Optional(t.Any()),
+          foto: t.Optional(t.File({
+              type: ['image/jpeg', 'image/png', 'image/jpg'],
+              maxSize: '5m'
+          })),
+          visibilidad: t.Optional(t.Any()),
+          email: t.Optional(t.String()),
+          password: t.Optional(t.String()),
         })
       ),
     }
