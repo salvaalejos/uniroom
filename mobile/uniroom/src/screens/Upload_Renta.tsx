@@ -26,6 +26,7 @@ const TIPOS_INMUEBLE = ["Cuarto", "Departamento", "Casa", "Estudio", "Loft"]
 type Media = {
     uri: string
     tipo: "foto" | "video"
+    id_imagen?: number // ID de la DB si ya existe
 }
 
 type HorarioVisita = {
@@ -78,21 +79,71 @@ const Lessor_Renthouse = () => {
     const inmuebleExistente = route.params?.inmueble ?? null
     const esEdicion = inmuebleExistente !== null
 
-    const [form, setForm] = useState<Formulario>({
-        titulo: inmuebleExistente?.titulo ?? "",
-        descripcion: inmuebleExistente?.descripcion ?? "",
-        precio: inmuebleExistente?.precio?.toString() ?? "",
-        ubicacion: inmuebleExistente?.ubicacion ?? "",
-        servicios: inmuebleExistente?.servicios ?? [],
-        reglas: inmuebleExistente?.reglas ?? [],
-        medios: inmuebleExistente?.foto ? [{ uri: inmuebleExistente.foto, tipo: "foto" }] : [],
-        estado: inmuebleExistente?.estado ?? "pendiente",
-        tipoInmueble: inmuebleExistente?.tipo_inmueble ?? "",
-        latitud: inmuebleExistente?.direccion_latitud?.toString() ?? "19.721869",
-        longitud: inmuebleExistente?.direccion_longitud?.toString() ?? "-101.185483",
+    const [idsBorrados, setIdsBorrados] = useState<number[]>([])
+
+    const initialForm: Formulario = {
+        titulo: "",
+        descripcion: "",
+        precio: "",
+        ubicacion: "",
+        servicios: [],
+        reglas: [],
+        medios: [],
+        estado: "pendiente",
+        tipoInmueble: "",
+        latitud: "19.721869",
+        longitud: "-101.185483",
         horariosVisita: [],
         cuartosAdicionales: [],
-    })
+    };
+
+    const [form, setForm] = useState<Formulario>(initialForm)
+
+    useEffect(() => {
+        if (route.params?.inmueble) {
+            const raw = route.params.inmueble.rawData || route.params.inmueble;
+            console.log("[UploadRenta] Cargando datos para edición...");
+            
+            const tipoMapInverso: Record<string, string> = {
+                "CASA": "Casa",
+                "DEPA": "Departamento",
+                "CUARTO": "Cuarto"
+            };
+
+            setForm({
+                titulo: raw.titulo || "",
+                descripcion: raw.descripcion || "",
+                precio: raw.precio_mensual?.toString() || "",
+                ubicacion: "Morelia, Michoacán",
+                servicios: raw.servicios?.map((s: any) => {
+                    const id = s.id_servicios;
+                    return SERVICIOS_OPCIONES[id - 1] || s.nombre;
+                }) || [],
+                reglas: raw.restricciones?.map((r: any) => {
+                    const id = r.id_restriccion;
+                    return REGLAS_OPCIONES[id - 1] || r.nombre;
+                }) || [],
+                medios: raw.imagenes?.map((img: any) => {
+                    const isVideo = img.imagen.match(/\.(mp4|mov|avi|wmv)$/i);
+                    return { 
+                        uri: img.imagen.startsWith('http') ? img.imagen : `${API_URL}${img.imagen}`, 
+                        tipo: isVideo ? "video" : "foto",
+                        id_imagen: img.id_imagen
+                    };
+                }) || [],
+                estado: raw.estado === "DISPONIBLE" ? "publicado" : "pendiente",
+                tipoInmueble: tipoMapInverso[raw.tipo_inmueble] || "Cuarto",
+                latitud: raw.direccion_latitud?.toString() || "19.721869",
+                longitud: raw.direccion_longitud?.toString() || "-101.185483",
+                horariosVisita: [],
+                cuartosAdicionales: [],
+            });
+            setIdsBorrados([]); // Resetear IDs borrados al cargar nuevo inmueble
+        } else {
+            setForm(initialForm);
+            setIdsBorrados([]);
+        }
+    }, [route.params?.inmueble]);
 
     const [previsualizando, setPrevisualizando] = useState(false)
     const [modalFechas, setModalFechas] = useState(false)
@@ -141,6 +192,10 @@ const Lessor_Renthouse = () => {
     }
 
     const eliminarMedia = (index: number) => {
+        const mediaABorrar = form.medios[index];
+        if (mediaABorrar.id_imagen) {
+            setIdsBorrados(prev => [...prev, mediaABorrar.id_imagen!]);
+        }
         setForm(f => ({ ...f, medios: f.medios.filter((_, i) => i !== index) }))
     }
 
@@ -210,6 +265,9 @@ const Lessor_Renthouse = () => {
             const token = await AsyncStorage.getItem('token')
             if (!token) throw new Error('No autenticado')
 
+            const idActual = route.params?.inmueble?.id_inmueble || route.params?.inmueble?.rawData?.id_inmueble;
+            const esEdicionReal = !!idActual;
+
             const formData = new FormData();
             formData.append('precio_mensual', form.precio || "0");
             formData.append('descripcion', form.descripcion || "");
@@ -226,24 +284,32 @@ const Lessor_Renthouse = () => {
             
             formData.append('servicios', JSON.stringify(form.servicios.map(s => SERVICIOS_OPCIONES.indexOf(s) + 1)));
             formData.append('restricciones', JSON.stringify(form.reglas.map(r => REGLAS_OPCIONES.indexOf(r) + 1)));
+            
+            if (esEdicionReal) {
+                formData.append('ids_borrados', JSON.stringify(idsBorrados));
+            }
 
             form.medios.forEach((media, i) => {
-                const uriParts = media.uri.split('.');
-                const fileType = uriParts[uriParts.length - 1];
-                const fileName = `media_${Date.now()}_${i}.${fileType}`;
+                if (!media.uri.startsWith('http')) {
+                    const uriParts = media.uri.split('.');
+                    const fileType = uriParts[uriParts.length - 1];
+                    const fileName = `media_${Date.now()}_${i}.${fileType}`;
 
-                formData.append('imagenes', {
-                    uri: Platform.OS === 'android' ? media.uri : media.uri.replace('file://', ''),
-                    name: fileName,
-                    type: media.tipo === "foto" ? `image/${fileType}` : `video/${fileType}`,
-                } as any);
+                    formData.append('imagenes', {
+                        uri: Platform.OS === 'android' ? media.uri : media.uri.replace('file://', ''),
+                        name: fileName,
+                        type: media.tipo === "foto" ? `image/${fileType}` : `video/${fileType}`,
+                    } as any);
+                }
             });
 
-            const finalUrl = `${API_URL}/inmuebles`;
-            console.log(">>> POST", finalUrl);
+            const finalUrl = esEdicionReal ? `${API_URL}/inmuebles/${idActual}` : `${API_URL}/inmuebles`;
+            const method = esEdicionReal ? 'PUT' : 'POST';
+            
+            console.log(`>>> ${method}`, finalUrl);
 
             const resp = await fetch(finalUrl, {
-                method: 'POST',
+                method: method,
                 headers: { 
                     'Accept': 'application/json',
                     'Authorization': `Bearer ${token}`
@@ -264,7 +330,7 @@ const Lessor_Renthouse = () => {
                 throw new Error(data.error || data.details || "Error desconocido en el servidor");
             }
 
-            Alert.alert('Éxito', 'Inmueble registrado correctamente');
+            Alert.alert('Éxito', esEdicionReal ? 'Inmueble actualizado correctamente' : 'Inmueble registrado correctamente');
             navigation.goBack();
 
         } catch (error: any) {
@@ -668,7 +734,7 @@ const Lessor_Renthouse = () => {
                             <MaterialCommunityIcons name="map-marker" size={16} color="#205EA6" />
                             <Text style={styles.previaTexto}>{form.ubicacion}</Text>
                         </View>
-                        <Text style={styles.previaPrecio}>${parseInt(form.precio).toLocaleString('es-MX')} / mes</Text>
+                        <Text style={styles.previaPrecio}>${parseInt(form.price || form.precio).toLocaleString('es-MX')} / mes</Text>
                         <Text style={styles.previaDescripcion}>{form.descripcion}</Text>
                         {form.servicios.length > 0 && (
                             <>

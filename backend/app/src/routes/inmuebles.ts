@@ -166,7 +166,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
           restricciones: filteredRIds 
         });
 
-        // Procesar imágenes
+        // Procesar imágenes y videos
         const mediaPaths: string[] = [];
         const housesDir = "./uploads/houses";
         if (!existsSync(housesDir)) mkdirSync(housesDir, { recursive: true });
@@ -174,7 +174,9 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         const files = imagenes ? (Array.isArray(imagenes) ? imagenes : [imagenes]) : [];
         for (const file of files) {
           if (file instanceof File) {
-            const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+            const extension = file.name.split('.').pop() || 'file';
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
+            console.log(`[Inmuebles] Escribiendo archivo (${file.type}):`, fileName);
             await Bun.write(`${housesDir}/${fileName}`, file);
             mediaPaths.push(`/public/houses/${fileName}`);
           }
@@ -212,13 +214,127 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   .put(
     "/:id",
     async ({ params: { id }, body, authenticatedUser, set }) => {
+      console.log(`=== PETICION RECIBIDA: PUT /inmuebles/${id} ===`);
+      try {
+        if (!authenticatedUser) {
+          set.status = 401;
+          return { error: "No autenticado" };
+        }
+
+        const inmueble = await db.inmueble.findUnique({
+          where: { id_inmueble: parseInt(id) },
+        });
+
+        if (!inmueble) {
+          set.status = 404;
+          return { error: "Inmueble no encontrado" };
+        }
+        
+        const isAdmin = authenticatedUser.rol === "ADMIN";
+        if (!isAdmin && authenticatedUser.id_usuario !== inmueble.id_arrendador) {
+          set.status = 403;
+          return { error: "No autorizado para modificar este inmueble" };
+        }
+
+        const { titulo, precio_mensual, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, servicios, restricciones, imagenes, ids_borrados } = body as any;
+
+        const updateData: any = {};
+        
+        // Manejo de eliminación de imágenes existentes
+        if (ids_borrados) {
+          const idsABorrar: number[] = typeof ids_borrados === 'string' ? JSON.parse(ids_borrados) : ids_borrados;
+          if (idsABorrar.length > 0) {
+            console.log("[Inmuebles] Eliminando imágenes antiguas:", idsABorrar);
+            await db.imagenes.deleteMany({
+              where: { id_imagen: { in: idsABorrar } }
+            });
+          }
+        }
+        
+        if (titulo !== undefined) updateData.titulo = titulo || "Sin título";
+        if (precio_mensual !== undefined) {
+          const precio = parseFloat(precio_mensual);
+          if (!isNaN(precio)) updateData.precio_mensual = precio;
+        }
+        if (descripcion !== undefined) updateData.descripcion = descripcion || "";
+        if (direccion_latitud !== undefined) updateData.direccion_latitud = parseFloat(direccion_latitud) || null;
+        if (direccion_longitud !== undefined) updateData.direccion_longitud = parseFloat(direccion_longitud) || null;
+        
+        if (tipo_inmueble !== undefined) {
+          let tipoFinal = tipo_inmueble;
+          if (tipoFinal === "Departamento") tipoFinal = "DEPA";
+          else if (tipoFinal === "Casa") tipoFinal = "CASA";
+          else if (tipoFinal === "Cuarto") tipoFinal = "CUARTO";
+          else if (!["CASA", "DEPA", "CUARTO"].includes(tipoFinal)) tipoFinal = "CUARTO";
+          updateData.tipo_inmueble = tipoFinal;
+        }
+
+        // Actualizar servicios y restricciones
+        if (servicios !== undefined) {
+          let sIds: number[] = typeof servicios === 'string' ? JSON.parse(servicios) : servicios;
+          const existS = await db.servicios.findMany({ where: { id_servicios: { in: sIds } }, select: { id_servicios: true } });
+          updateData.servicios = { set: existS.map(s => ({ id_servicios: s.id_servicios })) };
+        }
+
+        if (restricciones !== undefined) {
+          let rIds: number[] = typeof restricciones === 'string' ? JSON.parse(restricciones) : restricciones;
+          const existR = await db.restricciones.findMany({ where: { id_restriccion: { in: rIds } }, select: { id_restriccion: true } });
+          updateData.restricciones = { set: existR.map(r => ({ id_restriccion: r.id_restriccion })) };
+        }
+
+        // Manejo de nuevas imágenes y videos
+        if (imagenes !== undefined) {
+          const mediaPaths: string[] = [];
+          const housesDir = "./uploads/houses";
+          if (!existsSync(housesDir)) mkdirSync(housesDir, { recursive: true });
+
+          const files = Array.isArray(imagenes) ? imagenes : [imagenes];
+          for (const file of files) {
+            if (file instanceof File) {
+              const extension = file.name.split('.').pop() || 'file';
+              const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
+              console.log(`[Inmuebles] Escribiendo nuevo archivo (${file.type}):`, fileName);
+              await Bun.write(`${housesDir}/${fileName}`, file);
+              mediaPaths.push(`/public/houses/${fileName}`);
+            }
+          }
+
+          if (mediaPaths.length > 0) {
+            updateData.imagenes = { create: mediaPaths.map(p => ({ imagen: p })) };
+          }
+        }
+
+        const inmuebleActualizado = await db.inmueble.update({
+          where: { id_inmueble: parseInt(id) },
+          data: updateData,
+          include: { servicios: true, restricciones: true, imagenes: true },
+        });
+
+        console.log(`[Inmuebles] ¡Actualizado! ID: ${id}`);
+        return inmuebleActualizado;
+
+      } catch (error: any) {
+        console.error("[Inmuebles] ERROR FATAL EN UPDATE:", error);
+        set.status = 500;
+        return { error: "Error al actualizar inmueble", details: error.message };
+      }
+    }
+  )
+
+  // 5. Eliminar un inmueble permanentemente de la BD
+  .delete("/:id", async ({ params: { id }, authenticatedUser, set }) => {
+    console.log(`=== PETICION RECIBIDA: DELETE /inmuebles/${id} ===`);
+    try {
       if (!authenticatedUser) {
         set.status = 401;
         return { error: "No autenticado" };
       }
+
+      const id_num = parseInt(id);
       const inmueble = await db.inmueble.findUnique({
-        where: { id_inmueble: parseInt(id) },
+        where: { id_inmueble: id_num },
       });
+
       if (!inmueble) {
         set.status = 404;
         return { error: "Inmueble no encontrado" };
@@ -227,77 +343,28 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
       const isAdmin = authenticatedUser.rol === "ADMIN";
       if (!isAdmin && authenticatedUser.id_usuario !== inmueble.id_arrendador) {
         set.status = 403;
-        return { error: "No autorizado para modificar este inmueble" };
+        return { error: "No autorizado para eliminar este inmueble" };
       }
 
-      const { precio_mensual, estado, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, id_estudiante, servicios, restricciones, imagenes } = body;
+      // ELIMINACIÓN PERMANENTE (Hard Delete)
+      // Usamos una transacción para borrar todo lo relacionado primero
+      await db.$transaction([
+        // 1. Borrar imágenes
+        db.imagenes.deleteMany({ where: { id_inmueble: id_num } }),
+        // 2. Borrar calificaciones
+        db.calificacion.deleteMany({ where: { id_inmueble: id_num } }),
+        // 3. Borrar citas
+        db.cita.deleteMany({ where: { id_inmueble: id_num } }),
+        // 4. Finalmente, borrar el inmueble
+        db.inmueble.delete({ where: { id_inmueble: id_num } })
+      ]);
 
-      const updateData: any = {};
-      if (precio_mensual !== undefined) updateData.precio_mensual = precio_mensual;
-      if (estado !== undefined) updateData.estado = estado;
-      if (descripcion !== undefined) updateData.descripcion = descripcion;
-      if (direccion_latitud !== undefined) updateData.direccion_latitud = direccion_latitud ? parseFloat(direccion_latitud) : null;
-      if (direccion_longitud !== undefined) updateData.direccion_longitud = direccion_longitud ? parseFloat(direccion_longitud) : null;
-      if (tipo_inmueble !== undefined) updateData.tipo_inmueble = tipo_inmueble;
-      if (id_estudiante !== undefined) updateData.id_estudiante = id_estudiante;
+      console.log(`[Inmuebles] ELIMINACIÓN TOTAL: ID ${id}`);
+      return { message: "Inmueble y todos sus datos relacionados eliminados permanentemente" };
 
-      // Actualizar relaciones (servicios, restricciones, imágenes)
-      if (servicios) updateData.servicios = { set: servicios.map(id => ({ id_servicios: id })) };
-      if (restricciones) updateData.restricciones = { set: restricciones.map(id => ({ id_restriccion: id })) };
-      if (imagenes) {
-        // Borrar imágenes existentes y crear nuevas
-        await db.imagenes.deleteMany({ where: { id_inmueble: inmueble.id_inmueble } });
-        updateData.imagenes = { create: imagenes.map(img => ({ imagen: img })) };
-      }
-
-      const inmuebleActualizado = await db.inmueble.update({
-        where: { id_inmueble: parseInt(id) },
-        data: updateData,
-        include: { servicios: true, restricciones: true, imagenes: true },
-      });
-      return inmuebleActualizado;
-    },
-    {
-      body: t.Partial(
-        t.Object({
-          precio_mensual: t.Number(),
-          estado: t.Union([t.Literal("DISPONIBLE"), t.Literal("OCUPADO"), t.Literal("OCULTO")]),
-          descripcion: t.String(),
-          direccion_latitud: t.String(),
-          direccion_longitud: t.String(),
-          tipo_inmueble: t.Union([t.Literal("CASA"), t.Literal("DEPA"), t.Literal("CUARTO")]),
-          id_estudiante: t.String(),
-          servicios: t.Array(t.Number()),
-          restricciones: t.Array(t.Number()),
-          imagenes: t.Array(t.String()),
-        })
-      ),
+    } catch (error: any) {
+      console.error("[Inmuebles] ERROR FATAL EN DELETE:", error);
+      set.status = 500;
+      return { error: "Error al eliminar el inmueble permanentemente", details: error.message };
     }
-  )
-
-  // 5. Eliminar (ocultar) un inmueble – soft delete (cambiar a OCULTO)
-  .delete("/:id", async ({ params: { id }, authenticatedUser, set }) => {
-    if (!authenticatedUser) {
-      set.status = 401;
-      return { error: "No autenticado" };
-    }
-    const inmueble = await db.inmueble.findUnique({
-      where: { id_inmueble: parseInt(id) },
-    });
-    if (!inmueble) {
-      set.status = 404;
-      return { error: "Inmueble no encontrado" };
-    }
-    
-    const isAdmin = authenticatedUser.rol === "ADMIN";
-    if (!isAdmin && authenticatedUser.id_usuario !== inmueble.id_arrendador) {
-      set.status = 403;
-      return { error: "No autorizado para eliminar este inmueble" };
-    }
-
-    const inmuebleOculto = await db.inmueble.update({
-      where: { id_inmueble: parseInt(id) },
-      data: { estado: "OCULTO" },
-    });
-    return { message: "Inmueble ocultado correctamente", inmueble: inmuebleOculto };
   });

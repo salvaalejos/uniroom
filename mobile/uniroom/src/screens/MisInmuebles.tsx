@@ -74,7 +74,8 @@ const MisInmuebles = () => {
                 estado: item.estado === "DISPONIBLE" ? "publicado" : "pendiente",
                 foto: item.imagenes && item.imagenes.length > 0 
                     ? { uri: `${API_URL}${item.imagenes[0].imagen}` } 
-                    : DEFAULT_IMAGE
+                    : DEFAULT_IMAGE,
+                rawData: item // Guardamos todo el objeto para cuando se quiera editar
             }));
 
             setInmuebles(mappedData);
