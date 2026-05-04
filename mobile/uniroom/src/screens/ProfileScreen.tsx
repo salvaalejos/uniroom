@@ -25,6 +25,7 @@ export default function ProfileScreen({ navigation, route }: any) {
     const [isLoading, setIsLoading] = useState(true);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [showTransactions, setShowTransactions] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [loadingTransactions, setLoadingTransactions] = useState(false);
 
     const userId = route.params?.userId;
@@ -33,10 +34,15 @@ export default function ProfileScreen({ navigation, route }: any) {
     useEffect(() => {
         const parent = navigation.getParent()
         if (parent) parent.setOptions({ headerShown: false });
+        getUserData();
+        
+        const unsubscribe = navigation.addListener('focus', () => {
+            getUserData();
+        });
+        
         return () => {
-            if (parent) {
-                parent.setOptions({headerShown: true})
-            }
+            if (parent) parent.setOptions({ headerShown: true });
+            unsubscribe();
         }
     }, [navigation, userId])
 
@@ -51,6 +57,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             console.log("[Profile] Cerrando sesión y limpiando storage...");
             await AsyncStorage.removeItem('token');
             await AsyncStorage.removeItem('userId');
+            setShowLogoutModal(false);
             
             navigation.dispatch(
                 CommonActions.reset({
@@ -172,7 +179,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                 </View>
                 <TouchableOpacity 
                     style={styles.editButton}
-                    onPress={() => navigation.navigate('EditProfile', { userData: userData, token: token })}
+                    onPress={() => navigation.navigate('EditProfile', { userId, token, userData })}
                 >
                     <MaterialCommunityIcons name="account-edit-outline" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Editar Perfil</Text>
@@ -197,7 +204,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                 </TouchableOpacity> */}
                 <TouchableOpacity 
                     style={styles.final_button}
-                    onPress={handleLogout}>
+                    onPress={() => setShowLogoutModal(true)}>
                     <MaterialCommunityIcons name="logout" size={24} color="#FFFFFF" />
                     <Text style={styles.editButtonText}>Cerrar Sesión</Text>
                 </TouchableOpacity>
@@ -255,6 +262,33 @@ export default function ProfileScreen({ navigation, route }: any) {
                                 )}
                             />
                         )}
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal de Confirmación de Cerrar Sesión */}
+            <Modal visible={showLogoutModal} transparent animationType="fade">
+                <View style={styles.logoutOverlay}>
+                    <View style={styles.logoutCard}>
+                        <MaterialCommunityIcons name="alert-circle-outline" size={56} color="#205EA6" style={{ marginBottom: 16 }} />
+                        <Text style={styles.logoutTitle}>¿Cerrar sesión?</Text>
+                        <Text style={styles.logoutMessage}>
+                            ¿Estás seguro de que deseas cerrar sesión? Tendrás que iniciar sesión nuevamente para acceder a tu cuenta.
+                        </Text>
+                        <View style={styles.logoutButtons}>
+                            <TouchableOpacity 
+                                style={[styles.logoutBtn, styles.logoutBtnCancel]}
+                                onPress={() => setShowLogoutModal(false)}
+                            >
+                                <Text style={styles.logoutBtnCancelText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.logoutBtn, styles.logoutBtnConfirm]}
+                                onPress={handleLogout}
+                            >
+                                <Text style={styles.logoutBtnConfirmText}>Cerrar sesión</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
@@ -444,5 +478,66 @@ const styles = StyleSheet.create({
     transactionId: {
         fontSize: 12,
         color: '#95A5A6',
-    }
+    },
+    logoutOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    logoutCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 32,
+        alignItems: 'center',
+        width: '100%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    logoutTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#0F2C4F',
+        marginBottom: 8,
+    },
+    logoutMessage: {
+        fontSize: 15,
+        color: '#666',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 24,
+    },
+    logoutButtons: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    logoutBtn: {
+        flex: 1,
+        padding: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    logoutBtnCancel: {
+        backgroundColor: '#F0F4F8',
+        borderWidth: 1,
+        borderColor: '#DCEEFF',
+    },
+    logoutBtnCancelText: {
+        color: '#0F2C4F',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    logoutBtnConfirm: {
+        backgroundColor: '#205EA6',
+    },
+    logoutBtnConfirmText: {
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
 });

@@ -11,6 +11,7 @@ import HomeScreen from './HomeScreen'
 import Themes from "./Themes"
 import {red, blue, bluePrimaryColor, blueSecondColor} from "../styles"
 import ProfileScreen from "./ProfileScreen"
+import EditProfileScreen from "./EditProfile"
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import NotificationScreen from "./NotificationScreen";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -45,11 +46,13 @@ const InmuebleStackScreen = () => {
 
 const CitaStack = createStackNavigator()
 
-const CitaStackScreen = () => {
+const CitaStackScreen = ({ route }: any) => {
+    const userId = route.params?.userId;
+    const token = route.params?.token;
     return (
         <CitaStack.Navigator screenOptions={{ headerShown: false }}>
-            <CitaStack.Screen name="MapScreen" component={MapScreen} />
-            <CitaStack.Screen name="AgendarCita" component={AgendarCita}/>
+            <CitaStack.Screen name="MapScreen" component={MapScreen} initialParams={{ userId, token }} />
+            <CitaStack.Screen name="AgendarCita" component={AgendarCita} initialParams={{ userId, token }}/>
         </CitaStack.Navigator>
     )
 }
@@ -85,6 +88,11 @@ const Profile_Menu = ({ route }: any) => {
                 component={ProfileScreen}
                 options={{presentation: "modal", title: "Tus Datos", headerShown: true}}>
 
+                </Stack.Screen>
+                <Stack.Screen
+                name="EditProfile"
+                component={EditProfileScreen}
+                options={{presentation: "modal", title: "Editar Perfil", headerShown: true}}>
                 </Stack.Screen>
             </Stack.Navigator>
         )

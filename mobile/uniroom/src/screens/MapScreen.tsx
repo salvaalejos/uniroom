@@ -15,6 +15,7 @@ if (MAPBOX_TOKEN) {
 }
 
 import Constants from 'expo-constants';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
@@ -70,45 +71,46 @@ export default function MapScreen({ route, navigation }: any) {
 
   const fetchInmuebles = async () => {
     try {
-      // Fetch a la API de Said
-      const res = await fetch(`${API_BASE_URL}/api/inmuebles/filtrar`).catch(() => null);
+      const token = await AsyncStorage.getItem('token');
+      console.log("[Map] Fetching inmuebles desde:", `${API_BASE_URL}/inmuebles`);
+      
+      const res = await fetch(`${API_BASE_URL}/inmuebles`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      }).catch(() => null);
+
       let data = res ? await res.json() : null;
       
-      // Fallback a los datos mock de Said si el backend no está corriendo
-      if (!data || data.length === 0) {
-        data = [
-          { 
-            id_inmueble: 1, 
-            titulo: "Departamento Mock",
-            precio_mensual: 3500, 
-            direccion_latitud: 19.723, 
-            direccion_longitud: -101.185,
-            arrendador: { nombre: "Anfitrión", apellidos: "Mock", numero_contacto: "1234567890" },
-            descripcion: "Descripción de prueba para el inmueble mock.",
-            servicios: [{ nombre: 'WiFi' }, { nombre: 'Agua incluida' }],
-            restricciones: [{ nombre: 'No mascotas' }],
-            calificaciones: [{ calificacion: 5 }, { calificacion: 4 }],
-            imagenes: [{ imagen: "../default_images/dreamhouse.jpg" }]
-          }
-        ];
+      if (!data || data.error || !Array.isArray(data)) {
+        console.log("[Map] No se recibieron datos reales, usando fallback...");
+        data = [];
       }
       
       const procesados = data.map((item: any) => {
         const total = item.calificaciones?.reduce((acc: number, c: any) => acc + c.calificacion, 0) || 0;
         
-        // Unificar estructura de media para InmuebleScreen
         const media = item.imagenes?.map((img: any) => {
-            // Si la imagen es una URL externa o local
-            const src = typeof img.imagen === 'string' && img.imagen.startsWith('..') 
-                ? require("../default_images/dreamhouse.jpg") // Fallback para mocks locales
-                : { uri: img.imagen.startsWith('http') ? img.imagen : `${API_BASE_URL}${img.imagen}` };
-            
-            return { tipo: "imagen", src };
+            const isVideo = img.imagen.match(/\.(mp4|mov|avi|wmv)$/i);
+            return { 
+                tipo: isVideo ? "video" : "imagen", 
+                src: { uri: img.imagen.startsWith('http') ? img.imagen : `${API_BASE_URL}${img.imagen}` } 
+            };
         }) || [];
+
+        // Lógica inteligente para la foto del anfitrión
+        let fotoUrl = item.arrendador?.foto;
+        if (fotoUrl && !fotoUrl.startsWith('http')) {
+            // Si ya trae /public, no lo repetimos (aunque el backend ya lo trae)
+            fotoUrl = `${API_BASE_URL}${fotoUrl}`;
+        }
+        
+        console.log(`[Map] Inmueble: ${item.titulo} | Anfitrión: ${item.arrendador?.nombre} | Foto: ${fotoUrl}`);
 
         return {
           ...item,
           anfitrion: item.arrendador ? `${item.arrendador.nombre} ${item.arrendador.apellidos}` : "Anónimo",
+          fotoAnfitrion: fotoUrl ? { uri: fotoUrl } : null,
           contacto: item.arrendador?.numero_contacto || "Sin contacto",
           ubicacion: `Morelia, Mich. (a ${getDistancia(Number(item.direccion_latitud), Number(item.direccion_longitud))} km)`,
           media,
@@ -142,7 +144,10 @@ export default function MapScreen({ route, navigation }: any) {
   };
 
   const abrirDetalle = (inmueble: any) => {
-    navigation.navigate("InmuebleScreen", { inmueble, token: route?.params?.token });
+    console.log("[Map] Abriendo detalle para:", inmueble.id_inmueble);
+    AsyncStorage.getItem('token').then(token => {
+        navigation.navigate("InmuebleScreen", { inmueble, token });
+    });
   };
 
   if (cargando) {
