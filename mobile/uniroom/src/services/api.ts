@@ -64,3 +64,12 @@ export const crearCalificacion = (data: { id_inmueble: number; calificacion: num
     method: 'POST',
     body: JSON.stringify(data),
   });
+
+export const crearCalificacionEstudiante = (data: { id_estudiante: string; calificacion: number; comentario?: string }) =>
+  apiRequest('/calificaciones/estudiantes', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const obtenerPerfil = (userId: string) =>
+  apiRequest(`/users/${userId}`);

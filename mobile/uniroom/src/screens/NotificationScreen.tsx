@@ -1,20 +1,19 @@
-// SI VEN TODO EL ARCHIVO MODIFICADO, SI, LE PEDI A GEMINI QUE REEEMPLAZARÁ TODO EL ARCHIVO. 
+// SI VEN TODO EL ARCHIVO MODIFICADO, SI, LE PEDÍ A GEMINI QUE REEPLAZARÁ TODO EL ARCHIVO. 
 // CON CORAJE, PERO LA IA SIEMPRE VA GANANDO 
 
 import React, { useState, useEffect, useRef } from "react";
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { 
-  View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, SafeAreaView, TextInput, Alert, ScrollView, RefreshControl, Image, Platform
+  View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, SafeAreaView, TextInput, Alert, ScrollView, RefreshControl, Image, Platform, ActivityIndicator
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { socketService } from '../services/websocketService';
-import { obtenerMisCitas, actualizarEstadoCita, marcarCitaRealizada, decisionRenta } from '../services/api';
+import { obtenerMisCitas, actualizarEstadoCita, marcarCitaRealizada, decisionRenta, crearCalificacionEstudiante, obtenerPerfil } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-
-const BACKEND_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
+const BACKEND_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 // --- TIPOS UNIFICADOS ---
 type Notificacion = {
@@ -25,6 +24,7 @@ type Notificacion = {
   leida: boolean;
   remitente: string;
   fecha: string;
+  relacionado_a?: string;
   datosExtra?: any;
 };
 
@@ -48,6 +48,14 @@ export default function NotificationScreen() {
   const [nuevoMensaje, setNuevoMensaje] = useState("");
   const [contactos, setContactos] = useState<ContactoType[]>([]);
   const [destinatarioSeleccionado, setDestinatarioSeleccionado] = useState<string | null>(null);
+
+  // Nuevos estados para calificación de estudiante
+  const [modalCalificarEstudianteVisible, setModalCalificarEstudianteVisible] = useState(false);
+  const [estudianteACalificar, setEstudianteACalificar] = useState<{ id: string; nombre: string } | null>(null);
+  const [ratingEstudiante, setRatingEstudiante] = useState(0);
+  const [comentarioEstudiante, setComentarioEstudiante] = useState("");
+  const [enviandoCalificacion, setEnviandoCalificacion] = useState(false);
+  const [ratingEstudianteMap, setRatingEstudianteMap] = useState<Record<string, number>>({});
 
   // Ref para acceder al userRole actual dentro de los listeners
   const userRoleRef = useRef(userRole);
@@ -148,11 +156,33 @@ export default function NotificationScreen() {
       }
     });
 
+    // NUEVO: Listener para calificar estudiante (arrendador)
+    socketService.on('calificar_estudiante', (data) => {
+      if (userRoleRef.current === 'anfitrion') {
+        const nuevaNotif: Notificacion = {
+          id: `calif_${data.estudianteId}`,
+          tipo: 'calificar_estudiante',
+          titulo: 'Califica al estudiante',
+          mensaje: data.mensaje,
+          leida: false,
+          remitente: data.estudianteNombre,
+          fecha: new Date().toLocaleString(),
+          datosExtra: data,
+          relacionado_a: data.estudianteId,
+        };
+        setNotificaciones(prev => [nuevaNotif, ...prev]);
+        
+        // Cargar rating del estudiante
+        cargarRatingEstudiante(data.estudianteId);
+      }
+    });
+
     return () => {
       socketService.off('solicitud_cita');
       socketService.off('respuesta_cita');
       socketService.off('decision_renta_pendiente');
       socketService.off('decision_renta');
+      socketService.off('calificar_estudiante');
     };
   }, []);
 
@@ -170,21 +200,39 @@ export default function NotificationScreen() {
     if(userId) await cargarTodo(userId, userRole);
   };
 
+  // Cargar rating de estudiante
+  const cargarRatingEstudiante = async (idEstudiante: string) => {
+    try {
+      const response = await obtenerPerfil(idEstudiante);
+      if (response && response.rating) {
+        setRatingEstudianteMap(prev => ({ ...prev, [idEstudiante]: response.rating }));
+      }
+    } catch (error) {
+      console.error("Error cargando rating de estudiante:", error);
+    }
+  };
+
   const cargarNotificacionesBD = async (idActual: string) => {
     try {
-      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${idActual}`);
+      const token = await AsyncStorage.getItem('token');
+      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${idActual}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (respuesta.ok) {
         const datos = await respuesta.json();
         const formateadas: Notificacion[] = datos.map((notif: any) => {
           const d = new Date(notif.fecha_creacion);
           return {
-            id: notif.id_notificacion,
+            id: notif.id,
             tipo: notif.tipo || 'mensaje',
             titulo: notif.titulo,
             mensaje: notif.mensaje,
             leida: notif.visto,
             remitente: notif.remitente_nombre,
             fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
+            relacionado_a: notif.relacionado_a,
             datosExtra: notif
           };
         });
@@ -207,7 +255,7 @@ export default function NotificationScreen() {
         const esEstudiante = rolActual === 'estudiante';
         const titular = esEstudiante ? cita.anfitrion?.nombre : cita.estudiante?.nombre;
         let titulo = '', mensaje = '', tipo = '';
-
+        
         if (cita.estado === 'PENDIENTE') {
           titulo = esEstudiante ? 'Cita pendiente' : 'Nueva solicitud de visita';
           mensaje = esEstudiante
@@ -252,8 +300,8 @@ export default function NotificationScreen() {
           fecha: new Date(cita.fecha_hora).toLocaleString(),
           datosExtra: cita,
         };
-      }).filter(n => n.tipo !== ''); // Filtrar estados sin mapeo
-
+      }).filter(n => n.tipo !== '');
+      
       setNotificaciones(prev => {
         const idsExistentes = new Set(prev.map(n => n.id));
         const nuevas = notifsCitas.filter(n => !idsExistentes.has(n.id));
@@ -272,15 +320,59 @@ export default function NotificationScreen() {
     if (!item.leida) {
       setNotificaciones(prev => prev.map(n => n.id === item.id ? { ...n, leida: true } : n));
       try {
-        await fetch(`${BACKEND_URL}/api/notificaciones/${item.id}/visto`, { method: 'PATCH' });
+        const token = await AsyncStorage.getItem('token');
+        await fetch(`${BACKEND_URL}/api/notificaciones/${item.id}/visto`, { 
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
       } catch (e) { /* Ignorar si es una cita local */ }
+    }
+
+    // Si es notificación para calificar estudiante, cargar datos
+    if (item.tipo === 'calificar_estudiante' && item.relacionado_a) {
+      setEstudianteACalificar({ 
+        id: item.relacionado_a, 
+        nombre: item.remitente 
+      });
+      // Cargar rating actual
+      cargarRatingEstudiante(item.relacionado_a);
+    }
+  };
+
+  const handleCalificarEstudiante = async () => {
+    if (!estudianteACalificar || ratingEstudiante === 0) {
+      Alert.alert("Error", "Por favor selecciona una calificación");
+      return;
+    }
+
+    setEnviandoCalificacion(true);
+    try {
+      await crearCalificacionEstudiante({
+        id_estudiante: estudianteACalificar.id,
+        calificacion: ratingEstudiante,
+        comentario: comentarioEstudiante || undefined,
+      });
+      Alert.alert("Éxito", "Has calificado al estudiante correctamente");
+      setModalCalificarEstudianteVisible(false);
+      setEstudianteACalificar(null);
+      setRatingEstudiante(0);
+      setComentarioEstudiante("");
+
+      // Recargar notificaciones
+      if (userId) await cargarTodo(userId, userRole);
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setEnviandoCalificacion(false);
     }
   };
 
   const responderSolicitud = async (notif: Notificacion, aceptar: boolean, motivoRechazo?: string) => {
     const data = notif.datosExtra;
     if (!data) return;
-
+    
     try {
       const nuevoEstado = aceptar ? 'ACEPTADA' : 'RECHAZADA';
       await actualizarEstadoCita(data.id_cita || data.id, nuevoEstado, motivoRechazo);
@@ -330,11 +422,15 @@ export default function NotificationScreen() {
       Alert.alert("Campos incompletos", "Por favor completa todos los campos del reporte.");
       return;
     }
-
+    
     try {
+      const token = await AsyncStorage.getItem('token');
       const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           usuario_id: destinatarioSeleccionado,
           titulo: nuevoTitulo,
@@ -343,7 +439,7 @@ export default function NotificationScreen() {
           remitente_nombre: contactos.find((c) => c.id_usuario === userId)?.nombre || "Usuario",
         }),
       });
-
+      
       if (respuesta.ok) {
         Alert.alert("¡Enviado!", "Tu reporte ha sido enviado exitosamente.");
         setNuevoTitulo(""); setNuevoMensaje(""); setDestinatarioSeleccionado(null);
@@ -358,14 +454,14 @@ export default function NotificationScreen() {
   // --- BORRADO ---
   const vaciarBandeja = () => {
     if (Platform.OS === 'web') {
-      if (window.confirm("¿Seguro que quieres borrar todas las notificaciones?")) ejecutarBorrado();
+      if (window.confirm("¿Limpiar mensajes leídos? Esta acción es irreversible. Se mantendrán los mensajes no leídos.")) ejecutarBorrado();
     } else {
       Alert.alert(
-        "¿Borrar todo?",
-        "Esta acción eliminará todos tus mensajes permanentemente.",
+        "¿Limpiar mensajes leídos?",
+        "Esta acción eliminará permanentemente todas las notificaciones que ya has visto. Las notificaciones no leídas se mantendrán en tu bandeja.",
         [
           { text: "Cancelar", style: "cancel" },
-          { text: "Sí, borrar", style: "destructive", onPress: ejecutarBorrado }
+          { text: "Sí, limpiar", style: "destructive", onPress: ejecutarBorrado }
         ],
         { cancelable: true }
       );
@@ -374,20 +470,120 @@ export default function NotificationScreen() {
 
   const ejecutarBorrado = async () => {
     try {
-      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${userId}/todas`, { method: 'DELETE' });
-      if (respuesta.ok) setNotificaciones([]);
-    } catch (error) { console.error(error); }
+      const token = await AsyncStorage.getItem('token');
+      // Usamos el mismo patrón de ID que en marcarTodoVisto
+      let currentId = userId;
+      if (!currentId) {
+        currentId = await AsyncStorage.getItem('userId');
+      }
+
+      if (!currentId) {
+        Alert.alert("Error", "No se pudo identificar al usuario.");
+        return;
+      }
+
+      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${currentId}/todas`, { 
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (respuesta.ok) {
+        const data = await respuesta.json().catch(() => ({}));
+        // Solo quitamos de la lista las que ya estaban leídas si el servidor confirmó
+        // EXCEPCIÓN: Mantenemos las Citas aunque estén leídas porque no se borran en la BD
+        const tiposCitas = ['solicitud_cita', 'respuesta_cita', 'decision_renta_pendiente', 'decision_renta'];
+        
+        setNotificaciones(prev => prev.filter(n => {
+          const esCita = tiposCitas.includes(n.tipo);
+          if (esCita) return true; // Las citas se quedan siempre
+          return !n.leida; // Las notificaciones normales solo se quedan si no han sido leídas
+        }));
+        
+        const cantidad = data.count !== undefined ? data.count : '';
+        mostrarTooltip(`¡Borrados! ${cantidad} eliminados. (Las citas persisten)`);
+      } else {
+        const errorData = await respuesta.json().catch(() => ({}));
+        Alert.alert("Error", errorData.error || "No se pudo limpiar la bandeja en el servidor.");
+      }
+    } catch (error) { 
+      console.error("Error al borrar notificaciones:", error);
+      Alert.alert("Error de conexión", "Revisa tu internet.");
+    }
   };
 
   const borrarIndividual = async (id: string) => {
     try {
-      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${id}`, { method: 'DELETE' });
+      const token = await AsyncStorage.getItem('token');
+      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${id}`, { 
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (respuesta.ok) {
         setNotificaciones(prev => prev.filter(n => n.id !== id));
       }
     } catch (error) { console.error(error); }
   };
 
+  const [tooltip, setTooltip] = useState({ visible: false, message: "" });
+
+  const mostrarTooltip = (mensaje: string) => {
+    setTooltip({ visible: true, message: mensaje });
+    setTimeout(() => setTooltip({ visible: false, message: "" }), 2000);
+  };
+
+  const marcarTodoVisto = async () => {
+    try {
+      let currentId = userId;
+      const token = await AsyncStorage.getItem('token');
+      
+      if (!currentId && token) {
+        // Fallback: extraer de token si el estado no ha cargado
+        const parts = token.split('.');
+        if (parts.length === 3) {
+           // En React Native a veces atob no está disponible
+           // Intentamos usar el userId guardado en AsyncStorage si existe
+           const savedUserId = await AsyncStorage.getItem('userId');
+           if (savedUserId) {
+             currentId = savedUserId;
+           }
+        }
+      }
+
+      if (!currentId) {
+        Alert.alert("Error", "No se pudo identificar al usuario.");
+        return;
+      }
+
+      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/marcar-todo-leido/${currentId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const contentType = respuesta.headers.get("content-type");
+      if (respuesta.ok) {
+        const data = await respuesta.json().catch(() => ({}));
+        setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })));
+        const cantidad = data.count !== undefined ? data.count : '';
+        mostrarTooltip(`¡Hecho! ${cantidad} marcados. (Citas no incluidas)`);
+      } else {
+        let mensajeError = `Error (${respuesta.status})`;
+        if (contentType && contentType.includes("application/json")) {
+           const errorData = await respuesta.json();
+           mensajeError = errorData.error || mensajeError;
+        }
+        Alert.alert("Error", mensajeError);
+      }
+    } catch (error) {
+      console.error("Error al marcar todo como visto:", error);
+      Alert.alert("Error de conexión", "Asegúrate de tener internet.");
+    }
+  };
   // --- RENDERIZADOS ---
   const renderLeftActions = (id: string) => (
     <TouchableOpacity style={styles.contenedorEliminarSwipe} onPress={() => borrarIndividual(id)}>
@@ -396,21 +592,39 @@ export default function NotificationScreen() {
     </TouchableOpacity>
   );
 
-  const renderNotificacion = ({ item }: { item: Notificacion }) => (
-    <Swipeable renderLeftActions={() => renderLeftActions(item.id)} friction={2} rightThreshold={40}>
-      <TouchableOpacity 
-        style={[styles.tarjeta, !item.leida && styles.tarjetaNoLeida]}
-        onPress={() => abrirDetalle(item)}
-      >
-        <View style={styles.encabezadoTarjeta}>
-          <Text style={[styles.titulo, !item.leida && styles.textoNegrita]} numberOfLines={1}>{item.titulo}</Text>
-          <Text style={styles.fecha}>{item.fecha}</Text>
-        </View>
-        <Text style={styles.remitenteLista}>{item.remitente}</Text>
-        <Text style={styles.mensajeResumen} numberOfLines={1}>{item.mensaje}</Text>
-      </TouchableOpacity>
-    </Swipeable>
-  );
+  const renderNotificacion = ({ item }: { item: Notificacion }) => {
+    // Obtener ID del estudiante según el tipo de notificación
+    const idEstudiante = 
+      item.tipo === 'solicitud_cita' ? item.datosExtra?.estudianteId :
+      item.tipo === 'decision_renta_pendiente' ? item.datosExtra?.estudianteId :
+      item.tipo === 'calificar_estudiante' ? item.relacionado_a : null;
+
+    const rating = idEstudiante ? ratingEstudianteMap[idEstudiante] || 0 : 0;
+
+    return (
+      <Swipeable renderLeftActions={() => renderLeftActions(item.id)} friction={2} rightThreshold={40}>
+        <TouchableOpacity 
+          style={[styles.tarjeta, !item.leida && styles.tarjetaNoLeida]}
+          onPress={() => abrirDetalle(item)}
+        >
+          <View style={styles.encabezadoTarjeta}>
+            <Text style={[styles.titulo, !item.leida && styles.textoNegrita]} numberOfLines={1}>{item.titulo}</Text>
+            <Text style={styles.fecha}>{item.fecha}</Text>
+          </View>
+          <View style={styles.remitenteRow}>
+            <Text style={styles.remitenteLista}>{item.remitente}</Text>
+            {rating > 0 && (
+              <View style={styles.ratingBadgeLista}>
+                <Ionicons name="star" size={12} color="#FFD700" />
+                <Text style={styles.ratingTextLista}>{rating.toFixed(1)}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.mensajeResumen} numberOfLines={1}>{item.mensaje}</Text>
+        </TouchableOpacity>
+      </Swipeable>
+    );
+  };
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -418,10 +632,30 @@ export default function NotificationScreen() {
         {/* ENCABEZADO */}
         <View style={styles.contenedorEncabezado}>
           <Text style={styles.encabezadoPrincipal}>Bandeja de Entrada</Text>
-          <TouchableOpacity onPress={vaciarBandeja}>
-            <Image source={require('../../assets/borrarnotificaciones.png')} resizeMode="contain" style={styles.imagenBorrar} /> 
-          </TouchableOpacity>
+          <View style={styles.iconosEncabezado}>
+            <TouchableOpacity 
+              onPress={marcarTodoVisto}
+              onLongPress={() => mostrarTooltip("Marcar todo como leído")}
+              style={styles.botonIconoHeader}
+            >
+              <Ionicons name="eye-outline" size={28} color="#205EA6" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={vaciarBandeja}
+              onLongPress={() => mostrarTooltip("Limpiar mensajes leídos")}
+              style={styles.botonIconoHeader}
+            >
+              <Image source={require('../../assets/borrarnotificaciones.png')} resizeMode="contain" style={styles.imagenBorrar} /> 
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {/* TOOLTIP FLOTANTE */}
+        {tooltip.visible && (
+          <View style={styles.contenedorTooltip}>
+            <Text style={styles.textoTooltip}>{tooltip.message}</Text>
+          </View>
+        )}
       
         {/* LISTA */}
         <FlatList
@@ -534,6 +768,25 @@ export default function NotificationScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
+
+                {/* BOTÓN ANFITRIÓN — Calificar estudiante (cuando es calificar_estudiante) */}
+                {userRole === 'anfitrion' && notificacionSeleccionada.tipo === 'calificar_estudiante' && (
+                  <View style={styles.botonesRespuesta}>
+                    <TouchableOpacity 
+                      style={styles.botonRentar}
+                      onPress={() => {
+                        setEstudianteACalificar({ 
+                          id: notificacionSeleccionada.relacionado_a || '', 
+                          nombre: notificacionSeleccionada.remitente 
+                        });
+                        setModalCalificarEstudianteVisible(true);
+                      }}
+                    >
+                      <Ionicons name="star" size={20} color="#fff" />
+                      <Text style={styles.textoBotonRentar}>Calificar Estudiante</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             </SafeAreaView>
           )}
@@ -544,7 +797,7 @@ export default function NotificationScreen() {
           <View style={styles.fondoOscuroModal}>
             <View style={styles.tarjetaFormulario}>
               <Text style={styles.tituloFormulario}>Nuevo Reporte</Text>
-            
+             
               <Text style={styles.labelInput}>Para:</Text>
               <View style={styles.contenedorScrollChips}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -580,6 +833,64 @@ export default function NotificationScreen() {
           </View>
         </Modal>
 
+        {/* ================= MODAL 3: CALIFICAR ESTUDIANTE ================= */}
+        <Modal visible={modalCalificarEstudianteVisible} transparent animationType="fade">
+          <View style={styles.ratingOverlay}>
+            <View style={styles.ratingCard}>
+              <TouchableOpacity
+                style={styles.ratingSkipBtn}
+                onPress={() => {
+                  setModalCalificarEstudianteVisible(false);
+                  setEstudianteACalificar(null);
+                  setRatingEstudiante(0);
+                  setComentarioEstudiante("");
+                }}
+              >
+                <Text style={styles.ratingSkipBtnText}>Cerrar</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.ratingTitle}>
+                Calificar a {estudianteACalificar?.nombre || "Estudiante"}
+              </Text>
+
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity key={star} onPress={() => setRatingEstudiante(star)}>
+                    <Ionicons
+                      name={star <= ratingEstudiante ? "star" : "star-outline"}
+                      size={40}
+                      color={star <= ratingEstudiante ? "#f39c12" : "#ccc"}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TextInput
+                style={styles.ratingInput}
+                placeholder="Comentario sobre el estudiante (opcional)"
+                placeholderTextColor="#aaa"
+                value={comentarioEstudiante}
+                onChangeText={setComentarioEstudiante}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+
+              <TouchableOpacity
+                style={[styles.ratingSubmitBtn, enviandoCalificacion && { opacity: 0.7 }]}
+                onPress={handleCalificarEstudiante}
+                disabled={enviandoCalificacion}
+              >
+                {enviandoCalificacion ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.ratingSubmitBtnText}>Enviar Calificación</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+        
       </View>
     </GestureHandlerRootView>
   );
@@ -595,10 +906,30 @@ const styles = StyleSheet.create({
   textoNegrita: { fontWeight: "600" },
   fecha: { fontSize: 12, color: "#6c757d", marginLeft: 8 },
   remitenteLista: { fontSize: 14, color: "#495057", marginTop: 2 },
+  remitenteRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  ratingBadgeLista: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF8E1", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 },
+  ratingTextLista: { fontSize: 12, color: "#F57F17", fontWeight: "bold" },
   mensajeResumen: { fontSize: 14, color: "#6c757d", marginTop: 6 },
   botonFlotanteCircular: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#205EA6', padding: 16, borderRadius: 30, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
   contenedorEncabezado: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 6, marginBottom: 10 },
+  iconosEncabezado: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+  botonIconoHeader: { padding: 4 },
   imagenBorrar: { width: 30, height: 30 },
+  contenedorTooltip: {
+    position: 'absolute',
+    top: 85,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    zIndex: 100,
+  },
+  textoTooltip: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   contenedorEliminarSwipe: { backgroundColor: '#ff0056', justifyContent: 'center', alignItems: 'center', width: 80, height: '90%', marginTop: 5, borderRadius: 10, marginLeft: 10 },
   contenedorModal: { flex: 1, backgroundColor: "#fff" },
   barraSuperiorModal: { padding: 16, borderBottomWidth: 1, borderColor: "#eee" },
@@ -633,6 +964,74 @@ const styles = StyleSheet.create({
   textoBotonAceptar: { color: "#fff", fontWeight: "bold" },
   botonRechazar: { backgroundColor: "#DC2F02", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30 },
   textoBotonRechazar: { color: "#fff", fontWeight: "bold" },
-  botonRentar: { backgroundColor: "#205EA6", paddingVertical: 12, paddingHorizontal: 32, borderRadius: 30 },
+  botonRentar: { 
+    backgroundColor: "#205EA6", 
+    paddingVertical: 12, 
+    paddingHorizontal: 32, 
+    borderRadius: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8
+  },
   textoBotonRentar: { color: "#fff", fontWeight: "bold" },
+  ratingOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  ratingCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    width: "90%",
+    alignItems: "center",
+    gap: 16,
+  },
+  ratingSkipBtn: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+  },
+  ratingSkipBtnText: {
+    fontSize: 14,
+    color: "#205EA6",
+    fontWeight: "600",
+  },
+  ratingTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1a1a2e",
+    textAlign: "center",
+  },
+  starsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  ratingInput: {
+    backgroundColor: "#f5f7fa",
+    borderRadius: 12,
+    padding: 14,
+    width: "100%",
+    minHeight: 90,
+    fontSize: 14,
+    color: "#1a1a2e",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  ratingSubmitBtn: {
+    backgroundColor: "#205EA6",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    width: "100%",
+    alignItems: "center",
+  },
+  ratingSubmitBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
 });

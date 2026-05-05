@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
+import { emitToUser } from "../ws-server";
 
 export const usersRoutes = new Elysia({ prefix: "/users" })
   .use(
@@ -84,12 +85,24 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       }
     });
 
-    if (!user) {
-      set.status = 404;
-      return { error: "Usuario no encontrado" };
+     if (!user) {
+       set.status = 404;
+       return { error: "Usuario no encontrado" };
+     }
+
+    // Calcular rating promedio para estudiantes
+    let rating = 0;
+    if (user.rol === "ESTUDIANTE") {
+      const calificaciones = await db.calificacionEstudiante.findMany({
+        where: { id_estudiante: id },
+        select: { calificacion: true }
+      });
+      if (calificaciones.length > 0) {
+        rating = calificaciones.reduce((acc, c) => acc + c.calificacion, 0) / calificaciones.length;
+      }
     }
 
-    return user;
+    return { ...user, rating };
   })
   .get("/:id/transactions", async ({ params: { id }, authenticatedUser, set }) => {
     if ("error" in (authenticatedUser as any)) return authenticatedUser;
@@ -347,6 +360,29 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         visto: false,
         relacionado_a: inmuebleRentado.id_inmueble.toString(),
       },
+    });
+
+    // Notificar al arrendador para calificar al estudiante
+    const notifCalificar = await db.notificacion.create({
+      data: {
+        usuario_id: inmuebleRentado.id_arrendador,
+        titulo: "Califica al estudiante",
+        mensaje: `Tu renta con ${authenticatedUser.nombre} ${authenticatedUser.apellidos} ha finalizado. ¡Califícalo para ayudar a otros arrendadores!`,
+        tipo: "calificar_estudiante",
+        remitente_nombre: `${authenticatedUser.nombre} ${authenticatedUser.apellidos}`,
+        visto: false,
+        relacionado_a: authenticatedUser.id_usuario,
+      },
+    });
+
+    // Enviar notificación vía WebSocket
+    emitToUser(inmuebleRentado.id_arrendador, "calificar_estudiante", {
+      id: notifCalificar.id,
+      titulo: notifCalificar.titulo,
+      mensaje: notifCalificar.mensaje,
+      estudianteId: authenticatedUser.id_usuario,
+      estudianteNombre: `${authenticatedUser.nombre} ${authenticatedUser.apellidos}`,
+      tipo: "calificar_estudiante",
     });
 
     return { success: true, message: "Renta cancelada exitosamente" };

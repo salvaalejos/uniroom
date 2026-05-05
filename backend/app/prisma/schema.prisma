@@ -74,9 +74,11 @@ model Usuario {
   inmuebles_propiedad Inmueble[]     @relation("InmueblesArrendador")
   inmuebles_rentados  Inmueble[]     @relation("InmuebleEstudiante")
   inmuebles_autorizados Inmueble[]   @relation("InmuebleEstudianteAutorizado")
-  calificaciones      Calificacion[]
-  transacciones       Transaccion[]
-  
+  calificaciones          Calificacion[]
+  calificaciones_recibidas  CalificacionEstudiante[] @relation("EstudianteCalificado")
+  calificaciones_otorgadas  CalificacionEstudiante[] @relation("ArrendadorCalificante")
+  transacciones         Transaccion[]
+   
   // Citas como estudiante
   citas_estudiante    Cita[]          @relation("CitasEstudiante")
   // Citas como anfitrión (dueño de la propiedad)
@@ -158,6 +160,20 @@ model Imagenes {
   imagen      String
   id_inmueble Int
   inmueble    Inmueble @relation(fields: [id_inmueble], references: [id_inmueble])
+}
+
+// [NUEVO] Entidad: Calificación de Estudiante (por arrendadores)
+model CalificacionEstudiante {
+  id_calificacion   Int      @id @default(autoincrement())
+  calificacion      Int
+  descripcion       String?  @db.Text
+  fecha_creacion    DateTime  @default(now())
+
+  id_estudiante     String
+  estudiante        Usuario   @relation("EstudianteCalificado", fields: [id_estudiante], references: [id_usuario])
+
+  id_arrendador     String
+  arrendador       Usuario   @relation("ArrendadorCalificante", fields: [id_arrendador], references: [id_usuario])
 }
 
 model Notificacion {

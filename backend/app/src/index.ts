@@ -19,6 +19,7 @@ const app = new Elysia()
   .use(cors({
     origin: '*',
     allowedHeaders: ['Authorization', 'Content-Type'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
   }))
   .use(
     jwt({

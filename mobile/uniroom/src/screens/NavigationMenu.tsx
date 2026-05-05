@@ -183,16 +183,17 @@ const Tab = createBottomTabNavigator()
 export default function NavigationMenu({ route }: any) {
     const [userData, setUserData] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [session, setSession] = useState<{userId: string | null, token: string | null}>({
+        userId: route.params?.userId || null,
+        token: route.params?.token || null
+    })
 
-    const userId = route.params?.userId
-    const token = route.params?.token
-    
-    const getUserData = async () => {
+    const getUserData = async (uid: string, tk: string) => {
             try {
                 setIsLoading(true);
-                const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+                const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${tk}`
                     }
                 });
                 const data = await response.json();
@@ -200,27 +201,41 @@ export default function NavigationMenu({ route }: any) {
                 if (response.ok) {
                     setUserData(data);
                 } else {
-                    Alert.alert("Error", "No se pudo cargar la información del perfil.");
+                    console.error("Error al cargar perfil:", data.error);
                 }
             } catch (error) {
                 console.error("Error en fetch:", error);
-                Alert.alert("Error de conexión", "Revisa que tu backend esté encendido.");
             } finally {
                 setIsLoading(false);
             }
         };
 
     useEffect(() => {
-        getUserData()
+        const loadSession = async () => {
+            let uid = session.userId;
+            let tk = session.token;
+
+            if (!uid || !tk) {
+                uid = await AsyncStorage.getItem('userId');
+                tk = await AsyncStorage.getItem('token');
+                setSession({ userId: uid, token: tk });
+            }
+
+            if (uid && tk) {
+                getUserData(uid, tk);
+            } else {
+                setIsLoading(false);
+            }
+        };
         
-    }, [userId]);
+        loadSession();
+    }, [session.userId]);
 
     // Solo mostramos el spinner si NO tenemos datos del usuario aún.
-    // Si ya tenemos datos, permitimos que el Navigator se mantenga montado.
     if (isLoading && !userData) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: bluePrimaryColor }}>
-                <ActivityIndicator size="large" color={blueSecondColor} />
+                <ActivityIndicator size="large" color="#fff" />
             </View>
         );
     }
@@ -233,7 +248,6 @@ export default function NavigationMenu({ route }: any) {
         <Tab.Navigator
             screenOptions={{
                 tabBarStyle: blue.tabBarStyle,
-                
             }}
         >
             {currentTabs.map((item) => (
@@ -241,7 +255,7 @@ export default function NavigationMenu({ route }: any) {
                     key={item.route}
                     name={item.route}
                     component={item.component}
-                    initialParams={{ userId: userId, token: token }}
+                    initialParams={{ userId: session.userId, token: session.token }}
                     options={{
                         headerShown: false,
                         headerTitle: item.label,
