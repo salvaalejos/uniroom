@@ -1,7 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
-import { sendOTPEmail } from "../lib/email";
+import { sendOTPEmail, sendForgotPasswordEmail } from "../lib/email";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -318,6 +318,97 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     {
       body: t.Object({
         email: t.String({ format: "email" }),
+      }),
+    }
+  )
+  .post(
+    "/forgot-password-otp",
+    async ({ body, set }) => {
+      const { email } = body;
+
+      // Verificar que el usuario existe
+      const user = await db.usuario.findUnique({
+        where: { email },
+      });
+
+      if (!user) {
+        set.status = 404;
+        return { error: "Usuario no encontrado" };
+      }
+
+      // Invalidar códigos anteriores
+      await db.verificacionEmail.updateMany({
+        where: { email, used: false },
+        data: { used: true },
+      });
+
+      // Generar nuevo código
+      const otpCode = generateOTP();
+      await db.verificacionEmail.create({
+        data: {
+          email,
+          codigo: otpCode,
+          expiresAt: generateExpiryMinutes(10),
+        },
+      });
+
+      // Enviar correo
+      await sendForgotPasswordEmail(email, otpCode);
+
+      return { message: "Código de recuperación enviado a tu correo" };
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: "email" }),
+      }),
+    }
+  )
+  .post(
+    "/reset-password",
+    async ({ body, set }) => {
+      const { email, codigo, newPassword } = body;
+
+      // Buscar código válido
+      const verificacion = await db.verificacionEmail.findFirst({
+        where: {
+          email,
+          codigo,
+          used: false,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!verificacion) {
+        set.status = 400;
+        return { error: "Código inválido o expirado" };
+      }
+
+      // Marcar código como usado
+      await db.verificacionEmail.update({
+        where: { id: verificacion.id },
+        data: { used: true },
+      });
+
+      // Encriptar nueva contraseña
+      const password_hash = await Bun.password.hash(newPassword, {
+        algorithm: "bcrypt",
+        cost: 10,
+      });
+
+      // Actualizar contraseña del usuario
+      await db.usuario.update({
+        where: { email },
+        data: { password_hash },
+      });
+
+      return { message: "Contraseña actualizada exitosamente" };
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: "email" }),
+        codigo: t.String({ minLength: 6, maxLength: 6 }),
+        newPassword: t.String({ minLength: 6 }),
       }),
     }
   );
