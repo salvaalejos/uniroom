@@ -61,20 +61,43 @@ export default function MapScreen({ route, navigation }: any) {
 
   useEffect(() => {
     if (mapaListo && cameraRef.current) {
-      cameraRef.current.setCamera({
-        centerCoordinate: [TEC_ITM.longitude, TEC_ITM.latitude],
-        zoomLevel: 14.5,
-        animationDuration: 1000,
-      });
+      console.log("[Map] Reposicionando cámara después de filtrar");
+      // Esperar a que las anotaciones se rendericen y Mapbox ajuste el viewport
+      // Luego sobrescribir con nuestra posición deseada
+      const timer = setTimeout(() => {
+        cameraRef.current?.setCamera({
+          centerCoordinate: [TEC_ITM.longitude, TEC_ITM.latitude],
+          zoomLevel: 14.5,
+          animationDuration: 1000,
+          animationMode: 'flyTo',
+        });
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
-  }, [mapaListo]);
+  }, [mapaListo, inmuebles]);
 
-  const fetchInmuebles = async () => {
+  const fetchInmuebles = async (filtros?: any) => {
     try {
       const token = await AsyncStorage.getItem('token');
-      console.log("[Map] Fetching inmuebles desde:", `${API_BASE_URL}/inmuebles`);
       
-      const res = await fetch(`${API_BASE_URL}/inmuebles`, {
+      // Construir query params si hay filtros
+      let url = `${API_BASE_URL}/inmuebles`;
+      if (filtros) {
+        const params = new URLSearchParams();
+        if (filtros.precioMax && filtros.precioMax < 99999) params.append('precioMax', filtros.precioMax.toString());
+        if (filtros.distanciaMax) params.append('distanciaMax', filtros.distanciaMax.toString());
+        if (filtros.servicios && filtros.servicios.length > 0) params.append('servicios', filtros.servicios.join(','));
+        if (filtros.restricciones && filtros.restricciones.length > 0) params.append('restricciones', filtros.restricciones.join(','));
+        if (filtros.calificacionMin && filtros.calificacionMin > 0) params.append('calificacionMin', filtros.calificacionMin.toString());
+        
+        const queryString = params.toString();
+        if (queryString) url += `?${queryString}`;
+      }
+      
+      console.log("[Map] Fetching inmuebles desde:", url);
+      
+      const res = await fetch(url, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
         }
@@ -101,7 +124,6 @@ export default function MapScreen({ route, navigation }: any) {
         // Lógica inteligente para la foto del anfitrión
         let fotoUrl = item.arrendador?.foto;
         if (fotoUrl && !fotoUrl.startsWith('http')) {
-            // Si ya trae /public, no lo repetimos (aunque el backend ya lo trae)
             fotoUrl = `${API_BASE_URL}${fotoUrl}`;
         }
         
@@ -122,7 +144,7 @@ export default function MapScreen({ route, navigation }: any) {
       });
 
       setInmuebles(procesados);
-      setOriginales(procesados);
+      if (!filtros) setOriginales(procesados);
     } catch (err) {
       console.error("Error fetching inmuebles:", err);
     } finally {
@@ -131,16 +153,9 @@ export default function MapScreen({ route, navigation }: any) {
   };
 
   const filtrarInmuebles = (datos: any) => {
-    const { precioMax, distanciaMax, servicios, restricciones, calificacionMin } = datos;
-    const filtrados = originales.filter(item => (
-      item.precio_mensual <= precioMax &&
-      item.distancia <= distanciaMax &&
-      item.promedio >= calificacionMin &&
-      (servicios.length === 0 || servicios.every((s: string) => item.servicios?.some((is: any) => is.nombre === s))) &&
-      (restricciones.length === 0 || restricciones.every((r: string) => item.restricciones?.some((ir: any) => ir.nombre === r)))
-    ));
-    setInmuebles(filtrados);
+    console.log("[Map] Aplicando filtros:", datos);
     setModalFiltros(false);
+    fetchInmuebles(datos);
   };
 
   const abrirDetalle = (inmueble: any) => {

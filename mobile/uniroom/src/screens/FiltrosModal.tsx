@@ -13,10 +13,6 @@ export default function FiltrosModal({ visible, onApply, onClose }: any) {
     const [restricciones, setRestricciones] = useState<string[]>([]);
     const [estrellasMin, setEstrellasMin] = useState(0);
 
-    const toggleItem = (item: string, list: string[], setList: Function) => {
-        setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
-    };
-
     const handleApply = () => {
         const distFinal = distanciaManual !== '' ? parseFloat(distanciaManual) : distanciaChip;
         onApply({ 
@@ -47,7 +43,15 @@ export default function FiltrosModal({ visible, onApply, onClose }: any) {
                         <View style={styles.grid}>
                             {[1, 2, 3, 5].map(d => (
                                 <TouchableOpacity key={d} style={[styles.chip, distanciaChip === d && distanciaManual === '' && styles.chipActivo]}
-                                    onPress={() => { setDistanciaChip(d); setDistanciaManual(''); }}>
+                                    onPress={() => {
+                                        console.log("[Filtros] Toggle distancia:", d);
+                                        if (distanciaChip === d && distanciaManual === '') {
+                                            setDistanciaChip(5);
+                                        } else {
+                                            setDistanciaChip(d);
+                                            setDistanciaManual('');
+                                        }
+                                    }}>
                                     <Text style={[styles.chipText, distanciaChip === d && distanciaManual === '' && styles.whiteText]}>{d} km</Text>
                                 </TouchableOpacity>
                             ))}
@@ -60,7 +64,10 @@ export default function FiltrosModal({ visible, onApply, onClose }: any) {
                         <Text style={styles.label}>Calificación mínima</Text>
                         <View style={styles.grid}>
                             {[1, 2, 3, 4, 5].map(s => (
-                                <TouchableOpacity key={s} style={[styles.chip, estrellasMin === s && styles.chipActivo]} onPress={() => setEstrellasMin(s)}>
+                                <TouchableOpacity key={s} style={[styles.chip, estrellasMin === s && styles.chipActivo]} onPress={() => {
+                                    console.log("[Filtros] Toggle estrellas:", s);
+                                    setEstrellasMin(prev => prev === s ? 0 : s);
+                                }}>
                                     <View style={styles.starContainer}>
                                         <Text style={[styles.chipText, estrellasMin === s && styles.whiteText]}>{s}</Text>
                                         <MaterialCommunityIcons name="star" size={14} color={estrellasMin === s ? "#fff" : "#f39c12"} />
@@ -72,7 +79,10 @@ export default function FiltrosModal({ visible, onApply, onClose }: any) {
                         <Text style={styles.label}>Servicios</Text>
                         <View style={styles.grid}>
                             {SERVICIOS_DISPONIBLES.map(s => (
-                                <TouchableOpacity key={s} style={[styles.chip, servicios.includes(s) && styles.chipActivo]} onPress={() => toggleItem(s, servicios, setServicios)}>
+                                <TouchableOpacity key={s} style={[styles.chip, servicios.includes(s) && styles.chipActivo]} onPress={() => {
+                                    console.log("[Filtros] Toggle servicio:", s);
+                                    setServicios(prev => prev.includes(s) ? prev.filter(i => i !== s) : [...prev, s]);
+                                }}>
                                     <Text style={[styles.chipText, servicios.includes(s) && styles.whiteText]}>{s}</Text>
                                 </TouchableOpacity>
                             ))}
@@ -81,7 +91,10 @@ export default function FiltrosModal({ visible, onApply, onClose }: any) {
                         <Text style={styles.label}>Restricciones</Text>
                         <View style={styles.grid}>
                             {RESTRICCIONES_LISTA.map(r => (
-                                <TouchableOpacity key={r} style={[styles.chip, restricciones.includes(r) && styles.chipActivo]} onPress={() => toggleItem(r, restricciones, setRestricciones)}>
+                                <TouchableOpacity key={r} style={[styles.chip, restricciones.includes(r) && styles.chipActivo]} onPress={() => {
+                                    console.log("[Filtros] Toggle restricción:", r);
+                                    setRestricciones(prev => prev.includes(r) ? prev.filter(i => i !== r) : [...prev, r]);
+                                }}>
                                     <Text style={[styles.chipText, restricciones.includes(r) && styles.whiteText]}>{r}</Text>
                                 </TouchableOpacity>
                             ))}

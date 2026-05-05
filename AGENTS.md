@@ -292,6 +292,50 @@ MAPBOX_TOKEN="provided externally"
 - Connects to `ws://<host>:3001`.
 - Exposes `send`, `onMessage`, `disconnect`.
 
+## Map Screen & Filters System
+
+### Overview
+The MapScreen displays properties on a Mapbox map with real-time filtering capabilities.
+
+### Backend Changes (`backend/app/src/routes/inmuebles.ts`)
+- **New query parameters** for `GET /inmuebles`:
+  - `precioMax` (string): Filters properties with `precio_mensual <= value` in DB
+  - `servicios` (string, comma-separated): Filters using `servicios: { some: { nombre: { in: [...] } } }` in DB
+  - `restricciones` (string, comma-separated): Filters using `restricciones: { some: { nombre: { in: [...] } } }` in DB
+  - `distanciaMax` (string): Post-query filter using Haversine formula (distance from TEC_ITM)
+  - `calificacionMin` (string): Post-query filter based on average rating from `calificaciones`
+
+### Frontend Changes (`mobile/uniroom/src/screens/MapScreen.tsx`)
+- **`fetchInmuebles(filtros?)`**: Now accepts optional filter object and builds `URLSearchParams` for API call
+- **`filtrarInmuebles(datos)`**: Calls API with filters directly (no local filtering)
+- **Camera reset on filter**: Uses `setTimeout(500ms)` with `cameraRef.current.setCamera()` to avoid race conditions with Mapbox viewport adjustments
+  - Repositions to TEC_ITM (19.721869, -101.185483) with zoom 14.5
+  - Uses `animationMode: 'flyTo'` for smooth animation
+  - Dependency array: `[mapaListo, inmuebles]` to trigger on filter changes
+
+### Frontend Changes (`mobile/uniroom/src/screens/FiltrosModal.tsx`)
+- **Fixed toggle deselection**: Replaced `toggleItem` helper with inline functional state updates
+  - Services: `setServicios(prev => prev.includes(s) ? prev.filter(i => i !== s) : [...prev, s])`
+  - Restrictions: Same pattern as services
+  - Star rating: `setEstrellasMin(prev => prev === s ? 0 : s)` (tap again to deselect)
+  - Distance chips: Tap again to reset to default (5km)
+- **Added console.log** for debugging filter toggles
+
+### Filter Behavior
+1. User selects filters in modal and taps "Aplicar Filtros"
+2. Modal closes, `filtrarInmuebles()` is called
+3. API is called with query params: `GET /inmuebles?precioMax=3000&servicios=WiFi,Luz...`
+4. Backend filters in DB (price, services, restrictions) and post-query (distance, rating)
+5. Filtered results return to frontend
+6. `inmuebles` state updates → triggers useEffect
+7. After 500ms delay, camera repositions to TEC_ITM with zoom 14.5
+
+### Important Notes
+- Service/restriction names in FiltrosModal **must match** database exactly (e.g., "WiFi" in modal = "WiFi" in DB)
+- Camera uses `setTimeout(500)` to win race condition against Mapbox's internal viewport adjustment
+- No loading screen during filtering (map stays mounted, only pins update)
+- Default distance chip is 5km (resets to this if user deselects)
+
 ## Development Lifecycle for Agents
 1. **Migrations**: If changing `schema.prisma`, run `npx prisma db push` or `prisma migrate dev`.
 2. **Backend**: If adding new data fields, ensure they are handled in both `POST` (create) and `PUT` (update) routes.
@@ -299,3 +343,4 @@ MAPBOX_TOKEN="provided externally"
 4. **Navigation**: Always verify if a target screen is in the same Navigator or requires nested path.
 5. **WebSocket**: WS server runs on port 3001. Starts automatically with `bun run dev` in `backend/app`.
 6. **Rental Flow**: Visit → Mark as Done → Student requests rent → Landlord approves → Student pays → Contract active (1 month).
+7. **Map Filters**: When adding new filter types, update both backend query params and frontend URL builder in `fetchInmuebles()`.
