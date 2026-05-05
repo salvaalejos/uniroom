@@ -12,6 +12,8 @@ import NavigationMenu from './src/screens/NavigationMenu';
 import InmuebleScreen from './src/screens/InmuebleScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 // Crea el Stack
@@ -105,6 +107,16 @@ function MainApp() {
                     name="EditProfile"
                     component={EditProfileScreen}
                     options={{ title: 'Editar Perfil', headerShown: true }}
+                />
+                <Stack.Screen
+                    name="ForgotPassword"
+                    component={ForgotPasswordScreen}
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                    name="ResetPassword"
+                    component={ResetPasswordScreen}
+                    options={{ headerShown: false }}
                 />
             </Stack.Navigator>
             <View style={{height: 50, backgroundColor: colors.background}}>
