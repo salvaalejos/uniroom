@@ -106,6 +106,8 @@ export default function LoginScreen({ navigation }: any) {
             console.log("[Login] Guardando en AsyncStorage...");
             await AsyncStorage.setItem('token', token);
             await AsyncStorage.setItem('userId', String(userId));
+            await AsyncStorage.setItem('userName', `${name}`);
+            await AsyncStorage.setItem('userRole', String(role));
             console.log("[Login] Guardado exitoso.");
 
             navigation.replace("Navigator", { userId: userId, token: token })

@@ -11,6 +11,7 @@ import Upload_renta from './src/screens/Upload_Renta';
 import NavigationMenu from './src/screens/NavigationMenu';
 import InmuebleScreen from './src/screens/InmuebleScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
+import { NotificationProvider } from './src/context/NotificationContext';
 
 // Crea el Stack
 const Stack = createNativeStackNavigator();
@@ -52,47 +53,49 @@ export default function App() {
     }
 
     return (
-        <NavigationContainer>
-            <Stack.Navigator initialRouteName={initialRoute}>
-                <Stack.Screen 
-                    name="Navigator"
-                    component={NavigationMenu}
-                    initialParams={authParams}
-                    options={{headerShown: false}}
-                />
-                <Stack.Screen
-                    name="Login"
-                    component={LoginScreen}
-                    options={{ headerShown: false }} // Oculta la barra superior por defecto
-                />
-                <Stack.Screen
-                    name="Register"
-                    component={RegisterScreen}
-                    options={{ title: 'Registro', headerShown: true }} // Muestra "Registro" en la barra superior
-                />
-                <Stack.Screen
-                    name="VerificarEmail"
-                    component={VerificarEmailScreen}
-                    options={{ title: 'Verificar Correo', headerShown: true }}
-                />
-                <Stack.Screen 
-                    name="Tu Primer Inmueble"
-                    component={Upload_renta}
-                    options={{ title: 'Tu Primer Inmueble', headerShown: false }}
-                />
-                <Stack.Screen 
-                    name="PaymentScreen"
-                    component={PaymentScreen}
-                    options={{ headerShown: false }}
-                />
-                <Stack.Screen 
-                    name="InmuebleScreen"
-                    component={InmuebleScreen}
-                    options={{ presentation: 'modal', headerShown: false }}
-                />
-            </Stack.Navigator>
-            <View style={{height: 50, backgroundColor: "#DCEEFF"}}>
-            </View>
-        </NavigationContainer>
+        <NotificationProvider>
+            <NavigationContainer>
+                <Stack.Navigator initialRouteName={initialRoute}>
+                    <Stack.Screen 
+                        name="Navigator"
+                        component={NavigationMenu}
+                        initialParams={authParams}
+                        options={{headerShown: false}}
+                    />
+                    <Stack.Screen
+                        name="Login"
+                        component={LoginScreen}
+                        options={{ headerShown: false }} // Oculta la barra superior por defecto
+                    />
+                    <Stack.Screen
+                        name="Register"
+                        component={RegisterScreen}
+                        options={{ title: 'Registro', headerShown: true }} // Muestra "Registro" en la barra superior
+                    />
+                    <Stack.Screen
+                        name="VerificarEmail"
+                        component={VerificarEmailScreen}
+                        options={{ title: 'Verificar Correo', headerShown: true }}
+                    />
+                    <Stack.Screen 
+                        name="Tu Primer Inmueble"
+                        component={Upload_renta}
+                        options={{ title: 'Tu Primer Inmueble', headerShown: false }}
+                    />
+                    <Stack.Screen 
+                        name="PaymentScreen"
+                        component={PaymentScreen}
+                        options={{ headerShown: false }}
+                    />
+                    <Stack.Screen 
+                        name="InmuebleScreen"
+                        component={InmuebleScreen}
+                        options={{ presentation: 'modal', headerShown: false }}
+                    />
+                </Stack.Navigator>
+                <View style={{height: 50, backgroundColor: "#DCEEFF"}}>
+                </View>
+            </NavigationContainer>
+        </NotificationProvider>
     );
 }

@@ -59,6 +59,7 @@ model Usuario {
   estado          EstadoUsuario @default(ACTIVO)
 
   notificaciones Notificacion[]
+  notificaciones_enviadas Notificacion[] @relation("RemitenteNotificacion")
   
   nombre          String        @db.VarChar(100)
   apellidos       String        @db.VarChar(100)
@@ -183,7 +184,11 @@ model Notificacion {
   visto       Boolean  @default(false)
   tipo        String
   fecha_creacion DateTime @default(now())
-  remitente_nombre String // Quien lo manda
+  remitente_nombre String // Quien lo manda (Caché por si el usuario se borra)
+  
+  remitente_id String?   // ID real para buscar foto y nombre actual
+  remitente    Usuario?  @relation("RemitenteNotificacion", fields: [remitente_id], references: [id_usuario])
+
   usuario_id  String
   usuario     Usuario  @relation(fields: [usuario_id], references: [id_usuario])
   relacionado_a String?  // ID de cita, inmueble, etc. asociado

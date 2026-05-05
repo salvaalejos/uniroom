@@ -73,6 +73,7 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         propiedadTitulo: nuevaCita.inmueble.titulo,
         estudianteId: nuevaCita.id_estudiante,
         estudianteNombre: `${nuevaCita.estudiante.nombre} ${nuevaCita.estudiante.apellidos}`,
+        remitenteFoto: user.foto,
         anfitrionId: nuevaCita.id_anfitrion,
         fecha: nuevaCita.fecha_hora.toISOString(),
         mensaje: `Solicitud de visita para ${nuevaCita.inmueble.titulo} el ${nuevaCita.fecha_hora.toLocaleString()}`,
@@ -85,6 +86,7 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
           mensaje: `${nuevaCita.estudiante.nombre} ${nuevaCita.estudiante.apellidos} quiere visitar tu propiedad ${nuevaCita.inmueble.titulo} el ${nuevaCita.fecha_hora.toLocaleString()}`,
           tipo: "solicitud_cita",
           remitente_nombre: `${nuevaCita.estudiante.nombre} ${nuevaCita.estudiante.apellidos}`,
+          remitente_id: user.id_usuario,
           visto: false,
           relacionado_a: nuevaCita.id_cita,
         },
@@ -161,6 +163,7 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         propiedadId: citaActualizada.id_inmueble,
         propiedadTitulo: citaActualizada.inmueble.titulo,
         anfitrionNombre: `${user.nombre} ${user.apellidos}`,
+        remitenteFoto: user.foto,
         fecha: citaActualizada.fecha_hora.toISOString(),
       });
       // Crear notificación en BD para el estudiante
@@ -176,6 +179,7 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
               : `Tu cita para ${citaActualizada.inmueble.titulo} ha sido reagendada. Nueva fecha: ${citaActualizada.fecha_hora.toLocaleString()}`,
           tipo: "respuesta_cita",
           remitente_nombre: `${user.nombre} ${user.apellidos}`,
+          remitente_id: user.id_usuario,
           visto: false,
           relacionado_a: citaActualizada.id_cita,
         },
@@ -238,6 +242,7 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         propiedadTitulo: citaActualizada.inmueble.titulo,
         estudianteId: citaActualizada.id_estudiante,
         estudianteNombre: `${citaActualizada.estudiante.nombre} ${citaActualizada.estudiante.apellidos}`,
+        remitenteFoto: citaActualizada.estudiante.foto,
         anfitrionId: citaActualizada.id_anfitrion,
         fecha: citaActualizada.fecha_hora.toISOString(),
         mensaje: `La visita de ${citaActualizada.estudiante.nombre} ${citaActualizada.estudiante.apellidos} a ${citaActualizada.inmueble.titulo} se realizó. ¿Deseas autorizarlo para rentar?`,
@@ -294,6 +299,7 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
               : `El arrendador ${user.nombre} ${user.apellidos} ha decidido no autorizarte para rentar ${citaActualizada.inmueble.titulo}.`,
           tipo: "decision_renta",
           remitente_nombre: `${user.nombre} ${user.apellidos}`,
+          remitente_id: user.id_usuario,
           visto: false,
           relacionado_a: citaActualizada.id_cita,
         },
@@ -305,6 +311,7 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         propiedadId: citaActualizada.id_inmueble,
         propiedadTitulo: citaActualizada.inmueble.titulo,
         anfitrionNombre: `${user.nombre} ${user.apellidos}`,
+        remitenteFoto: user.foto,
         fecha: citaActualizada.fecha_hora.toISOString(),
         mensaje:
           decision === "APROBAR"

@@ -15,8 +15,10 @@ import EditProfileScreen from "./EditProfile"
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import NotificationScreen from "./NotificationScreen";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useNotifications } from "../context/NotificationContext";
 import { useIsFocused } from "@react-navigation/native"
 import * as Animatable from "react-native-animatable"
+import { Text } from "react-native" // Import Text if missing or used in TabButton
 import Settings from "./Settings"
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from "@react-navigation/stack"
@@ -114,6 +116,7 @@ const LandlordTabs = [
 
 const TabButton = (props: any) => {
     const { item, onPress, accessibilityState } = props
+    const { unreadCount } = useNotifications();
     const activeRouteName = useNavigationState((state) => {
         if (!state) return '';
         return state.routeNames[state.index];
@@ -166,6 +169,28 @@ const TabButton = (props: any) => {
                         <MaterialCommunityIcons name={item.activeIcon}
                             size={33}
                             color={focused ? bluePrimaryColor : blueSecondColor} />
+                        
+                        {/* BADGE DE NOTIFICACIONES */}
+                        {item.route === 'Notificaciones' && unreadCount > 0 && (
+                            <View style={{
+                                position: 'absolute',
+                                right: -5,
+                                top: -5,
+                                backgroundColor: '#E74C3C',
+                                borderRadius: 10,
+                                minWidth: 20,
+                                height: 20,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                borderWidth: 2,
+                                borderColor: blueSecondColor,
+                                zIndex: 10
+                            }}>
+                                <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </Text>
+                            </View>
+                        )}
                     </Animatable.View>
                 </View>
                 <Animatable.Text
@@ -210,6 +235,8 @@ export default function NavigationMenu({ route }: any) {
             }
         };
 
+    const { refreshUnreadCount } = useNotifications();
+
     useEffect(() => {
         const loadSession = async () => {
             let uid = session.userId;
@@ -223,6 +250,7 @@ export default function NavigationMenu({ route }: any) {
 
             if (uid && tk) {
                 getUserData(uid, tk);
+                refreshUnreadCount(); // Cargar contador inicial
             } else {
                 setIsLoading(false);
             }

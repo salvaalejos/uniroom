@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { socketService } from '../services/websocketService';
 import { obtenerMisCitas, actualizarEstadoCita, marcarCitaRealizada, decisionRenta, crearCalificacionEstudiante, obtenerPerfil } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNotifications } from '../context/NotificationContext';
 import Constants from 'expo-constants';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
@@ -23,6 +24,7 @@ type Notificacion = {
   mensaje: string;
   leida: boolean;
   remitente: string;
+  remitenteFoto?: string;
   fecha: string;
   relacionado_a?: string;
   datosExtra?: any;
@@ -38,6 +40,7 @@ export default function NotificationScreen() {
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<Notificacion | null>(null);
   const [cargando, setCargando] = useState(false);
+  const { refreshUnreadCount } = useNotifications();
   
   const [userId, setUserId] = useState<string>("");
   const [userRole, setUserRole] = useState<"estudiante" | "anfitrion">("estudiante");
@@ -78,16 +81,28 @@ export default function NotificationScreen() {
       
       socketService.connect(id, rol);
       await cargarTodo(id, rol);
-
-      setContactos([
-        { id_usuario: "67012f3e-b644-4c33-ba43-8756632b2508", nombre: "Pati Chapoy" },
-        { id_usuario: "5024b108-a41a-4401-9f4b-bc8392ce48b8", nombre: "Administración" },
-      ]);
+      await cargarContactosReales(id);
     };
 
     init();
 
     // Listeners existentes
+    socketService.on('mensaje_nuevo', (data) => {
+      const nuevaNotif: Notificacion = {
+        id: data.id,
+        tipo: data.tipo || 'REPORTE',
+        titulo: data.titulo,
+        mensaje: data.mensaje,
+        leida: false,
+        remitente: data.remitente_nombre,
+        remitenteFoto: data.remitente_foto,
+        fecha: new Date().toLocaleString(),
+        datosExtra: data,
+      };
+      setNotificaciones(prev => [nuevaNotif, ...prev]);
+      refreshUnreadCount();
+    });
+
     socketService.on('solicitud_cita', (data) => {
       if (userRoleRef.current === 'anfitrion') {
         const nuevaNotif: Notificacion = {
@@ -97,11 +112,13 @@ export default function NotificationScreen() {
           mensaje: `${data.estudianteNombre} quiere visitar tu propiedad ${data.propiedadTitulo} el ${new Date(data.fecha).toLocaleString()}`,
           leida: false,
           remitente: data.estudianteNombre,
+          remitenteFoto: data.remitenteFoto,
           fecha: new Date().toLocaleString(),
           relacionado_a: data.id, // ID de la cita
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
+        refreshUnreadCount();
       }
     });
 
@@ -116,11 +133,13 @@ export default function NotificationScreen() {
             : `Tu solicitud para visitar ${data.propiedadTitulo} fue RECHAZADA. Motivo: ${data.motivo || 'No especificado'}.`,
           leida: false,
           remitente: data.anfitrionNombre,
+          remitenteFoto: data.remitenteFoto,
           fecha: new Date().toLocaleString(),
           relacionado_a: data.id, // ID de la cita
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
+        refreshUnreadCount();
       }
     });
 
@@ -134,11 +153,13 @@ export default function NotificationScreen() {
           mensaje: data.mensaje,
           leida: false,
           remitente: 'Sistema UniRoom',
+          remitenteFoto: data.remitenteFoto,
           fecha: new Date().toLocaleString(),
           relacionado_a: data.id, // ID de la cita
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
+        refreshUnreadCount();
       }
     });
 
@@ -152,11 +173,13 @@ export default function NotificationScreen() {
           mensaje: data.mensaje,
           leida: false,
           remitente: data.anfitrionNombre,
+          remitenteFoto: data.remitenteFoto,
           fecha: new Date().toLocaleString(),
           relacionado_a: data.id, // ID de la cita
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
+        refreshUnreadCount();
       }
     });
 
@@ -175,6 +198,7 @@ export default function NotificationScreen() {
           relacionado_a: data.estudianteId,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
+        refreshUnreadCount();
         
         // Cargar rating del estudiante
         cargarRatingEstudiante(data.estudianteId);
@@ -182,15 +206,30 @@ export default function NotificationScreen() {
     });
 
     return () => {
+      socketService.off('mensaje_nuevo');
       socketService.off('solicitud_cita');
       socketService.off('respuesta_cita');
       socketService.off('decision_renta_pendiente');
       socketService.off('decision_renta');
       socketService.off('calificar_estudiante');
-    };
-  }, []);
+    };  }, []);
 
   // --- FUNCIONES DE CARGA DE DATOS ---
+  const cargarContactosReales = async (idActual: string) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/contactos/${idActual}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (respuesta.ok) {
+        const datos = await respuesta.json();
+        setContactos(datos);
+      }
+    } catch (error) {
+      console.error("Error al cargar contactos reales:", error);
+    }
+  };
+
   const cargarTodo = async (idActual: string, rolActual: string) => {
     setCargando(true);
     await Promise.all([
@@ -199,11 +238,12 @@ export default function NotificationScreen() {
     ]);
     setCargando(false);
   };
-
   const onRefresh = async () => {
-    if(userId) await cargarTodo(userId, userRole);
+    if (userId) {
+      await cargarTodo(userId, userRole);
+      await refreshUnreadCount();
+    }
   };
-
   // Cargar rating de estudiante
   const cargarRatingEstudiante = async (idEstudiante: string) => {
     try {
@@ -228,13 +268,19 @@ export default function NotificationScreen() {
         const datos = await respuesta.json();
         const formateadas: Notificacion[] = datos.map((notif: any) => {
           const d = new Date(notif.fecha_creacion);
+          // Priorizar el nombre del remitente del objeto Usuario, sino usar el caché
+          const nombreFinal = notif.remitente 
+            ? `${notif.remitente.nombre} ${notif.remitente.apellidos}`
+            : notif.remitente_nombre;
+
           return {
             id: notif.id,
             tipo: notif.tipo || 'mensaje',
             titulo: notif.titulo,
             mensaje: notif.mensaje,
             leida: notif.visto,
-            remitente: notif.remitente_nombre,
+            remitente: nombreFinal,
+            remitenteFoto: notif.remitente?.foto,
             fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
             relacionado_a: notif.relacionado_a,
             datosExtra: notif
@@ -323,6 +369,7 @@ export default function NotificationScreen() {
 
     if (!item.leida) {
       setNotificaciones(prev => prev.map(n => n.id === item.id ? { ...n, leida: true } : n));
+      refreshUnreadCount();
       try {
         const token = await AsyncStorage.getItem('token');
         await fetch(`${BACKEND_URL}/api/notificaciones/${item.id}/visto`, { 
@@ -421,6 +468,11 @@ export default function NotificationScreen() {
     }
   };
   const enviarReporte = async () => {
+    if (userRole === 'estudiante' && contactos.length === 0) {
+      Alert.alert("Acceso Restringido", "Solo puedes enviar reportes si tienes una renta activa con un arrendador.");
+      return;
+    }
+
     if (!destinatarioSeleccionado || nuevoTitulo.trim() === "" || nuevoMensaje.trim() === "") {
       Alert.alert("Campos incompletos", "Por favor completa todos los campos del reporte.");
       return;
@@ -428,6 +480,9 @@ export default function NotificationScreen() {
     
     try {
       const token = await AsyncStorage.getItem('token');
+      // Obtener el nombre del usuario actual para el remitente
+      const userName = await AsyncStorage.getItem('userName') || "Usuario";
+
       const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones`, {
         method: 'POST',
         headers: { 
@@ -439,12 +494,24 @@ export default function NotificationScreen() {
           titulo: nuevoTitulo,
           mensaje: nuevoMensaje,
           tipo: "REPORTE",
-          remitente_nombre: contactos.find((c) => c.id_usuario === userId)?.nombre || "Usuario",
+          remitente_nombre: userName,
         }),
       });
       
       if (respuesta.ok) {
-        Alert.alert("¡Enviado!", "Tu reporte ha sido enviado exitosamente.");
+        const notifCreada = await respuesta.json();
+        
+        // Notificar en tiempo real vía WebSocket
+        socketService.emit('enviar_mensaje', {
+          id: notifCreada.id,
+          usuario_id: destinatarioSeleccionado,
+          titulo: nuevoTitulo,
+          mensaje: nuevoMensaje,
+          remitente_nombre: userName,
+          tipo: "REPORTE"
+        });
+
+        Alert.alert("¡Enviado!", "Tu mensaje ha sido enviado exitosamente.");
         setNuevoTitulo(""); setNuevoMensaje(""); setDestinatarioSeleccionado(null);
         setModalFormularioVisible(false);
         if(userId) cargarNotificacionesBD(userId);
@@ -504,6 +571,7 @@ export default function NotificationScreen() {
           return !n.leida; // Las notificaciones normales solo se quedan si no han sido leídas
         }));
         
+        refreshUnreadCount();
         const cantidad = data.count !== undefined ? data.count : '';
         mostrarTooltip(`¡Borrados! ${cantidad} eliminados. (Las citas persisten)`);
       } else {
@@ -572,6 +640,7 @@ export default function NotificationScreen() {
       if (respuesta.ok) {
         const data = await respuesta.json().catch(() => ({}));
         setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })));
+        refreshUnreadCount();
         const cantidad = data.count !== undefined ? data.count : '';
         mostrarTooltip(`¡Hecho! ${cantidad} marcados. (Citas no incluidas)`);
       } else {
@@ -603,6 +672,7 @@ export default function NotificationScreen() {
       item.tipo === 'calificar_estudiante' ? item.relacionado_a : null;
 
     const rating = idEstudiante ? ratingEstudianteMap[idEstudiante] || 0 : 0;
+    const fotoUrl = item.remitenteFoto ? `${BACKEND_URL}${item.remitenteFoto}` : null;
 
     return (
       <Swipeable renderLeftActions={() => renderLeftActions(item.id)} friction={2} rightThreshold={40}>
@@ -611,7 +681,16 @@ export default function NotificationScreen() {
           onPress={() => abrirDetalle(item)}
         >
           <View style={styles.encabezadoTarjeta}>
-            <Text style={[styles.titulo, !item.leida && styles.textoNegrita]} numberOfLines={1}>{item.titulo}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+               {fotoUrl ? (
+                 <Image source={{ uri: fotoUrl }} style={styles.avatarMiniatura} />
+               ) : (
+                 <View style={[styles.avatarMiniatura, { backgroundColor: '#205EA6', justifyContent: 'center', alignItems: 'center' }]}>
+                   <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>{item.remitente.charAt(0)}</Text>
+                 </View>
+               )}
+               <Text style={[styles.titulo, !item.leida && styles.textoNegrita]} numberOfLines={1}>{item.titulo}</Text>
+            </View>
             <Text style={styles.fecha}>{item.fecha}</Text>
           </View>
           <View style={styles.remitenteRow}>
@@ -688,9 +767,16 @@ export default function NotificationScreen() {
               <View style={styles.contenidoDetalle}>
                 <Text style={styles.tituloModal}>{notificacionSeleccionada.titulo}</Text>
                 <View style={styles.infoRemitente}>
-                  <View style={styles.avatarCircular}>
-                    <Text style={styles.letraAvatar}>{notificacionSeleccionada.remitente.charAt(0)}</Text>
-                  </View>
+                  {notificacionSeleccionada.remitenteFoto ? (
+                    <Image 
+                      source={{ uri: `${BACKEND_URL}${notificacionSeleccionada.remitenteFoto}` }} 
+                      style={styles.avatarCircular} 
+                    />
+                  ) : (
+                    <View style={styles.avatarCircular}>
+                      <Text style={styles.letraAvatar}>{notificacionSeleccionada.remitente.charAt(0)}</Text>
+                    </View>
+                  )}
                   <View>
                     <Text style={styles.nombreRemitente}>{notificacionSeleccionada.remitente}</Text>
                     <Text style={styles.fechaModal}>{notificacionSeleccionada.fecha}</Text>
@@ -908,6 +994,7 @@ const styles = StyleSheet.create({
   titulo: { fontSize: 16, color: "#212529", flex: 1, paddingRight: 8 },
   textoNegrita: { fontWeight: "600" },
   fecha: { fontSize: 12, color: "#6c757d", marginLeft: 8 },
+  avatarMiniatura: { width: 24, height: 24, borderRadius: 12, marginRight: 8 },
   remitenteLista: { fontSize: 14, color: "#495057", marginTop: 2 },
   remitenteRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
   ratingBadgeLista: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF8E1", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 },
