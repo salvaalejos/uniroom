@@ -98,6 +98,7 @@ export default function NotificationScreen() {
           leida: false,
           remitente: data.estudianteNombre,
           fecha: new Date().toLocaleString(),
+          relacionado_a: data.id, // ID de la cita
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
@@ -116,6 +117,7 @@ export default function NotificationScreen() {
           leida: false,
           remitente: data.anfitrionNombre,
           fecha: new Date().toLocaleString(),
+          relacionado_a: data.id, // ID de la cita
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
@@ -133,6 +135,7 @@ export default function NotificationScreen() {
           leida: false,
           remitente: 'Sistema UniRoom',
           fecha: new Date().toLocaleString(),
+          relacionado_a: data.id, // ID de la cita
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
@@ -150,6 +153,7 @@ export default function NotificationScreen() {
           leida: false,
           remitente: data.anfitrionNombre,
           fecha: new Date().toLocaleString(),
+          relacionado_a: data.id, // ID de la cita
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
@@ -370,12 +374,12 @@ export default function NotificationScreen() {
   };
 
   const responderSolicitud = async (notif: Notificacion, aceptar: boolean, motivoRechazo?: string) => {
-    const data = notif.datosExtra;
-    if (!data) return;
-    
+    const citaId = notif.relacionado_a || notif.datosExtra?.id_cita || notif.id;
+    if (!citaId) return;
+
     try {
       const nuevoEstado = aceptar ? 'ACEPTADA' : 'RECHAZADA';
-      await actualizarEstadoCita(data.id_cita || data.id, nuevoEstado, motivoRechazo);
+      await actualizarEstadoCita(citaId, nuevoEstado, motivoRechazo);
       Alert.alert(aceptar ? 'Cita aceptada' : 'Cita rechazada', 'Se ha notificado al solicitante.');
       setModalVisible(false);
       if(userId) cargarCitasComoNotificaciones(userRole);
@@ -386,10 +390,10 @@ export default function NotificationScreen() {
 
   // NUEVO: Marcar cita como realizada
   const marcarRealizada = async (notif: Notificacion) => {
-    const data = notif.datosExtra;
-    if (!data) return;
+    const citaId = notif.relacionado_a || notif.datosExtra?.id_cita || notif.id;
+    if (!citaId) return;
     try {
-      await marcarCitaRealizada(data.id_cita || data.id);
+      await marcarCitaRealizada(citaId);
       Alert.alert('Visita registrada', 'Ahora puedes decidir si autorizas al estudiante para rentar.');
       setModalVisible(false);
       if(userId) cargarCitasComoNotificaciones(userRole);
@@ -400,15 +404,15 @@ export default function NotificationScreen() {
 
   // NUEVO: Decisión de renta (aprobar/rechazar)
   const responderDecisionRenta = async (notif: Notificacion, aprobar: boolean) => {
-    const data = notif.datosExtra;
-    if (!data) return;
+    const citaId = notif.relacionado_a || notif.datosExtra?.id_cita || notif.id;
+    if (!citaId) return;
     try {
-      await decisionRenta(data.id_cita || data.id, aprobar ? 'APROBAR' : 'RECHAZAR');
+      await decisionRenta(citaId, aprobar ? 'APROBAR' : 'RECHAZAR');
       Alert.alert(
         aprobar ? 'Renta aprobada' : 'Renta rechazada',
         aprobar
-          ? `Has autorizado a ${data.estudianteNombre} para rentar ${data.propiedadTitulo}.`
-          : `Has rechazado la renta de ${data.propiedadTitulo}.`
+          ? `Has autorizado a ${notif.datosExtra?.estudianteNombre || 'el estudiante'} para rentar ${notif.datosExtra?.propiedadTitulo || 'tu propiedad'}.`
+          : `Has rechazado la renta.`
       );
       setModalVisible(false);
       if(userId) cargarCitasComoNotificaciones(userRole);
@@ -416,7 +420,6 @@ export default function NotificationScreen() {
       Alert.alert('Error', error.message);
     }
   };
-
   const enviarReporte = async () => {
     if (!destinatarioSeleccionado || nuevoTitulo.trim() === "" || nuevoMensaje.trim() === "") {
       Alert.alert("Campos incompletos", "Por favor completa todos los campos del reporte.");
