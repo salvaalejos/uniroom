@@ -6,12 +6,23 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
 import { useNavigation } from "@react-navigation/native"
 import AgendarCita from "./AgendarCita"
+import Constants from "expo-constants"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 // ─ Constantes ─
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 
 // Foto del anfitrion provisional
 const ANFITRION = require("../default_images/anfi.jpg")
+
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
+
+const getMediaUri = (src: string): { uri: string } | number => {
+    if (!src) return 0;
+    if (src.startsWith("http")) return { uri: src };
+    return { uri: `${API_BASE_URL}${src}` };
+};
 
 // Datos falsos por ahora sjdhsjd
 const PROPIEDAD = {
@@ -71,7 +82,33 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
     const [favorito, setFavorito] = useState(false)
     const [imagenActual, setImagenActual] = useState(0)
     const [verComentarios, setVerComentarios] = useState(false)
-    const [modalTarifaVisible, setModalTarifaVisible] = useState(false) // FIX 4: estaba sin declarar
+    const [modalTarifaVisible, setModalTarifaVisible] = useState(false)
+    const [puedeRentar, setPuedeRentar] = useState(false)
+    const [yaEstáRentando, setYaEstáRentando] = useState(false)
+    const [modalRentarVisible, setModalRentarVisible] = useState(false)
+
+    // Verificar si el usuario puede rentar este inmueble
+    useEffect(() => {
+        const checkRentaPermission = async () => {
+            if (!inmueble?.id_inmueble || !token) return
+            const hostUri = Constants.expoConfig?.hostUri?.split(":").shift()
+            const API_URL = hostUri ? `http://${hostUri}:3000` : "http://localhost:3000"
+            try {
+                // Refetch el inmueble para obtener info actualizada de autorización
+                const resp = await fetch(`${API_URL}/inmuebles/${inmueble.id_inmueble}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                if (resp.ok) {
+                    const data = await resp.json()
+                    setPuedeRentar(data.puede_rentar || false)
+                    setYaEstáRentando(data.usuario_actualmente_rentando || false)
+                }
+            } catch (error) {
+                console.error("Error verificando permiso de renta:", error)
+            }
+        }
+        checkRentaPermission()
+    }, [inmueble?.id_inmueble, token])
 
     // ── FIX 1: esVideo y videoSource ahora usan imagenActual ya declarado arriba ──
     const esVideo = inmueble?.media?.[imagenActual]?.tipo === "video"
@@ -129,10 +166,18 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
         if (inmueble) {
             console.log("[Detail] Inmueble cargado:", inmueble.titulo);
             console.log("[Detail] Foto Anfitrión:", inmueble.fotoAnfitrion);
+            console.log("[Detail] Puede rentar:", puedeRentar);
         }
-    }, [inmueble]);
+    }, [inmueble, puedeRentar]);
 
     if (!inmueble) return null
+
+    const calificaciones = inmueble.calificaciones || []
+    const ratingPromedio = calificaciones.length > 0
+        ? (calificaciones.reduce((sum, c) => sum + c.calificacion, 0) / calificaciones.length)
+        : 0
+    const totalOpiniones = calificaciones.length
+    const reseñasConComentario = calificaciones.filter(c => c.descripcion && c.descripcion.trim().length > 0)
 
     return (
         <View style={styles.container}>
@@ -210,37 +255,43 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     {/* Titulo y calificaciones */}
                     <Text style={styles.titulo}>{inmueble.titulo}</Text>
 
-                    <View style={styles.calificacionContainer}>
-                        <View style={styles.calificacionItem}>
-                            <Text style={styles.calificacionNumero}>{inmueble.calificacion}</Text>
-                            {/* La idea es que saca el promedio de las valoraciones de las resenas de los usuarios */}
-                            <View style={styles.estrellas}>
-                            {(() => {
-                                const rating = Number(inmueble.calificacion) || 0
-                                return [1, 2, 3, 4, 5].map((i) => {
-                                    const icon = i <= Math.floor(rating)
-                                        ? "star"
-                                        : i === Math.ceil(rating) && rating % 1 !== 0
-                                            ? "star-half"
-                                            : "star-outline"
-                                    return (
-                                        <MaterialCommunityIcons
-                                            key={i}
-                                            name={icon}
-                                            size={25}
-                                            color="#f39c12"
-                                        />
-                                    )
-                                })
-                            })()}
-                        </View>
-                        </View>
+                    {totalOpiniones > 0 ? (
+                        <View style={styles.calificacionContainer}>
+                            <View style={styles.calificacionItem}>
+                                <Text style={styles.calificacionNumero}>{ratingPromedio.toFixed(1)}</Text>
+                                <View style={styles.estrellas}>
+                                {(() => {
+                                    const rating = ratingPromedio
+                                    return [1, 2, 3, 4, 5].map((i) => {
+                                        const icon = i <= Math.floor(rating)
+                                            ? "star"
+                                            : i === Math.ceil(rating) && rating % 1 !== 0
+                                                ? "star-half"
+                                                : "star-outline"
+                                        return (
+                                            <MaterialCommunityIcons
+                                                key={i}
+                                                name={icon}
+                                                size={25}
+                                                color="#f39c12"
+                                            />
+                                        )
+                                    })
+                                })()}
+                            </View>
+                            </View>
 
-                        <View style={styles.calificacionItem}>
-                            <Text style={styles.calificacionNumero}>{inmueble.opiniones}</Text>
-                            <Text style={styles.opinionesLabel}>opiniones</Text>
+                            <View style={styles.calificacionItem}>
+                                <Text style={styles.calificacionNumero}>{totalOpiniones}</Text>
+                                <Text style={styles.opinionesLabel}>opiniones</Text>
+                            </View>
                         </View>
-                    </View>
+                    ) : (
+                        <View style={styles.sinReseñas}>
+                            <MaterialCommunityIcons name="star-outline" size={20} color="#ccc" />
+                            <Text style={styles.sinReseñasTxt}>Aún no hay reseñas</Text>
+                        </View>
+                    )}
 
                     <View style={styles.divider}/>
 
@@ -298,16 +349,16 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
                     <View style={styles.divider}/>
 
-                    {/* Comentarios predefinidos */}
-                    {/* <View style={styles.comentarioEncabezado}>
+                    {/* Reseñas de usuarios */}
+                    <View style={styles.comentarioEncabezado}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                             <MaterialCommunityIcons name="star" size={18} color="#f39c12" />
                             <View>
                                 <Text style={styles.comentarioEncabezadoTexto}>Reseñas del público</Text>
-                                <Text style={{ fontSize: 12, color: "#185FA5" }}>{RESENAS.length} opiniones</Text>
+                                <Text style={{ fontSize: 12, color: "#185FA5" }}>{totalOpiniones} opiniones</Text>
                             </View>
                         </View>
-                        {RESENAS.length > 0 && (
+                        {reseñasConComentario.length > 0 && (
                             <TouchableOpacity onPress={() => setVerComentarios(!verComentarios)}>
                                 <MaterialCommunityIcons
                                     name={verComentarios ? "chevron-up" : "chevron-down"}
@@ -318,20 +369,31 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         )}
                     </View>
 
-                    {RESENAS.length === 0 ? (
+                    {reseñasConComentario.length === 0 ? (
                         <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20 }}>
                             Aún no hay reseñas para este lugar.
                         </Text>
                     ) : verComentarios ? (
-                        RESENAS.map((c, i) => (
+                        reseñasConComentario.map((c: any, i: number) => (
                             <View key={i} style={styles.comentario}>
-                                <Image source={ANFITRION} style={styles.comentarioAvatar}/>
+                                <Image source={c.estudiante?.foto ? getMediaUri(c.estudiante.foto) : ANFITRION} style={styles.comentarioAvatar}/>
                                 <View style={{flex: 1}}>
-                                    <View style={{ flexDirection: "column", justifyContent: "space-between" }}>
-                                        <Text style={styles.comentarioAutor}>{c.autor}</Text>
-                                        <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
+                                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                                        <View>
+                                            <Text style={styles.comentarioAutor}>{c.estudiante?.nombre || "Usuario"}</Text>
+                                            <View style={{ flexDirection: "row", gap: 2 }}>
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <MaterialCommunityIcons
+                                                        key={star}
+                                                        name={star <= c.calificacion ? "star" : "star-outline"}
+                                                        size={14}
+                                                        color="#f39c12"
+                                                    />
+                                                ))}
+                                            </View>
+                                        </View>
                                     </View>
-                                    <Text style={styles.comentarioTexto}>{c.texto}</Text>
+                                    <Text style={styles.comentarioTexto}>{c.descripcion}</Text>
                                 </View>
                             </View>
                         ))
@@ -339,7 +401,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         <Text style={{ color: "#aaa", textAlign: "center", marginBottom: 20, fontSize: 13 }}>
                             Toca la flecha para ver las reseñas.
                         </Text>
-                    )} */}
+                    )}
 
                 </View>
             </ScrollView>
@@ -351,22 +413,37 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     <Text style={styles.footerMes}>/ mes</Text>
                 </View>
 
-                <TouchableOpacity
-                    style={styles.btnContacto}
-                    onPress={() => {
-                        onClose()
-                        navigation.navigate("Navigator", {
-                            screen: "Inmuebles",
-                            params: {
-                                screen: "AgendarCita",
-                                params: { inmueble, token }
-                            }
-                        })
-                    }}
-                >
-                    <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>
-                    <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
-                </TouchableOpacity>
+                {yaEstáRentando ? (
+                    <View style={styles.btnRentarDisabled}>
+                        <MaterialCommunityIcons name="lock" size={18} color="#a0b9e9"/>
+                        <Text style={styles.btnRentarDisabledTexto}>Ya tienes una renta activa</Text>
+                    </View>
+                ) : puedeRentar ? (
+                    <TouchableOpacity
+                        style={styles.btnContacto}
+                        onPress={() => setModalRentarVisible(true)}
+                    >
+                        <MaterialCommunityIcons name="key" size={18} color="#fff"/>
+                        <Text style={styles.btnContactoTexto}>Rentar</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity
+                        style={styles.btnContacto}
+                        onPress={() => {
+                            onClose()
+                            navigation.navigate("Navigator", {
+                                screen: "Inmuebles",
+                                params: {
+                                    screen: "AgendarCita",
+                                    params: { inmueble, token }
+                                }
+                            })
+                        }}
+                    >
+                        <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>
+                        <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
+                    </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                     style={styles.btnContacto}
@@ -376,6 +453,37 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     <Text style={styles.btnContactoTexto}>Contactar</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Modal de Confirmar Renta */}
+            <Modal visible={modalRentarVisible} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <MaterialCommunityIcons name="key-variant" size={48} color="#205EA6" style={{ marginBottom: 16 }} />
+                        <Text style={styles.modalTitle}>Confirmar Renta</Text>
+                        <Text style={styles.modalText}>
+                            Estás a punto de rentar {inmueble?.titulo} por ${(Number(inmueble?.precio_mensual) || 0).toLocaleString('es-MX')} MXN al mes. ¿Deseas proceder al pago?
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.btnPagar}
+                            onPress={() => {
+                                setModalRentarVisible(false)
+                                navigation.navigate("PaymentScreen", {
+                                    token: token,
+                                    monto: Number(inmueble?.precio_mensual) || 0,
+                                    tipo: "renta",
+                                    id_inmueble: inmueble?.id_inmueble,
+                                    titulo_inmueble: inmueble?.titulo,
+                                })
+                            }}
+                        >
+                            <Text style={styles.btnPagarTexto}>Proceder al Pago</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalRentarVisible(false)}>
+                            <Text style={styles.btnCancelarTexto}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Modal de Tarifa de Servicio */}
             <Modal visible={modalTarifaVisible} transparent animationType="fade">
@@ -509,6 +617,17 @@ const styles = StyleSheet.create({
     opinionesLabel: {
         fontSize: 14,
         color: "#1a1a2e",
+    },
+    sinReseñas: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        justifyContent: "center",
+        paddingVertical: 8,
+    },
+    sinReseñasTxt: {
+        fontSize: 14,
+        color: "#aaa",
     },
     divider: {
         height: 1,
@@ -646,6 +765,20 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontWeight: "700",
         fontSize: 15,
+    },
+    btnRentarDisabled: {
+        flexDirection: "row",
+        backgroundColor: "#EEF4FF",
+        borderRadius: 24,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        alignItems: "center",
+        gap: 8,
+    },
+    btnRentarDisabledTexto: {
+        color: "#a0b9e9",
+        fontWeight: "600",
+        fontSize: 13,
     },
     modalOverlay: {
         flex: 1,

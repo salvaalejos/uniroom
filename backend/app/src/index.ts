@@ -4,11 +4,13 @@ import { authRoutes } from "./routes/auth";
 import { usersRoutes } from "./routes/users";
 import { paymentRoutes } from "./routes/payments";
 import { citasRoutes } from "./routes/citas";
-import { inmueblesRoutes } from "./routes/inmuebles"; // <-- agregar
+import { inmueblesRoutes } from "./routes/inmuebles";
 import { filtroRoutes } from "./routes/Filtro";
 import cors from "@elysiajs/cors";
 import staticPlugin from "@elysiajs/static";
-import { notificacionRoutes } from "./routes/notificacion"; 
+import { notificacionRoutes } from "./routes/notificacion";
+import { calificacionRoutes } from "./routes/calificaciones";
+import "./ws-server"; 
 const app = new Elysia()
   .use(staticPlugin({
         assets: 'uploads', //Carpeta
@@ -29,6 +31,7 @@ const app = new Elysia()
   .use(paymentRoutes)
   .use(notificacionRoutes)
   .use(citasRoutes)
+  .use(calificacionRoutes)
   .use(inmueblesRoutes) // <-- agregar
   .use(filtroRoutes)
   .get("/", () => "Hello Elysia")

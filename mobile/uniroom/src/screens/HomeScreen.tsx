@@ -1,35 +1,26 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Modal, Dimensions } from "react-native"
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Modal, Dimensions, ActivityIndicator, TextInput } from "react-native"
 import { useState, useRef, useEffect } from "react"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
+import Constants from "expo-constants"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { obtenerRentaActual, cancelarRenta, crearCalificacion } from "../services/api"
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window")
 const ANFITRION = require("../default_images/anfi.jpg")
 
-const RENTA_ACTIVA = {
-    titulo: "Departamento Centro Morelia",
-    arrendador: "Stevenson",
-    precio: 3200,
-    ubicacion: "Centro Histórico, Morelia",
-    servicios: ["WiFi incluido", "Agua incluida", "Luz incluida", "Lavadora", "Estacionamiento"],
-    reglas: ["No mascotas", "No fumar", "No fiestas", "Máx. 2 personas"],
-    contactoTel: "55 1234 5678",
-    contactoEmail: "stevenson@mail.com",
-    fechaInicio: "1 de abril de 2026",
-    fechaFin: "1 de octubre de 2026",
-    diasRestantes: 157,
-    diasTotales: 183,
-    media: [
-        { tipo: "imagen", src: require("../default_images/dreamhouse.jpg") },
-        { tipo: "imagen", src: require("../default_images/fachada.jpg") },
-        { tipo: "imagen", src: require("../default_images/otracasa.jpeg") },
-        { tipo: "video", src: require("../default_images/twt.mp4") },
-    ]
-}
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
-const GaleriaVideoItem = ({ src }: { src: any }) => {
-    const player = useVideoPlayer(src)
+const getMediaUri = (src: string): { uri: string } | number => {
+    if (!src) return 0;
+    if (src.startsWith("http")) return { uri: src };
+    return { uri: `${API_BASE_URL}${src}` };
+};
+
+const GaleriaVideoItem = ({ src }: { src: string }) => {
+    const player = useVideoPlayer(getMediaUri(src) as { uri: string })
     return (
         <VideoView
             player={player}
@@ -39,55 +30,149 @@ const GaleriaVideoItem = ({ src }: { src: any }) => {
     )
 }
 
+type Props = { navigation?: any; route?: any }
 
-
-type Props = { navigation?: any }
-
-const HomeScreen = ({ navigation }: Props) => {
-
+const HomeScreen = ({ navigation, route }: Props) => {
     const insets = useSafeAreaInsets()
+    const userId = route?.params?.userId
+    const token = route?.params?.token
+
+    const [rentaActual, setRentaActual] = useState<any>(null)
+    const [cargando, setCargando] = useState(true)
+
     const [imagenActual, setImagenActual] = useState(0)
     const [menuVisible, setMenuVisible] = useState(false)
     const [modalCancelarVisible, setModalCancelarVisible] = useState(false)
     const [galeriaVisible, setGaleriaVisible] = useState(false)
     const [mediaActual, setMediaActual] = useState(0)
+    const [cancelando, setCancelando] = useState(false)
+    const [modalCalificacionVisible, setModalCalificacionVisible] = useState(false)
+    const [modalOmitirVisible, setModalOmitirVisible] = useState(false)
+    const [rating, setRating] = useState(0)
+    const [comentario, setComentario] = useState("")
+    const [enviando, setEnviando] = useState(false)
 
-    const player = useVideoPlayer(
-        RENTA_ACTIVA.media[imagenActual].tipo === "video" ? RENTA_ACTIVA.media[imagenActual].src : null
-    )
-    
+    const media = rentaActual?.media || []
+
     const galeriaScrollRef = useRef<ScrollView>(null)
-    
-    useEffect(() => {
-    if (galeriaVisible) {
-        setTimeout(() => {
-            galeriaScrollRef.current?.scrollTo({ x: mediaActual * SCREEN_WIDTH, animated: false })
-        }, 50)
-    }
-}, [galeriaVisible])
 
-// Salta cuando tocas una miniatura dentro de la galería
-useEffect(() => {
-    if (galeriaVisible) {
-        galeriaScrollRef.current?.scrollTo({ x: mediaActual * SCREEN_WIDTH, animated: true })
+    useEffect(() => {
+        if (galeriaVisible) {
+            setTimeout(() => {
+                galeriaScrollRef.current?.scrollTo({ x: mediaActual * SCREEN_WIDTH, animated: false })
+            }, 50)
+        }
+    }, [galeriaVisible])
+
+    useEffect(() => {
+        if (galeriaVisible) {
+            galeriaScrollRef.current?.scrollTo({ x: mediaActual * SCREEN_WIDTH, animated: true })
+        }
+    }, [mediaActual])
+
+    useEffect(() => {
+        const fetchRenta = async () => {
+            if (!userId) {
+                setCargando(false)
+                return
+            }
+            try {
+                const data = await obtenerRentaActual(userId)
+                setRentaActual(data.rentaActual)
+            } catch (error) {
+                console.error("Error obteniendo renta actual:", error)
+            } finally {
+                setCargando(false)
+            }
+        }
+        fetchRenta()
+    }, [userId])
+
+    const handleCancelarRenta = async () => {
+        setCancelando(true)
+        try {
+            await cancelarRenta(userId)
+            setModalCancelarVisible(false)
+            setRating(0)
+            setComentario("")
+            setModalCalificacionVisible(true)
+        } catch (error: any) {
+            Alert?.alert("Error", error.message)
+        } finally {
+            setCancelando(false)
+        }
     }
-}, [mediaActual])
+
+    const handleEnviarCalificacion = async () => {
+        if (rating === 0) {
+            setEnviando(false)
+            setModalCalificacionVisible(false)
+            setModalOmitirVisible(false)
+            setRentaActual(null)
+            return
+        }
+        setEnviando(true)
+        try {
+            await crearCalificacion({
+                id_inmueble: rentaActual.id_inmueble,
+                calificacion: rating,
+                comentario: comentario || undefined,
+            })
+            setModalCalificacionVisible(false)
+            setModalOmitirVisible(false)
+            setRentaActual(null)
+        } catch (error: any) {
+            console.error("Error enviando calificación:", error)
+            setModalCalificacionVisible(false)
+            setRentaActual(null)
+        } finally {
+            setEnviando(false)
+        }
+    }
+
+    if (cargando) {
+        return (
+            <View style={[styles.container, { paddingTop: insets.top, justifyContent: "center", alignItems: "center" }]}>
+                <ActivityIndicator size="large" color="#205EA6" />
+            </View>
+        )
+    }
+
+    // Sin renta activa
+    if (!rentaActual) {
+        return (
+            <View style={[styles.container, { paddingTop: insets.top }]}>
+                <View style={styles.sinRentaContainer}>
+                    <MaterialCommunityIcons name="home-outline" size={80} color="#a0b9e9" />
+                    <Text style={styles.sinRentaTitulo}>No tienes una renta activa</Text>
+                    <Text style={styles.sinRentaSub}>Explora el mapa para encontrar tu próximo hogar</Text>
+                    <TouchableOpacity
+                        style={styles.btnExplorar}
+                        onPress={() => navigation?.navigate?.("Navigator", { screen: "Inmuebles" })}
+                    >
+                        <MaterialCommunityIcons name="map-search" size={20} color="#fff" />
+                        <Text style={styles.btnExplorarTexto}>Explorar inmuebles</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        )
+    }
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
-
                 {/* Header con imagen de fondo */}
                 <View style={styles.headerAzul}>
-                    <TouchableOpacity 
-                        style={{ position: "absolute", width: "100%", height: "100%" }}
-                        onPress={() => { setMediaActual(0); setGaleriaVisible(true) }}
-                        activeOpacity={0.9}
-                    >
-                        <Image source={RENTA_ACTIVA.media[0].src} style={styles.headerImagen} />
-                    </TouchableOpacity>
-                
+                    {media.length > 0 && (
+                        <TouchableOpacity
+                            style={{ position: "absolute", width: "100%", height: "100%" }}
+                            onPress={() => { setMediaActual(0); setGaleriaVisible(true) }}
+                            activeOpacity={0.9}
+                        >
+                            <Image source={getMediaUri(media[0].src)} style={styles.headerImagen} />
+                        </TouchableOpacity>
+                    )}
+
                     <View style={styles.headerOverlay} />
                     <View style={styles.headerContenido}>
                         <View style={styles.headerTopRow}>
@@ -102,9 +187,9 @@ useEffect(() => {
                                 </TouchableOpacity>
                             </View>
                         </View>
-                        <Text style={styles.headerTitulo}>{RENTA_ACTIVA.titulo}</Text>
+                        <Text style={styles.headerTitulo}>{rentaActual.titulo}</Text>
                         <Text style={styles.headerSub}>
-                            ${RENTA_ACTIVA.precio.toLocaleString("es-MX")} / mes · {RENTA_ACTIVA.ubicacion}
+                            ${rentaActual.precio_mensual.toLocaleString("es-MX")} / mes
                         </Text>
                     </View>
 
@@ -126,27 +211,27 @@ useEffect(() => {
                 </View>
 
                 <View style={styles.body}>
-
                     {/* Miniaturas */}
-                    <View style={styles.galeriaRow}>
-                        {RENTA_ACTIVA.media.slice(1, 3).map((item, i) => (
-                            <TouchableOpacity key={i} style={{ flex: 1 }} onPress={() => { setMediaActual(i + 1); setGaleriaVisible(true) }}>
-                                {item.tipo === "imagen" ? (
-                                    <Image source={item.src} style={styles.imgMiniatura} />
-                                ) : (
-                                    <View style={[styles.imgMiniatura, styles.imgSmVideo]}>
-                                        <MaterialCommunityIcons name="play-circle" size={22} color="#fff" />
-                                    </View>
-                                )}
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                    
+                    {media.length > 1 && (
+                        <View style={styles.galeriaRow}>
+                            {media.slice(1, 3).map((item: any, i: number) => (
+                                <TouchableOpacity key={i} style={{ flex: 1 }} onPress={() => { setMediaActual(i + 1); setGaleriaVisible(true) }}>
+                                    {item.tipo === "imagen" ? (
+                                        <Image source={getMediaUri(item.src)} style={styles.imgMiniatura} />
+                                    ) : (
+                                        <View style={[styles.imgMiniatura, styles.imgSmVideo]}>
+                                            <MaterialCommunityIcons name="play-circle" size={22} color="#fff" />
+                                        </View>
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+
                     {/* Contrato */}
                     <View style={styles.cardVacio}>
                         <Text style={styles.cardLbl}>Contrato</Text>
                         <View style={styles.timeline}>
-
                             <View style={styles.tlItem}>
                                 <View style={styles.tlLeft}>
                                     <View style={styles.tlDot} />
@@ -154,24 +239,22 @@ useEffect(() => {
                                 </View>
                                 <View style={styles.tlContent}>
                                     <Text style={styles.tlLbl}>Inicio</Text>
-                                    <Text style={styles.tlVal}>{RENTA_ACTIVA.fechaInicio}</Text>
+                                    <Text style={styles.tlVal}>{rentaActual.fecha_inicio_str}</Text>
                                 </View>
                             </View>
-
                             <View style={styles.tlItem}>
                                 <View style={styles.tlLeft}>
                                     <View style={[styles.tlDot, styles.tlDotFin]} />
                                 </View>
                                 <View style={styles.tlContent}>
                                     <Text style={styles.tlLbl}>Fin</Text>
-                                    <Text style={styles.tlVal}>{RENTA_ACTIVA.fechaFin}</Text>
+                                    <Text style={styles.tlVal}>{rentaActual.fecha_fin_str}</Text>
                                     <View style={styles.tlPill}>
                                         <MaterialCommunityIcons name="clock-outline" size={11} color="#205EA6" />
-                                        <Text style={styles.tlPillTxt}>{RENTA_ACTIVA.diasRestantes} días restantes</Text>
+                                        <Text style={styles.tlPillTxt}>{rentaActual.dias_restantes} días restantes</Text>
                                     </View>
                                 </View>
                             </View>
-
                         </View>
                     </View>
 
@@ -180,66 +263,69 @@ useEffect(() => {
                         <View style={{ flex: 1 }}>
                             <Text style={styles.cardLbl}>Arrendador</Text>
                             <View style={styles.arrenRow}>
-                                <Image source={ANFITRION} style={styles.avatar} />
+                                {rentaActual.arrendador.foto ? (
+                                    <Image
+                                        source={{ uri: rentaActual.arrendador.foto.startsWith("http") ? rentaActual.arrendador.foto : `${API_BASE_URL}${rentaActual.arrendador.foto}` }}
+                                        style={styles.avatar}
+                                    />
+                                ) : (
+                                    <Image source={ANFITRION} style={styles.avatar} />
+                                )}
                                 <View>
-                                    <Text style={styles.arrenNombre}>{RENTA_ACTIVA.arrendador}</Text>
+                                    <Text style={styles.arrenNombre}>{rentaActual.arrendador.nombre}</Text>
                                     <Text style={styles.arrenSub}>Arrendador verificado</Text>
                                 </View>
                             </View>
                         </View>
                         <View style={{ flex: 1, alignItems: "flex-end" }}>
                             <Text style={[styles.cardLbl, styles.contactarLbl]}>Contactar:</Text>
-                            <Text style={styles.contactarVal}>{RENTA_ACTIVA.contactoTel}</Text>
-                            <Text style={styles.contactarVal}>{RENTA_ACTIVA.contactoEmail}</Text>
+                            <Text style={styles.contactarVal}>{rentaActual.arrendador.numero_contacto || "Sin teléfono"}</Text>
                         </View>
                     </View>
 
                     {/* Servicios */}
-                    <View style={styles.card}>
-                        <Text style={styles.cardLbl}>Servicios incluidos</Text>
-                        <View style={styles.chips}>
-                            {RENTA_ACTIVA.servicios.map((s, i) => (
-                                <View key={i} style={styles.chip}>
-                                    <Text style={styles.chipTxt}>{s}</Text>
-                                </View>
-                            ))}
+                    {rentaActual.servicios && rentaActual.servicios.length > 0 && (
+                        <View style={styles.card}>
+                            <Text style={styles.cardLbl}>Servicios incluidos</Text>
+                            <View style={styles.chips}>
+                                {rentaActual.servicios.map((s: any, i: number) => (
+                                    <View key={i} style={styles.chip}>
+                                        <Text style={styles.chipTxt}>{typeof s === "object" ? s.nombre : s}</Text>
+                                    </View>
+                                ))}
+                            </View>
                         </View>
-                    </View>
+                    )}
 
                     {/* Reglas */}
-                    <View style={styles.card}>
-                        <Text style={styles.cardLbl}>Reglas de la vivienda</Text>
-                        <View style={styles.chips}>
-                            {RENTA_ACTIVA.reglas.map((r, i) => (
-                                <View key={i} style={[styles.chip, styles.chipRegla]}>
-                                    <Text style={[styles.chipTxt, styles.chipTxtRegla]}>{r}</Text>
-                                </View>
-                            ))}
+                    {rentaActual.restricciones && rentaActual.restricciones.length > 0 && (
+                        <View style={styles.card}>
+                            <Text style={styles.cardLbl}>Reglas de la vivienda</Text>
+                            <View style={styles.chips}>
+                                {rentaActual.restricciones.map((r: any, i: number) => (
+                                    <View key={i} style={[styles.chip, styles.chipRegla]}>
+                                        <Text style={[styles.chipTxt, styles.chipTxtRegla]}>{typeof r === "object" ? r.nombre : r}</Text>
+                                    </View>
+                                ))}
+                            </View>
                         </View>
-                    </View>
-
+                    )}
                 </View>
             </ScrollView>
 
             {/* Galeria modal */}
             <Modal visible={galeriaVisible} transparent animationType="fade">
                 <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center" }}>
-
-                    {/* Botón cerrar */}
                     <TouchableOpacity
                         onPress={() => setGaleriaVisible(false)}
                         style={{ position: "absolute", top: insets.top + 16, right: 16, zIndex: 10 }}
                     >
                         <MaterialCommunityIcons name="close" size={28} color="#fff" />
                     </TouchableOpacity>
-
-                    {/* Contador */}
                     <Text style={{ color: "rgba(255,255,255,0.6)", textAlign: "center",
                         position: "absolute", top: insets.top + 20, alignSelf: "center", fontSize: 13 }}>
-                        {mediaActual + 1} / {RENTA_ACTIVA.media.length}
+                        {mediaActual + 1} / {media.length}
                     </Text>
-
-                    {/* Media principal */}
                     <ScrollView
                         ref={galeriaScrollRef}
                         horizontal pagingEnabled showsHorizontalScrollIndicator={false}
@@ -248,26 +334,24 @@ useEffect(() => {
                             setMediaActual(idx)
                         }}
                     >
-                        {RENTA_ACTIVA.media.map((item, i) => (
+                        {media.map((item: any, i: number) => (
                             <View key={i} style={{ width: SCREEN_WIDTH, justifyContent: "center", alignItems: "center" }}>
                                 {item.tipo === "imagen" ? (
-                                    <Image source={item.src} style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.6, resizeMode: "contain" }} />
+                                    <Image source={getMediaUri(item.src)} style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.6, resizeMode: "contain" }} />
                                 ) : (
                                     <GaleriaVideoItem src={item.src} />
                                 )}
                             </View>
                         ))}
                     </ScrollView>
-
-                    {/* Miniaturas abajo */}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}
                         style={{ position: "absolute", bottom: insets.bottom + 20 }}
                         contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
                     >
-                        {RENTA_ACTIVA.media.map((item, i) => (
+                        {media.map((item: any, i: number) => (
                             <TouchableOpacity key={i} onPress={() => setMediaActual(i)}>
                                 {item.tipo === "imagen" ? (
-                                    <Image source={item.src} style={{
+                                    <Image source={getMediaUri(item.src)} style={{
                                         width: 56, height: 56, borderRadius: 8, resizeMode: "cover",
                                         borderWidth: mediaActual === i ? 2 : 0, borderColor: "#fff"
                                     }} />
@@ -281,7 +365,6 @@ useEffect(() => {
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
-
                 </View>
             </Modal>
 
@@ -289,37 +372,114 @@ useEffect(() => {
             <Modal visible={modalCancelarVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
-
                         <View style={styles.modalIcono}>
                             <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#ffffff" />
                         </View>
-
                         <Text style={styles.modalTitulo}>¿Cancelar contrato?</Text>
                         <Text style={styles.modalSubtitulo}>
-                            Esta acción cancelará tu contrato activo. No podrás deshacerlo una vez enviada la solicitud.
+                            Esta acción cancelará tu contrato activo. El inmueble quedará disponible nuevamente.
                         </Text>
-
                         <TouchableOpacity
-                            style={styles.modalBtnPeligro}
-                            onPress={() => {
-                                setModalCancelarVisible(false)
-                                // aquí va la lógica real cuando conectes la API
-                            }}
+                            style={[styles.modalBtnPeligro, cancelando && { opacity: 0.7 }]}
+                            onPress={handleCancelarRenta}
+                            disabled={cancelando}
                         >
-                            <Text style={styles.modalBtnPeligroTxt}>Sí, cancelar contrato</Text>
+                            {cancelando ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.modalBtnPeligroTxt}>Sí, cancelar contrato</Text>
+                            )}
                         </TouchableOpacity>
-
                         <TouchableOpacity
                             style={styles.modalBtnVolver}
                             onPress={() => setModalCancelarVisible(false)}
+                            disabled={cancelando}
                         >
                             <Text style={styles.modalBtnVolverTxt}>Volver</Text>
                         </TouchableOpacity>
-
                     </View>
                 </View>
             </Modal>
 
+            {/* Modal calificación */}
+            <Modal visible={modalCalificacionVisible} transparent animationType="fade">
+                <View style={styles.ratingOverlay}>
+                    <View style={styles.ratingCard}>
+                        <TouchableOpacity
+                            style={styles.ratingSkipBtn}
+                            onPress={() => setModalOmitirVisible(true)}
+                        >
+                            <Text style={styles.ratingSkipBtnText}>Omitir</Text>
+                        </TouchableOpacity>
+
+                        <Text style={styles.ratingTitle}>¿Cómo calificas tu experiencia?</Text>
+
+                        <View style={styles.starsRow}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                                    <MaterialCommunityIcons
+                                        name={star <= rating ? "star" : "star-outline"}
+                                        size={40}
+                                        color={star <= rating ? "#f39c12" : "#ccc"}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <TextInput
+                            style={styles.ratingInput}
+                            placeholder="Cuéntanos tu experiencia (opcional)"
+                            placeholderTextColor="#aaa"
+                            value={comentario}
+                            onChangeText={setComentario}
+                            multiline
+                            numberOfLines={4}
+                            textAlignVertical="top"
+                        />
+
+                        <TouchableOpacity
+                            style={[styles.ratingSubmitBtn, enviando && { opacity: 0.7 }]}
+                            onPress={handleEnviarCalificacion}
+                            disabled={enviando}
+                        >
+                            {enviando ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.ratingSubmitBtnText}>Enviar calificación</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal confirmar omitir */}
+            <Modal visible={modalOmitirVisible} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <MaterialCommunityIcons name="comment-text-outline" size={48} color="#205EA6" style={{ marginBottom: 12 }} />
+                        <Text style={styles.omitirTitulo}>¿Seguro que deseas omitir?</Text>
+                        <Text style={styles.omitirSubtitulo}>
+                            Tu opinión puede ayudar a más usuarios
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.omitirBtnContinuar}
+                            onPress={() => {
+                                setModalCalificacionVisible(false)
+                                setModalOmitirVisible(false)
+                                setRentaActual(null)
+                            }}
+                        >
+                            <Text style={styles.omitirBtnContinuarText}>Continuar sin reseña</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.modalBtnVolver}
+                            onPress={() => setModalOmitirVisible(false)}
+                        >
+                            <Text style={styles.modalBtnVolverTxt}>Volver</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     )
 }
@@ -332,7 +492,43 @@ const styles = StyleSheet.create({
         backgroundColor: "#f5f7fa",
     },
 
-    // ── Header ──
+    // Sin renta
+    sinRentaContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 32,
+    },
+    sinRentaTitulo: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: "#1a1a2e",
+        marginTop: 16,
+        textAlign: "center",
+    },
+    sinRentaSub: {
+        fontSize: 15,
+        color: "#888",
+        marginTop: 8,
+        textAlign: "center",
+        marginBottom: 24,
+    },
+    btnExplorar: {
+        flexDirection: "row",
+        backgroundColor: "#205EA6",
+        borderRadius: 24,
+        paddingVertical: 14,
+        paddingHorizontal: 28,
+        alignItems: "center",
+        gap: 10,
+    },
+    btnExplorarTexto: {
+        color: "#fff",
+        fontWeight: "700",
+        fontSize: 16,
+    },
+
+    // Header
     headerAzul: {
         height: SCREEN_HEIGHT * 0.32,
         backgroundColor: "#1477e9",
@@ -400,7 +596,7 @@ const styles = StyleSheet.create({
         color: "rgba(255,255,255,0.85)",
     },
 
-    // ── Menú ──
+    // Menú
     menuDesplegable: {
         position: "absolute",
         top: 44,
@@ -429,7 +625,7 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
 
-    // ── Body ──
+    // Body
     body: {
         backgroundColor: "#f5f7fa",
         borderRadius: 20,
@@ -438,13 +634,12 @@ const styles = StyleSheet.create({
         gap: 10,
     },
 
-    // ── Galería ──
+    // Galería
     galeriaRow: {
         flexDirection: "row",
         gap: 6,
     },
     imgMiniatura: {
-        //flex: 1,
         height: 150,
         width: "100%",
         borderRadius: 10,
@@ -456,7 +651,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
 
-    // ── Cards ──
+    // Cards
     cardVacio: {
         padding: 14,
         gap: 8,
@@ -488,7 +683,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
 
-    // ── Timeline ──
+    // Timeline
     timeline: {
         gap: 0,
     },
@@ -555,7 +750,7 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
 
-    // ── Arrendador ──
+    // Arrendador
     arrenRow: {
         flexDirection: "row",
         alignItems: "center",
@@ -585,7 +780,7 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
 
-    // ── Chips ──
+    // Chips
     chips: {
         flexDirection: "row",
         flexWrap: "wrap",
@@ -609,7 +804,7 @@ const styles = StyleSheet.create({
         color: "#b83e31",
     },
 
-    // ── Modal ──
+    // Modal
     modalOverlay: {
         flex: 1,
         backgroundColor: "rgba(0,0,0,0.45)",
@@ -652,8 +847,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         width: "80%",
         alignItems: "center",
-        //borderWidth: 0.5,
-        //borderColor: "#A32D2D",
         marginTop: 6,
     },
     modalBtnPeligroTxt: {
@@ -668,5 +861,95 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: "#888",
         fontWeight: "600",
+    },
+
+    // Rating
+    ratingOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.45)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 24,
+    },
+    ratingCard: {
+        backgroundColor: "#fff",
+        borderRadius: 20,
+        padding: 24,
+        width: "90%",
+        alignItems: "center",
+        gap: 16,
+    },
+    ratingSkipBtn: {
+        position: "absolute",
+        top: 16,
+        right: 16,
+    },
+    ratingSkipBtnText: {
+        fontSize: 14,
+        color: "#205EA6",
+        fontWeight: "600",
+    },
+    ratingTitle: {
+        fontSize: 18,
+        fontWeight: "800",
+        color: "#1a1a2e",
+        textAlign: "center",
+    },
+    starsRow: {
+        flexDirection: "row",
+        gap: 10,
+    },
+    ratingInput: {
+        backgroundColor: "#f5f7fa",
+        borderRadius: 12,
+        padding: 14,
+        width: "100%",
+        minHeight: 90,
+        fontSize: 14,
+        color: "#1a1a2e",
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+    },
+    ratingSubmitBtn: {
+        backgroundColor: "#205EA6",
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 32,
+        width: "100%",
+        alignItems: "center",
+    },
+    ratingSubmitBtnText: {
+        fontSize: 15,
+        fontWeight: "700",
+        color: "#fff",
+    },
+
+    // Omitir
+    omitirTitulo: {
+        fontSize: 18,
+        fontWeight: "800",
+        color: "#1a1a2e",
+        textAlign: "center",
+    },
+    omitirSubtitulo: {
+        fontSize: 13,
+        color: "#666",
+        textAlign: "center",
+        lineHeight: 20,
+        marginBottom: 6,
+    },
+    omitirBtnContinuar: {
+        backgroundColor: "#205EA6",
+        borderRadius: 12,
+        paddingVertical: 13,
+        paddingHorizontal: 24,
+        width: "80%",
+        alignItems: "center",
+        marginTop: 6,
+    },
+    omitirBtnContinuarText: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#ffffff",
     },
 })

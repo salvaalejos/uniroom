@@ -52,7 +52,7 @@ export const notificacionRoutes = new Elysia({ prefix: '/api' })
   // Crear nueva notificación (Generalmente llamado internamente)
   .post('/notificaciones', async ({ body, set }) => {
     try {
-      const { usuario_id, titulo, mensaje, tipo, remitente_nombre } = body as any;
+      const { usuario_id, titulo, mensaje, tipo, remitente_nombre, relacionado_a } = body as any;
 
       const nuevaNotificacion = await db.notificacion.create({
         data: {
@@ -61,7 +61,8 @@ export const notificacionRoutes = new Elysia({ prefix: '/api' })
           mensaje, 
           tipo, 
           remitente_nombre, 
-          visto: false
+          visto: false,
+          relacionado_a: relacionado_a || null,
         }
       });
       

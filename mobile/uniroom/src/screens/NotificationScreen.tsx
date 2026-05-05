@@ -1,14 +1,14 @@
 // SI VEN TODO EL ARCHIVO MODIFICADO, SI, LE PEDI A GEMINI QUE REEEMPLAZARÁ TODO EL ARCHIVO. 
 // CON CORAJE, PERO LA IA SIEMPRE VA GANANDO 
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { 
   View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, SafeAreaView, TextInput, Alert, ScrollView, RefreshControl, Image, Platform
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { socketService } from '../services/websocketService';
-import { obtenerMisCitas, actualizarEstadoCita } from '../services/api';
+import { obtenerMisCitas, actualizarEstadoCita, marcarCitaRealizada, decisionRenta } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
@@ -19,7 +19,7 @@ const BACKEND_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000'
 // --- TIPOS UNIFICADOS ---
 type Notificacion = {
   id: string;
-  tipo: string; // 'mensaje', 'solicitud_cita', 'respuesta_cita', 'REPORTE', etc.
+  tipo: string;
   titulo: string;
   mensaje: string;
   leida: boolean;
@@ -39,11 +39,9 @@ export default function NotificationScreen() {
   const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<Notificacion | null>(null);
   const [cargando, setCargando] = useState(false);
   
-  // Estados de Usuario (Eymard Branch)
   const [userId, setUserId] = useState<string>("");
   const [userRole, setUserRole] = useState<"estudiante" | "anfitrion">("estudiante");
 
-  // Estados de UI (Tu Rama - HEAD)
   const [modalVisible, setModalVisible] = useState(false);
   const [modalFormularioVisible, setModalFormularioVisible] = useState(false);
   const [nuevoTitulo, setNuevoTitulo] = useState("");
@@ -51,13 +49,18 @@ export default function NotificationScreen() {
   const [contactos, setContactos] = useState<ContactoType[]>([]);
   const [destinatarioSeleccionado, setDestinatarioSeleccionado] = useState<string | null>(null);
 
+  // Ref para acceder al userRole actual dentro de los listeners
+  const userRoleRef = useRef(userRole);
+  useEffect(() => { userRoleRef.current = userRole; }, [userRole]);
+  const userIdRef = useRef(userId);
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
+
   // --- INICIALIZACIÓN Y WEBSOCKETS ---
   useEffect(() => {
     const init = async () => {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
       
-      // Decodificar JWT
       const payload = JSON.parse(atob(token.split('.')[1]));
       const id = payload.sub || payload.id_usuario; 
       const rol = payload.rol === 'ESTUDIANTE' ? 'estudiante' : 'anfitrion';
@@ -65,11 +68,9 @@ export default function NotificationScreen() {
       setUserId(id);
       setUserRole(rol);
       
-      // Conectar Sockets y Cargar Datos
       socketService.connect(id, rol);
       await cargarTodo(id, rol);
 
-      // Cargar contactos de prueba para el formulario
       setContactos([
         { id_usuario: "67012f3e-b644-4c33-ba43-8756632b2508", nombre: "Pati Chapoy" },
         { id_usuario: "5024b108-a41a-4401-9f4b-bc8392ce48b8", nombre: "Administración" },
@@ -78,9 +79,9 @@ export default function NotificationScreen() {
 
     init();
 
-    // Listeners de Sockets
+    // Listeners existentes
     socketService.on('solicitud_cita', (data) => {
-      if (userRole === 'anfitrion') {
+      if (userRoleRef.current === 'anfitrion') {
         const nuevaNotif: Notificacion = {
           id: data.id,
           tipo: 'solicitud_cita',
@@ -92,12 +93,11 @@ export default function NotificationScreen() {
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
-        if(userId) cargarCitasComoNotificaciones(rolStateTracker);
       }
     });
 
     socketService.on('respuesta_cita', (data) => {
-      if (userRole === 'estudiante') {
+      if (userRoleRef.current === 'estudiante') {
         const nuevaNotif: Notificacion = {
           id: data.id,
           tipo: 'respuesta_cita',
@@ -111,18 +111,50 @@ export default function NotificationScreen() {
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
-        if(userId) cargarCitasComoNotificaciones(rolStateTracker);
+      }
+    });
+
+    // NUEVO: Listener para decisión de renta pendiente (anfitrión)
+    socketService.on('decision_renta_pendiente', (data) => {
+      if (userRoleRef.current === 'anfitrion') {
+        const nuevaNotif: Notificacion = {
+          id: `dr_${data.id}`,
+          tipo: 'decision_renta_pendiente',
+          titulo: 'Decisión de renta requerida',
+          mensaje: data.mensaje,
+          leida: false,
+          remitente: 'Sistema UniRoom',
+          fecha: new Date().toLocaleString(),
+          datosExtra: data,
+        };
+        setNotificaciones(prev => [nuevaNotif, ...prev]);
+      }
+    });
+
+    // NUEVO: Listener para decisión de renta (estudiante)
+    socketService.on('decision_renta', (data) => {
+      if (userRoleRef.current === 'estudiante') {
+        const nuevaNotif: Notificacion = {
+          id: `dr_resp_${data.id}`,
+          tipo: 'decision_renta',
+          titulo: data.aceptada ? '¡Renta aprobada!' : 'Renta rechazada',
+          mensaje: data.mensaje,
+          leida: false,
+          remitente: data.anfitrionNombre,
+          fecha: new Date().toLocaleString(),
+          datosExtra: data,
+        };
+        setNotificaciones(prev => [nuevaNotif, ...prev]);
       }
     });
 
     return () => {
       socketService.off('solicitud_cita');
       socketService.off('respuesta_cita');
+      socketService.off('decision_renta_pendiente');
+      socketService.off('decision_renta');
     };
-  }, [userRole]);
-
-  // Hack para referenciar el rol dentro de los callbacks del socket
-  const rolStateTracker = userRole;
+  }, []);
 
   // --- FUNCIONES DE CARGA DE DATOS ---
   const cargarTodo = async (idActual: string, rolActual: string) => {
@@ -174,24 +206,45 @@ export default function NotificationScreen() {
       const notifsCitas: Notificacion[] = citas.map((cita: any) => {
         const esEstudiante = rolActual === 'estudiante';
         const titular = esEstudiante ? cita.anfitrion?.nombre : cita.estudiante?.nombre;
-        let titulo = '', mensaje = '';
+        let titulo = '', mensaje = '', tipo = '';
 
         if (cita.estado === 'PENDIENTE') {
           titulo = esEstudiante ? 'Cita pendiente' : 'Nueva solicitud de visita';
           mensaje = esEstudiante
             ? `Tienes una cita pendiente con ${cita.anfitrion?.nombre} para ${cita.inmueble.titulo}`
             : `${cita.estudiante?.nombre} solicitó visitar ${cita.inmueble.titulo}`;
+          tipo = 'solicitud_cita';
         } else if (cita.estado === 'ACEPTADA') {
           titulo = 'Cita aceptada';
-          mensaje = `Tu cita para ${cita.inmueble.titulo} ha sido ACEPTADA`;
+          mensaje = `Tu cita para ${cita.inmueble.titulo} ha sido ACEPTADA. Recuerda marcarla como realizada después de la visita.`;
+          tipo = 'respuesta_cita';
         } else if (cita.estado === 'RECHAZADA') {
           titulo = 'Cita rechazada';
           mensaje = `Tu cita para ${cita.inmueble.titulo} fue RECHAZADA.`;
+          tipo = 'respuesta_cita';
+        } else if (cita.estado === 'REALIZADA') {
+          if (!esEstudiante) {
+            titulo = 'Visita realizada — Decisión pendiente';
+            mensaje = `La visita de ${cita.estudiante?.nombre} a ${cita.inmueble.titulo} se realizó. ¿Deseas autorizarlo para rentar?`;
+            tipo = 'decision_renta_pendiente';
+          } else {
+            titulo = 'Visita realizada';
+            mensaje = `Tu visita a ${cita.inmueble.titulo} se realizó. Espera la decisión del arrendador.`;
+            tipo = 'respuesta_cita';
+          }
+        } else if (cita.estado === 'RENTA_APROBADA') {
+          titulo = '¡Renta aprobada!';
+          mensaje = `Has sido autorizado para rentar ${cita.inmueble.titulo}. ¡Procede al pago desde el detalle del inmueble!`;
+          tipo = 'decision_renta';
+        } else if (cita.estado === 'RENTA_RECHAZADA') {
+          titulo = 'Renta rechazada';
+          mensaje = `El arrendador decidió no autorizarte para rentar ${cita.inmueble.titulo}.`;
+          tipo = 'decision_renta';
         }
 
         return {
           id: cita.id_cita,
-          tipo: cita.estado === 'PENDIENTE' ? 'solicitud_cita' : 'respuesta_cita',
+          tipo,
           titulo,
           mensaje,
           leida: false,
@@ -199,7 +252,7 @@ export default function NotificationScreen() {
           fecha: new Date(cita.fecha_hora).toLocaleString(),
           datosExtra: cita,
         };
-      });
+      }).filter(n => n.tipo !== ''); // Filtrar estados sin mapeo
 
       setNotificaciones(prev => {
         const idsExistentes = new Set(prev.map(n => n.id));
@@ -217,10 +270,7 @@ export default function NotificationScreen() {
     setModalVisible(true);
 
     if (!item.leida) {
-      // Actualización Local Inmediata
       setNotificaciones(prev => prev.map(n => n.id === item.id ? { ...n, leida: true } : n));
-      
-      // Intentar marcar en BD si es una notificación estándar
       try {
         await fetch(`${BACKEND_URL}/api/notificaciones/${item.id}/visto`, { method: 'PATCH' });
       } catch (e) { /* Ignorar si es una cita local */ }
@@ -235,6 +285,39 @@ export default function NotificationScreen() {
       const nuevoEstado = aceptar ? 'ACEPTADA' : 'RECHAZADA';
       await actualizarEstadoCita(data.id_cita || data.id, nuevoEstado, motivoRechazo);
       Alert.alert(aceptar ? 'Cita aceptada' : 'Cita rechazada', 'Se ha notificado al solicitante.');
+      setModalVisible(false);
+      if(userId) cargarCitasComoNotificaciones(userRole);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  // NUEVO: Marcar cita como realizada
+  const marcarRealizada = async (notif: Notificacion) => {
+    const data = notif.datosExtra;
+    if (!data) return;
+    try {
+      await marcarCitaRealizada(data.id_cita || data.id);
+      Alert.alert('Visita registrada', 'Ahora puedes decidir si autorizas al estudiante para rentar.');
+      setModalVisible(false);
+      if(userId) cargarCitasComoNotificaciones(userRole);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  // NUEVO: Decisión de renta (aprobar/rechazar)
+  const responderDecisionRenta = async (notif: Notificacion, aprobar: boolean) => {
+    const data = notif.datosExtra;
+    if (!data) return;
+    try {
+      await decisionRenta(data.id_cita || data.id, aprobar ? 'APROBAR' : 'RECHAZAR');
+      Alert.alert(
+        aprobar ? 'Renta aprobada' : 'Renta rechazada',
+        aprobar
+          ? `Has autorizado a ${data.estudianteNombre} para rentar ${data.propiedadTitulo}.`
+          : `Has rechazado la renta de ${data.propiedadTitulo}.`
+      );
       setModalVisible(false);
       if(userId) cargarCitasComoNotificaciones(userRole);
     } catch (error: any) {
@@ -379,7 +462,7 @@ export default function NotificationScreen() {
                 <View style={styles.separador} />
                 <Text style={styles.mensajeCompleto}>{notificacionSeleccionada.mensaje}</Text>
 
-                {/* BOTONES ANFITRIÓN (Solo si es solicitud de cita) */}
+                {/* BOTONES ANFITRIÓN — Aceptar/Rechazar cita */}
                 {userRole === 'anfitrion' && notificacionSeleccionada.tipo === 'solicitud_cita' && (
                   <View style={styles.botonesRespuesta}>
                     <TouchableOpacity style={styles.botonAceptar} onPress={() => responderSolicitud(notificacionSeleccionada, true)}>
@@ -391,6 +474,63 @@ export default function NotificationScreen() {
                       );
                     }}>
                       <Text style={styles.textoBotonRechazar}>Rechazar</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* BOTONES ANFITRIÓN — Marcar como realizada (cuando cita está ACEPTADA) */}
+                {userRole === 'anfitrion' && notificacionSeleccionada.datosExtra?.estado === 'ACEPTADA' && (
+                  <View style={styles.botonesRespuesta}>
+                    <TouchableOpacity style={styles.botonRentar} onPress={() => marcarRealizada(notificacionSeleccionada)}>
+                      <Text style={styles.textoBotonRentar}>Marcar visita realizada</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* BOTONES ANFITRIÓN — Decisión de renta (cuando es decision_renta_pendiente) */}
+                {userRole === 'anfitrion' && (notificacionSeleccionada.tipo === 'decision_renta_pendiente' || notificacionSeleccionada.datosExtra?.estado === 'REALIZADA') && (
+                  <View style={styles.botonesRespuesta}>
+                    <TouchableOpacity style={styles.botonAceptar} onPress={() => responderDecisionRenta(notificacionSeleccionada, true)}>
+                      <Text style={styles.textoBotonAceptar}>Aceptar Renta</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.botonRechazar} onPress={() => responderDecisionRenta(notificacionSeleccionada, false)}>
+                      <Text style={styles.textoBotonRechazar}>Cancelar Renta</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* BOTONES ESTUDIANTE — Al ver notificación de renta aprobada, navegar al inmueble */}
+                {userRole === 'estudiante' && notificacionSeleccionada.tipo === 'decision_renta' && notificacionSeleccionada.datosExtra?.aceptada && (
+                  <View style={styles.botonesRespuesta}>
+                    <TouchableOpacity
+                      style={styles.botonRentar}
+                      onPress={() => {
+                        setModalVisible(false);
+                        // Navegar al inmueble directamente
+                        const inmuebleId = notificacionSeleccionada.datosExtra.propiedadId;
+                        if (inmuebleId) {
+                          fetch(`${BACKEND_URL}/inmuebles/${inmuebleId}`, {
+                            headers: { 'Authorization': `Bearer ${AsyncStorage.getItem('token')}` }
+                          })
+                            .then(resp => resp.json())
+                            .then(inmueble => {
+                              // Navegar usando el stack de Inmuebles
+                              const nav = (globalThis as any).__navigationRef;
+                              if (nav) {
+                                nav.navigate("Navigator", {
+                                  screen: "Inmuebles",
+                                  params: {
+                                    screen: "InmuebleScreen",
+                                    params: { inmueble, token: AsyncStorage.getItem('token') }
+                                  }
+                                });
+                              }
+                            })
+                            .catch(() => Alert.alert("Info", "Ve al mapa y selecciona el inmueble para rentarlo."));
+                        }
+                      }}
+                    >
+                      <Text style={styles.textoBotonRentar}>Ir a Rentar</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -488,9 +628,11 @@ const styles = StyleSheet.create({
   chipSeleccionado: { backgroundColor: "#205EA6", borderColor: "#205EA6" },
   textoChip: { fontSize: 14, color: "#495057" },
   textoChipSeleccionado: { color: "#fff", fontWeight: "bold" },
-  botonesRespuesta: { flexDirection: "row", justifyContent: "space-around", marginTop: 24 },
-  botonAceptar: { backgroundColor: "#2B9348", paddingVertical: 10, paddingHorizontal: 20, borderRadius: 30 },
+  botonesRespuesta: { flexDirection: "row", justifyContent: "space-around", marginTop: 24, flexWrap: "wrap", gap: 12 },
+  botonAceptar: { backgroundColor: "#2B9348", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30 },
   textoBotonAceptar: { color: "#fff", fontWeight: "bold" },
-  botonRechazar: { backgroundColor: "#DC2F02", paddingVertical: 10, paddingHorizontal: 20, borderRadius: 30 },
+  botonRechazar: { backgroundColor: "#DC2F02", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30 },
   textoBotonRechazar: { color: "#fff", fontWeight: "bold" },
+  botonRentar: { backgroundColor: "#205EA6", paddingVertical: 12, paddingHorizontal: 32, borderRadius: 30 },
+  textoBotonRentar: { color: "#fff", fontWeight: "bold" },
 });

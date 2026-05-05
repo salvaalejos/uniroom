@@ -43,6 +43,9 @@ enum EstadoCita {
   ACEPTADA
   RECHAZADA
   REAGENDADA
+  REALIZADA
+  RENTA_APROBADA
+  RENTA_RECHAZADA
 }
 
 // --- MODELOS ---
@@ -70,6 +73,7 @@ model Usuario {
 
   inmuebles_propiedad Inmueble[]     @relation("InmueblesArrendador")
   inmuebles_rentados  Inmueble[]     @relation("InmuebleEstudiante")
+  inmuebles_autorizados Inmueble[]   @relation("InmuebleEstudianteAutorizado")
   calificaciones      Calificacion[]
   transacciones       Transaccion[]
   
@@ -94,6 +98,12 @@ model Inmueble {
 
   id_estudiante   String?
   estudiante      Usuario?        @relation("InmuebleEstudiante", fields: [id_estudiante], references: [id_usuario])
+
+  id_estudiante_autorizado String?  @db.VarChar(36)
+  estudianteAutorizado     Usuario? @relation("InmuebleEstudianteAutorizado", fields: [id_estudiante_autorizado], references: [id_usuario])
+
+  fecha_inicio_renta DateTime?
+  fecha_fin_renta    DateTime?
 
   servicios       Servicios[]
   restricciones   Restricciones[]
@@ -160,6 +170,7 @@ model Notificacion {
   remitente_nombre String // Quien lo manda
   usuario_id  String
   usuario     Usuario  @relation(fields: [usuario_id], references: [id_usuario])
+  relacionado_a String?  // ID de cita, inmueble, etc. asociado
 }
 
 // [NUEVO] Entidad: Transacción (Mercado Pago)

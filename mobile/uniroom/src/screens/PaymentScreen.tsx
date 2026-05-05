@@ -11,18 +11,23 @@ import Constants from 'expo-constants';
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
-// La Public Key de Mercado Pago debe venir de variables de entorno (.env)
-// El usuario deberá crear el archivo mobile/uniroom/.env y añadir EXPO_PUBLIC_MP_PUBLIC_KEY="TEST-XXXX..."
 const MP_PUBLIC_KEY = process.env.EXPO_PUBLIC_MP_PUBLIC_KEY || "TEST-PUBLIC-KEY-REEMPLAZAR";
 
 export default function PaymentScreen({ navigation, route }: any) {
     const insets = useSafeAreaInsets();
     
-    // Obtener info del usuario logueado o datos necesarios del route param
-    const token = route.params?.token; // Token JWT del backend
+    const token = route.params?.token;
+    const tipoPago = route.params?.tipo || 'servicio'; // 'servicio' o 'renta'
+    const montoPersonalizado = route.params?.monto;
+    const idInmueble = route.params?.id_inmueble;
+    const tituloInmueble = route.params?.titulo_inmueble;
+    
+    const esRenta = tipoPago === 'renta';
+    const monto = esRenta && montoPersonalizado ? montoPersonalizado : 50;
+    const descripcionPago = esRenta ? `Renta mensual — ${tituloInmueble || 'Inmueble'}` : 'Tarifa de servicio de contacto UniR00M';
     
     const [cardNumber, setCardNumber] = useState('');
-    const [expiration, setExpiration] = useState(''); // Formato MM/YY
+    const [expiration, setExpiration] = useState('');
     const [cvc, setCvc] = useState('');
     const [cardholderName, setCardholderName] = useState('');
     const [saveCard, setSaveCard] = useState(false);
@@ -31,7 +36,6 @@ export default function PaymentScreen({ navigation, route }: any) {
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
-    // Formateadores simples
     const handleCardNumberChange = (text: string) => {
         const cleaned = text.replace(/\D/g, '');
         let formatted = cleaned;
@@ -55,7 +59,7 @@ export default function PaymentScreen({ navigation, route }: any) {
         if (/^4/.test(cleanNumber)) return "visa";
         if (/^5[1-5]/.test(cleanNumber)) return "master";
         if (/^3[47]/.test(cleanNumber)) return "amex";
-        return "master"; // Fallback por defecto
+        return "master";
     };
 
     const getCardTypeForUI = () => {
@@ -90,7 +94,6 @@ export default function PaymentScreen({ navigation, route }: any) {
         setIsLoading(true);
 
         try {
-            // 1. Obtener Token de la tarjeta desde Mercado Pago directamente (Frontend)
             const expirationMonth = expiration.split('/')[0];
             const expirationYear = "20" + expiration.split('/')[1];
             
@@ -117,23 +120,29 @@ export default function PaymentScreen({ navigation, route }: any) {
                 throw new Error("Error validando la tarjeta. Revisa los datos.");
             }
 
-            const cardToken = tokenData.id; // ¡Este es el token seguro!
+            const cardToken = tokenData.id;
 
-            // 2. Enviar Token a nuestro Backend para cobrar
-            const backendResponse = await fetch(`${API_BASE_URL}/payments/process`, {
+            // Endpoint diferente según tipo de pago
+            const endpoint = esRenta ? '/payments/process-renta' : '/payments/process';
+            const body: any = {
+                token: cardToken,
+                payment_method_id: getPaymentMethodId(cardNumber),
+                transaction_amount: monto,
+                installments: 1,
+                saveCard: saveCard,
+                issuer_id: tokenData.issuer_id || undefined,
+            };
+            if (esRenta) {
+                body.id_inmueble = idInmueble;
+            }
+
+            const backendResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    token: cardToken,
-                    payment_method_id: getPaymentMethodId(cardNumber), // Detectado dinámicamente
-                    transaction_amount: 50, // Costo de la tarifa
-                    installments: 1,
-                    saveCard: saveCard,
-                    issuer_id: tokenData.issuer_id || undefined
-                })
+                body: JSON.stringify(body)
             });
 
             const backendData = await backendResponse.json();
@@ -142,13 +151,19 @@ export default function PaymentScreen({ navigation, route }: any) {
                 throw new Error(backendData.error || backendData.detail || "Error al procesar el pago");
             }
 
-            // Éxito
-            setSuccessMessage("La tarifa se ha cubierto. Ahora puedes contactar al arrendador.");
-            
-            // Regresa a InmuebleScreen después de 2 segundos
-            setTimeout(() => {
-                navigation.goBack();
-            }, 2500);
+            if (esRenta) {
+                setSuccessMessage(`¡Renta de ${tituloInmueble} pagada exitosamente!`);
+                setTimeout(() => {
+                    // Volver dos pantallas atrás (al mapa/Inmuebles)
+                    navigation.goBack();
+                    navigation.goBack();
+                }, 2500);
+            } else {
+                setSuccessMessage("La tarifa se ha cubierto. Ahora puedes contactar al arrendador.");
+                setTimeout(() => {
+                    navigation.goBack();
+                }, 2500);
+            }
 
         } catch (error: any) {
             setErrorMessage(error.message || "Ocurrió un error");
@@ -168,8 +183,12 @@ export default function PaymentScreen({ navigation, route }: any) {
                     <MaterialCommunityIcons name="chevron-left" size={28} color="#0F2C4F"/>
                 </TouchableOpacity>
 
-                <Text style={styles.title}>Tarifa de Servicio</Text>
-                <Text style={styles.subtitle}>Completa el pago seguro para acceder a la información de contacto.</Text>
+                <Text style={styles.title}>{esRenta ? 'Pago de Renta' : 'Tarifa de Servicio'}</Text>
+                <Text style={styles.subtitle}>
+                    {esRenta
+                        ? `Completa el pago para rentar ${tituloInmueble || 'este inmueble'}.`
+                        : 'Completa el pago seguro para acceder a la información de contacto.'}
+                </Text>
 
                 {errorMessage ? (
                     <View style={styles.errorContainer}>
@@ -189,8 +208,8 @@ export default function PaymentScreen({ navigation, route }: any) {
                 ) : null}
 
                 <View style={styles.amountContainer}>
-                    <Text style={styles.amountLabel}>Total a pagar</Text>
-                    <Text style={styles.amountValue}>$50.00 MXN</Text>
+                    <Text style={styles.amountLabel}>{esRenta ? 'Renta mensual' : 'Total a pagar'}</Text>
+                    <Text style={styles.amountValue}>${monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</Text>
                 </View>
 
                 {/* Tarjeta Virtual Visual */}
@@ -289,7 +308,9 @@ export default function PaymentScreen({ navigation, route }: any) {
                     {isLoading ? (
                         <ActivityIndicator color="#fff" />
                     ) : (
-                        <Text style={styles.payButtonText}>Pagar de Forma Segura</Text>
+                        <Text style={styles.payButtonText}>
+                            {esRenta ? 'Pagar Renta de Forma Segura' : 'Pagar de Forma Segura'}
+                        </Text>
                     )}
                 </TouchableOpacity>
                 <View style={styles.secureBadge}>
