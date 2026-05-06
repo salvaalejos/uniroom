@@ -101,11 +101,14 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       }),
     }
   )
-  // 2. Obtener mis citas
+  // 2. Obtener mis citas (Filtrando las ocultas)
   .get("/mis-citas", async ({ user }) => {
     if (user.rol === "ESTUDIANTE") {
       return await db.cita.findMany({
-        where: { id_estudiante: user.id_usuario },
+        where: { 
+          id_estudiante: user.id_usuario,
+          visto_estudiante: false 
+        },
         include: {
           inmueble: true,
           anfitrion: { select: { nombre: true, apellidos: true, numero_contacto: true } },
@@ -114,7 +117,10 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       });
     } else {
       return await db.cita.findMany({
-        where: { id_anfitrion: user.id_usuario },
+        where: { 
+          id_anfitrion: user.id_usuario,
+          visto_anfitrion: false 
+        },
         include: {
           inmueble: true,
           estudiante: { select: { nombre: true, apellidos: true, numero_contacto: true } },
@@ -324,5 +330,65 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       body: t.Object({
         decision: t.Union([t.Literal("APROBAR"), t.Literal("RECHAZAR")]),
       }),
+    }
+  )
+  // 6. Ocultar cita para un usuario
+  .patch(
+    "/:id/ocultar",
+    async ({ params: { id }, user, set }) => {
+      const cita = await db.cita.findUnique({
+        where: { id_cita: id },
+      });
+
+      if (!cita) {
+        set.status = 404;
+        return { error: "Cita no encontrada" };
+      }
+
+      const esEstudiante = cita.id_estudiante === user.id_usuario;
+      const esAnfitrion = cita.id_anfitrion === user.id_usuario;
+
+      if (!esEstudiante && !esAnfitrion) {
+        set.status = 403;
+        return { error: "No autorizado" };
+      }
+
+      const updateData: any = {};
+      if (esEstudiante) updateData.visto_estudiante = true;
+      if (esAnfitrion) updateData.visto_anfitrion = true;
+
+      await db.cita.update({
+        where: { id_cita: id },
+        data: updateData,
+      });
+
+      return { success: true };
+    }
+  )
+  // 7. Ocultar todas las citas finalizadas de un usuario
+  .patch(
+    "/ocultar-todas",
+    async ({ user }) => {
+      const estadosFinales = ['RENTA_APROBADA', 'RECHAZADA', 'RENTA_RECHAZADA'];
+      
+      // Ocultar como estudiante
+      await db.cita.updateMany({
+        where: {
+          id_estudiante: user.id_usuario,
+          estado: { in: estadosFinales as any },
+        },
+        data: { visto_estudiante: true },
+      });
+
+      // Ocultar como anfitrión
+      await db.cita.updateMany({
+        where: {
+          id_anfitrion: user.id_usuario,
+          estado: { in: estadosFinales as any },
+        },
+        data: { visto_anfitrion: true },
+      });
+
+      return { success: true };
     }
   );

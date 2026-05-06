@@ -15,7 +15,6 @@
 - ~~Eliminar botón de Contactar (comentar y guardar para después).~~
 - ~~Editar perfil permite eliminar número de teléfono.~~
 - ~~La pestaña de Mi Casa solo se actualiza al cerrar sesión.~~
-
 - ~~Falta agregar apartado de "Otro" a los servicios y Restricciones. (Omitir y definir en descripción de inmueble, agregaremos más a la BD más adelante, para evitar poner "Otro").~~
 - ~~Falta agregar botón de "Come Back" al Agregar Inmueble o Editar Inmueble Screen.~~
 - ~~Falta modo oscuro para pestaña de carga (cargando propiedades).~~
@@ -32,6 +31,7 @@
 - ~~Agregar modo oscuro al modal de calificar inmueble.~~
 - ~~Agregar modo oscuro para modal de Nuevo Reporte (Notificación).~~
 - ~~Al momento de editar perfíl el usuario puede eliminar su correo electrónico pero no recibe algún aviso, solamente dice "perfíl editado" y deja el correo como tal [mostrar aviso de que correo es no editable] (detalle estético).~~
+
 
 ## DETALLES MENORES: 
 - Al no seleccionar foto de perfíl al inicio y luego en editar perfil seleccionar una foto, el icono de seleccionar foto de perfíl desaparece. Sin embargo si aparece foto de perfíl (detalle estético). 
