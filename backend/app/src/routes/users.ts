@@ -449,11 +449,11 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         titulo: inmuebleRentado.titulo,
         precio_mensual: Number(inmuebleRentado.precio_mensual),
         descripcion: inmuebleRentado.descripcion,
-        arrendador: {
+        arrendador: inmuebleRentado.arrendador ? {
           nombre: `${inmuebleRentado.arrendador.nombre} ${inmuebleRentado.arrendador.apellidos}`,
           numero_contacto: inmuebleRentado.arrendador.numero_contacto,
           foto: inmuebleRentado.arrendador.foto,
-        },
+        } : null,
         servicios: inmuebleRentado.servicios,
         restricciones: inmuebleRentado.restricciones,
         media,

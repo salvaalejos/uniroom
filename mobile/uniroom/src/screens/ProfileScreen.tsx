@@ -147,12 +147,16 @@ export default function ProfileScreen({ navigation, route }: any) {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            const data = await response.json();
+
+            const contentType = response.headers.get('content-type') || '';
+            const data = contentType.includes('application/json')
+                ? await response.json()
+                : { error: await response.text() };
 
             if (response.ok) {
                 setUserData(data);
             } else {
-                Alert.alert("Error", "No se pudo cargar la información del perfil.");
+                Alert.alert("Error", data.error || "No se pudo cargar la información del perfil.");
             }
         } catch (error) {
             console.error("Error en fetch:", error);

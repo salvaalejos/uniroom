@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-const API_URL = 'http://localhost:3000';
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+const API_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 async function getToken() {
   return await AsyncStorage.getItem('token');
@@ -44,3 +46,41 @@ export const decidirRenta = (id: string, estado_renta: 'APROBADO' | 'RECHAZADO')
   });
 
 export const obtenerHistorialPagos = () => apiRequest('/payments/history');
+
+export const obtenerRentaActual = (userId: string) =>
+  apiRequest(`/users/${userId}/renta-actual`);
+
+export const cancelarRenta = (userId: string) =>
+  apiRequest(`/users/${userId}/cancelar-renta`, {
+    method: 'DELETE',
+  });
+
+export const crearCalificacion = (data: { id_inmueble: number; calificacion: number; comentario?: string }) =>
+  apiRequest('/calificaciones', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const marcarCitaRealizada = (id: string) =>
+  apiRequest(`/citas/${id}/realizada`, {
+    method: 'POST',
+  });
+
+export const decisionRenta = (id: string, decision: string) =>
+  apiRequest(`/citas/${id}/decision-renta`, {
+    method: 'PUT',
+    body: JSON.stringify({ estado_renta: decision }),
+  });
+
+export const crearCalificacionEstudiante = (data: { id_estudiante: string; calificacion: number; comentario?: string }) =>
+  apiRequest('/calificaciones/estudiantes', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const obtenerPerfil = (userId: string, token: string) =>
+  fetch(`${API_URL}/users/${userId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  }).then(res => res.json());

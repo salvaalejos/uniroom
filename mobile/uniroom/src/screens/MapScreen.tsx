@@ -1,5 +1,6 @@
 // MapScreen.tsx
-import { View, StyleSheet, TouchableOpacity, Text, Dimensions, ActivityIndicator, SafeAreaView } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Text, Dimensions, ActivityIndicator } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect, useRef } from "react";
 import Mapbox from "@rnmapbox/maps";
 import * as Location from "expo-location";
