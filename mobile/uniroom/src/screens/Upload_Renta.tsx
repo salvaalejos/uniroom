@@ -426,9 +426,17 @@ const Lessor_Renthouse = () => {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={{ flex: 1 }}
         >
+            {/* Botón de volver fijo */}
+            <TouchableOpacity 
+                style={[styles.btnVolver, { top: insets.top + 16, backgroundColor: colors.background }]} 
+                onPress={() => navigation.goBack()}
+            >
+                <MaterialCommunityIcons name="chevron-left" size={28} color={colors.textPrimary} />
+            </TouchableOpacity>
+
             <ScrollView 
                 style={[styles.background, { backgroundColor: colors.background }]} 
-                contentContainerStyle={{ paddingBottom: 120, paddingTop: insets.top + 20 }}
+                contentContainerStyle={{ paddingBottom: 120, paddingTop: insets.top + 70 }}
                 scrollEnabled={scrollEnabled}
                 keyboardShouldPersistTaps="handled"
             >
@@ -864,6 +872,7 @@ const styles = StyleSheet.create({
     previaDescripcion: { fontSize: 14, lineHeight: 20 },
     btnPublicar: { flexDirection: "row", backgroundColor: "#5db682", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: "center", gap: 8, marginTop: 20 },
     btnPublicarTexto: { color: "#fff", fontWeight: "700", fontSize: 16 },
+    btnVolver: { position: "absolute", left: 16, borderRadius: 20, padding: 6, elevation: 5, zIndex: 10, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4 },
     mapaContainerReal: { height: 240, borderRadius: 16, overflow: "hidden", position: "relative", borderWidth: 1 },
     mapaReal: { flex: 1 },
     marcadorCentroOverlay: { position: 'absolute', top: '50%', left: '50%', marginLeft: -21, marginTop: -42, alignItems: 'center' },
