@@ -1,6 +1,8 @@
 import { io, Socket } from 'socket.io-client';
+import Constants from 'expo-constants';
 
-const SOCKET_URL = 'http://localhost:3001';
+const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
+const SOCKET_URL = hostUri ? `http://${hostUri}:3001` : 'http://localhost:3001';
 
 class WebSocketService {
   private socket: Socket | null = null;

@@ -15,11 +15,14 @@ import { useTheme } from "../context/ThemeContext"
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import NotificationScreen from "./NotificationScreen";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useNotifications } from "../context/NotificationContext";
 import { useIsFocused } from "@react-navigation/native"
 import * as Animatable from "react-native-animatable"
+import { Text } from "react-native" // Import Text if missing or used in TabButton
 import Settings from "./Settings"
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createStackNavigator } from "@react-navigation/stack"
+import AsyncStorage from "@react-native-async-storage/async-storage";
 // agendar cita de vivienda
 import AgendarCita from "./AgendarCita";
 // Para crear inmuebles sjkfhdsf
@@ -116,6 +119,7 @@ const LandlordTabs = [
 const TabButton = (props: any) => {
     const { item, onPress, accessibilityState } = props
     const { colors } = useTheme();
+    const { unreadCount } = useNotifications();
     const activeRouteName = useNavigationState((state) => {
         if (!state) return '';
         return state.routeNames[state.index];
@@ -168,6 +172,28 @@ const TabButton = (props: any) => {
                         <MaterialCommunityIcons name={item.activeIcon}
                             size={33}
                             color={focused ? colors.background : colors.buttonMain} />
+                        
+                        {/* BADGE DE NOTIFICACIONES */}
+                        {item.route === 'Notificaciones' && unreadCount > 0 && (
+                            <View style={{
+                                position: 'absolute',
+                                right: -5,
+                                top: -5,
+                                backgroundColor: '#E74C3C',
+                                borderRadius: 10,
+                                minWidth: 20,
+                                height: 20,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                borderWidth: 2,
+                                borderColor: colors.background,
+                                zIndex: 10
+                            }}>
+                                <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </Text>
+                            </View>
+                        )}
                     </Animatable.View>
                 </View>
                 <Animatable.Text
@@ -186,16 +212,17 @@ export default function NavigationMenu({ route }: any) {
     const [userData, setUserData] = useState<any>(null)
     const [isLoading, setIsLoading] = useState(true)
     const { colors } = useTheme();
+    const [session, setSession] = useState<{userId: string | null, token: string | null}>({
+        userId: route.params?.userId || null,
+        token: route.params?.token || null
+    })
 
-    const userId = route.params?.userId
-    const token = route.params?.token
-    
-    const getUserData = async () => {
+    const getUserData = async (uid: string, tk: string) => {
             try {
                 setIsLoading(true);
-                const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+                const response = await fetch(`${API_BASE_URL}/users/${uid}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${tk}`
                     }
                 });
                 const data = await response.json();
@@ -203,23 +230,40 @@ export default function NavigationMenu({ route }: any) {
                 if (response.ok) {
                     setUserData(data);
                 } else {
-                    Alert.alert("Error", "No se pudo cargar la información del perfil.");
+                    console.error("Error al cargar perfil:", data.error);
                 }
             } catch (error) {
                 console.error("Error en fetch:", error);
-                Alert.alert("Error de conexión", "Revisa que tu backend esté encendido.");
             } finally {
                 setIsLoading(false);
             }
         };
 
+    const { refreshUnreadCount } = useNotifications();
+
     useEffect(() => {
-        getUserData()
+        const loadSession = async () => {
+            let uid = session.userId;
+            let tk = session.token;
+
+            if (!uid || !tk) {
+                uid = await AsyncStorage.getItem('userId');
+                tk = await AsyncStorage.getItem('token');
+                setSession({ userId: uid, token: tk });
+            }
+
+            if (uid && tk) {
+                getUserData(uid, tk);
+                refreshUnreadCount(); // Cargar contador inicial
+            } else {
+                setIsLoading(false);
+            }
+        };
         
-    }, [userId]);
+        loadSession();
+    }, [session.userId]);
 
     // Solo mostramos el spinner si NO tenemos datos del usuario aún.
-    // Si ya tenemos datos, permitimos que el Navigator se mantenga montado.
     if (isLoading && !userData) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
@@ -244,7 +288,6 @@ export default function NavigationMenu({ route }: any) {
                     borderTopWidth: 1,
                     borderTopColor: colors.border
                 },
-                
             }}
         >
             {currentTabs.map((item) => (
@@ -252,7 +295,7 @@ export default function NavigationMenu({ route }: any) {
                     key={item.route}
                     name={item.route}
                     component={item.component}
-                    initialParams={{ userId: userId, token: token }}
+                    initialParams={{ userId: session.userId, token: session.token }}
                     options={{
                         headerShown: false,
                         headerTitle: item.label,
@@ -266,4 +309,3 @@ export default function NavigationMenu({ route }: any) {
         </Tab.Navigator>
     )
 }
-

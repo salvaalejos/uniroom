@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
 import { sendOTPEmail } from "../lib/email";
+import { emitToUser } from "../ws-server";
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -24,7 +25,13 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       return { error: "No autorizado" };
     }
     const token = authorization.slice(7);
-    const payload = await jwt.verify(token);
+    let payload: any;
+    try {
+      payload = await jwt.verify(token);
+    } catch {
+      set.status = 401;
+      return { error: "Token inválido" };
+    }
     if (!payload || !payload.sub) {
       set.status = 401;
       return { error: "Token inválido" };
@@ -39,6 +46,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     return { authenticatedUser: user };
   })
   .get("/", async ({ authenticatedUser, set }) => {
+    if ("error" in (authenticatedUser as any)) return authenticatedUser;
     if (authenticatedUser.rol !== "ADMIN") {
       set.status = 403;
       return { error: "No autorizado" };
@@ -59,6 +67,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     return users;
   })
   .get("/:id", async ({ params: { id }, authenticatedUser, set }) => {
+    if ("error" in (authenticatedUser as any)) return authenticatedUser;
     const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
     
     if (!canAccess) {
@@ -85,14 +94,27 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       }
     });
 
-    if (!user) {
-      set.status = 404;
-      return { error: "Usuario no encontrado" };
+     if (!user) {
+       set.status = 404;
+       return { error: "Usuario no encontrado" };
+     }
+
+    // Calcular rating promedio para estudiantes
+    let rating = 0;
+    if (user.rol === "ESTUDIANTE") {
+      const calificaciones = await db.calificacionEstudiante.findMany({
+        where: { id_estudiante: id },
+        select: { calificacion: true }
+      });
+      if (calificaciones.length > 0) {
+        rating = calificaciones.reduce((acc, c) => acc + c.calificacion, 0) / calificaciones.length;
+      }
     }
 
-    return user;
+    return { ...user, rating };
   })
   .get("/:id/transactions", async ({ params: { id }, authenticatedUser, set }) => {
+    if ("error" in (authenticatedUser as any)) return authenticatedUser;
     const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
     
     if (!canAccess) {
@@ -110,6 +132,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   .post(
     "/:id/upload-foto",
     async ({ params: { id }, body, authenticatedUser, set }) => {
+      if ("error" in (authenticatedUser as any)) return authenticatedUser;
       const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
       if (!canAccess) {
@@ -157,6 +180,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   .put(
     "/:id",
     async ({ params: { id }, body, authenticatedUser, set }) => {
+      if ("error" in (authenticatedUser as any)) return authenticatedUser;
       const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
       if (!canAccess) {
@@ -279,6 +303,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     }
   )
   .delete("/:id", async ({ params: { id }, authenticatedUser, set }) => {
+    if ("error" in (authenticatedUser as any)) return authenticatedUser;
     const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
     if (!canAccess) {
@@ -306,4 +331,140 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     });
 
     return suspendedUser;
+  })
+  // Obtener la renta actual del estudiante
+  .get("/:id/renta-actual", async ({ params: { id }, authenticatedUser, set }) => {
+    if ("error" in (authenticatedUser as any)) return authenticatedUser;
+    const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
+    if (!canAccess) {
+      set.status = 403;
+      return { error: "No autorizado" };
+    }
+
+    const inmuebleRentado = await db.inmueble.findFirst({
+      where: {
+        id_estudiante: id,
+        estado: "OCUPADO",
+      },
+      include: {
+        arrendador: { select: { id_usuario: true, nombre: true, apellidos: true, numero_contacto: true, foto: true } },
+        servicios: true,
+        restricciones: true,
+        imagenes: true,
+      },
+    });
+
+    if (!inmuebleRentado) {
+      return { rentaActual: null };
+    }
+
+    const ahora = new Date();
+    const fechaInicio = inmuebleRentado.fecha_inicio_renta || ahora;
+    const fechaFin = inmuebleRentado.fecha_fin_renta || ahora;
+    const diasTotales = Math.ceil((fechaFin.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
+    const diasRestantes = Math.ceil((fechaFin.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Construir media array para el frontend (paths relativos)
+    const media = inmuebleRentado.imagenes.map((img) => {
+      const isVideo = img.imagen.match(/\.(mp4|mov|avi|wmv)$/i);
+      return {
+        tipo: isVideo ? "video" : "imagen",
+        src: img.imagen,
+      };
+    });
+
+    return {
+      rentaActual: {
+        id_inmueble: inmuebleRentado.id_inmueble,
+        titulo: inmuebleRentado.titulo,
+        precio_mensual: Number(inmuebleRentado.precio_mensual),
+        descripcion: inmuebleRentado.descripcion,
+        arrendador: {
+          nombre: `${inmuebleRentado.arrendador.nombre} ${inmuebleRentado.arrendador.apellidos}`,
+          numero_contacto: inmuebleRentado.arrendador.numero_contacto,
+          foto: inmuebleRentado.arrendador.foto,
+        },
+        servicios: inmuebleRentado.servicios,
+        restricciones: inmuebleRentado.restricciones,
+        media,
+        fecha_inicio_renta: fechaInicio,
+        fecha_fin_renta: fechaFin,
+        fecha_inicio_str: fechaInicio.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }),
+        fecha_fin_str: fechaFin.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }),
+        dias_totales: diasTotales,
+        dias_restantes: Math.max(0, diasRestantes),
+      },
+    };
+  })
+  // Cancelar renta activa del estudiante
+  .delete("/:id/cancelar-renta", async ({ params: { id }, authenticatedUser, set }) => {
+    if ("error" in (authenticatedUser as any)) return authenticatedUser;
+    const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
+    if (!canAccess) {
+      set.status = 403;
+      return { error: "No autorizado" };
+    }
+
+    const inmuebleRentado = await db.inmueble.findFirst({
+      where: {
+        id_estudiante: id,
+        estado: "OCUPADO",
+      },
+    });
+
+    if (!inmuebleRentado) {
+      set.status = 404;
+      return { error: "No tienes una renta activa para cancelar" };
+    }
+
+    await db.inmueble.update({
+      where: { id_inmueble: inmuebleRentado.id_inmueble },
+      data: {
+        estado: "DISPONIBLE",
+        id_estudiante: null,
+        id_estudiante_autorizado: null,
+        fecha_inicio_renta: null,
+        fecha_fin_renta: null,
+      },
+    });
+
+    // Notificar al arrendador
+    await db.notificacion.create({
+      data: {
+        usuario_id: inmuebleRentado.id_arrendador,
+        titulo: "Renta cancelada",
+        mensaje: `El estudiante ${authenticatedUser.nombre} ${authenticatedUser.apellidos} ha cancelado la renta de ${inmuebleRentado.titulo}.`,
+        tipo: "renta_cancelada",
+        remitente_nombre: `${authenticatedUser.nombre} ${authenticatedUser.apellidos}`,
+        remitente_id: authenticatedUser.id_usuario,
+        visto: false,
+        relacionado_a: inmuebleRentado.id_inmueble.toString(),
+      },
+    });
+
+    // Notificar al arrendador para calificar al estudiante
+    const notifCalificar = await db.notificacion.create({
+      data: {
+        usuario_id: inmuebleRentado.id_arrendador,
+        titulo: "Califica al estudiante",
+        mensaje: `Tu renta con ${authenticatedUser.nombre} ${authenticatedUser.apellidos} ha finalizado. ¡Califícalo para ayudar a otros arrendadores!`,
+        tipo: "calificar_estudiante",
+        remitente_nombre: `${authenticatedUser.nombre} ${authenticatedUser.apellidos}`,
+        remitente_id: authenticatedUser.id_usuario,
+        visto: false,
+        relacionado_a: authenticatedUser.id_usuario,
+      },
+    });
+
+    // Enviar notificación vía WebSocket
+    emitToUser(inmuebleRentado.id_arrendador, "calificar_estudiante", {
+      id: notifCalificar.id,
+      titulo: notifCalificar.titulo,
+      mensaje: notifCalificar.mensaje,
+      estudianteId: authenticatedUser.id_usuario,
+      estudianteNombre: `${authenticatedUser.nombre} ${authenticatedUser.apellidos}`,
+      tipo: "calificar_estudiante",
+    });
+
+    return { success: true, message: "Renta cancelada exitosamente" };
   });

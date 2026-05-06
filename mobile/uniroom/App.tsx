@@ -15,6 +15,7 @@ import EditProfileScreen from './src/screens/EditProfileScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { NotificationProvider } from './src/context/NotificationContext';
 
 // Crea el Stack
 const Stack = createNativeStackNavigator();
@@ -58,70 +59,72 @@ function MainApp() {
     }
 
     return (
-        <NavigationContainer>
-            <Stack.Navigator 
-                initialRouteName={initialRoute}
-                screenOptions={{
-                    headerStyle: { backgroundColor: colors.background },
-                    headerTintColor: colors.textPrimary,
-                    headerTitleStyle: { color: colors.textPrimary },
-                }}
-            >
-                <Stack.Screen 
-                    name="Navigator"
-                    component={NavigationMenu}
-                    initialParams={authParams}
-                    options={{headerShown: false}}
-                />
-                <Stack.Screen
-                    name="Login"
-                    component={LoginScreen}
-                    options={{ headerShown: false }} // Oculta la barra superior por defecto
-                />
-                <Stack.Screen
-                    name="Register"
-                    component={RegisterScreen}
-                    options={{ title: 'Registro', headerShown: true }} // Muestra "Registro" en la barra superior
-                />
-                <Stack.Screen
-                    name="VerificarEmail"
-                    component={VerificarEmailScreen}
-                    options={{ title: 'Verificar Correo', headerShown: true }}
-                />
-                <Stack.Screen 
-                    name="Tu Primer Inmueble"
-                    component={Upload_renta}
-                    options={{ title: 'Tu Primer Inmueble', headerShown: false }}
-                />
-                <Stack.Screen 
-                    name="PaymentScreen"
-                    component={PaymentScreen}
-                    options={{ headerShown: false }}
-                />
-                <Stack.Screen 
-                    name="InmuebleScreen"
-                    component={InmuebleScreen}
-                    options={{ presentation: 'modal', headerShown: false }}
-                />
-                <Stack.Screen
-                    name="EditProfile"
-                    component={EditProfileScreen}
-                    options={{ title: 'Editar Perfil', headerShown: true }}
-                />
-                <Stack.Screen
-                    name="ForgotPassword"
-                    component={ForgotPasswordScreen}
-                    options={{ headerShown: false }}
-                />
-                <Stack.Screen
-                    name="ResetPassword"
-                    component={ResetPasswordScreen}
-                    options={{ headerShown: false }}
-                />
-            </Stack.Navigator>
-            <View style={{height: 50, backgroundColor: colors.background}}>
-            </View>
-        </NavigationContainer>
+        <NotificationProvider>
+            <NavigationContainer>
+                <Stack.Navigator 
+                    initialRouteName={initialRoute}
+                    screenOptions={{
+                        headerStyle: { backgroundColor: colors.background },
+                        headerTintColor: colors.textPrimary,
+                        headerTitleStyle: { color: colors.textPrimary },
+                    }}
+                >
+                    <Stack.Screen 
+                        name="Navigator"
+                        component={NavigationMenu}
+                        initialParams={authParams}
+                        options={{headerShown: false}}
+                    />
+                    <Stack.Screen
+                        name="Login"
+                        component={LoginScreen}
+                        options={{ headerShown: false }} // Oculta la barra superior por defecto
+                    />
+                    <Stack.Screen
+                        name="Register"
+                        component={RegisterScreen}
+                        options={{ title: 'Registro', headerShown: true }} // Muestra "Registro" en la barra superior
+                    />
+                    <Stack.Screen
+                        name="VerificarEmail"
+                        component={VerificarEmailScreen}
+                        options={{ title: 'Verificar Correo', headerShown: true }}
+                    />
+                    <Stack.Screen 
+                        name="Tu Primer Inmueble"
+                        component={Upload_renta}
+                        options={{ title: 'Tu Primer Inmueble', headerShown: false }}
+                    />
+                    <Stack.Screen 
+                        name="PaymentScreen"
+                        component={PaymentScreen}
+                        options={{ headerShown: false }}
+                    />
+                    <Stack.Screen 
+                        name="InmuebleScreen"
+                        component={InmuebleScreen}
+                        options={{ presentation: 'modal', headerShown: false }}
+                    />
+                    <Stack.Screen
+                        name="EditProfile"
+                        component={EditProfileScreen}
+                        options={{ title: 'Editar Perfil', headerShown: true }}
+                    />
+                    <Stack.Screen
+                        name="ForgotPassword"
+                        component={ForgotPasswordScreen}
+                        options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                        name="ResetPassword"
+                        component={ResetPasswordScreen}
+                        options={{ headerShown: false }}
+                    />
+                </Stack.Navigator>
+                <View style={{height: 50, backgroundColor: colors.background}}>
+                </View>
+            </NavigationContainer>
+        </NotificationProvider>
     );
 }
 
