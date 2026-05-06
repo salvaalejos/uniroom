@@ -18,6 +18,7 @@ import {
   TRANSPORT_ROUTES,
   TransportRoute,
 } from "../services/TransportRoutes";
+import { useTheme } from '../context/ThemeContext';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 Mapbox.setAccessToken(MAPBOX_TOKEN);
@@ -48,6 +49,7 @@ export default function MapScreen() {
   const [initialCameraSet, setInitialCameraSet] = useState(false);
   const [distanceToSchool, setDistanceToSchool] = useState<number | null>(null);
   const [userNearSchool, setUserNearSchool] = useState(false);
+  const { colors, isDark } = useTheme();
   
   const cameraRef = useRef<Mapbox.Camera>(null);
   const routeCache = useRef<{ [key: number]: number[][] }>({});
@@ -245,20 +247,20 @@ export default function MapScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#205EA6" />
-        <Text style={styles.loadingText}>Localizando...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.buttonMain} />
+        <Text style={[styles.loadingText, { color: colors.textPrimary }]}>Localizando...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F2C4F" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
       
       <Mapbox.MapView
         style={styles.map}
-        styleURL="mapbox://styles/mapbox/streets-v12"
+        styleURL={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12"}
         logoEnabled={false}
         attributionEnabled={false}
         onDidFinishLoadingMap={() => setMapReady(true)}
@@ -270,8 +272,8 @@ export default function MapScreen() {
             id="user"
             coordinate={[userLocation.longitude, userLocation.latitude]}
           >
-            <View style={styles.userMarker}>
-              <View style={styles.userMarkerPulse} />
+            <View style={[styles.userMarker, { backgroundColor: colors.buttonMain }]}>
+              <View style={[styles.userMarkerPulse, { backgroundColor: colors.buttonMain }]} />
               <Ionicons name="person" size={24} color="#FFFFFF" />
             </View>
           </Mapbox.PointAnnotation>
@@ -316,18 +318,18 @@ export default function MapScreen() {
 
       {/* Botones de control del mapa */}
       <View style={styles.controlButtons}>
-        <TouchableOpacity style={styles.controlBtn} onPress={centerOnUserLocation} activeOpacity={0.8}>
-          <Ionicons name="locate" size={22} color="#205EA6" />
+        <TouchableOpacity style={[styles.controlBtn, { backgroundColor: colors.cardBackground }]} onPress={centerOnUserLocation} activeOpacity={0.8}>
+          <Ionicons name="locate" size={22} color={colors.buttonMain} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.controlBtn} onPress={centerOnSchool} activeOpacity={0.8}>
-          <Ionicons name="business" size={22} color="#205EA6" />
+        <TouchableOpacity style={[styles.controlBtn, { backgroundColor: colors.cardBackground }]} onPress={centerOnSchool} activeOpacity={0.8}>
+          <Ionicons name="business" size={22} color={colors.buttonMain} />
         </TouchableOpacity>
       </View>
 
       {/* Botón principal de rutas */}
       {!userNearSchool && (
         <TouchableOpacity
-          style={styles.mainButton}
+          style={[styles.mainButton, { backgroundColor: colors.buttonMain }]}
           onPress={() => setShowRoutes(!showRoutes)}
           activeOpacity={0.9}
         >
@@ -338,41 +340,41 @@ export default function MapScreen() {
 
       {/* Mensaje de proximidad a la escuela */}
       {getProximityMessage() && (
-        <View style={styles.proximityMessage}>
-          <Ionicons name="information-circle" size={18} color="#FFFFFF" />
-          <Text style={styles.proximityMessageText}>{getProximityMessage()}</Text>
+        <View style={[styles.proximityMessage, { backgroundColor: isDark ? colors.cardBackground : "#0F2C4F", borderColor: colors.buttonMain }]}>
+          <Ionicons name="information-circle" size={18} color={isDark ? colors.textPrimary : "#FFFFFF"} />
+          <Text style={[styles.proximityMessageText, { color: isDark ? colors.textPrimary : "#DCEEFF" }]}>{getProximityMessage()}</Text>
         </View>
       )}
 
       {showRoutes && !userNearSchool && (
-        <View style={styles.panel}>
-          <View style={styles.panelHeader}>
+        <View style={[styles.panel, { backgroundColor: colors.background }]}>
+          <View style={[styles.panelHeader, { borderBottomColor: colors.border }]}>
             <View style={styles.headerLeft}>
-              <Text style={styles.panelTitle}>Rutas de Transporte</Text>
+              <Text style={[styles.panelTitle, { color: colors.textPrimary }]}>Rutas de Transporte</Text>
             </View>
             <View style={styles.headerRight}>
               {activeRoutes.length > 0 && (
-                <TouchableOpacity style={styles.iconBtn} onPress={handleClearAllRoutes}>
+                <TouchableOpacity style={[styles.iconBtn, { backgroundColor: isDark ? colors.backgroundSecondary : "#DCEEFF" }]} onPress={handleClearAllRoutes}>
                   <Ionicons name="trash-outline" size={18} color="#DC2F02" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={styles.iconBtn} onPress={() => setShowRoutes(false)}>
-                <Ionicons name="close" size={22} color="#6C757D" />
+              <TouchableOpacity style={[styles.iconBtn, { backgroundColor: isDark ? colors.backgroundSecondary : "#DCEEFF" }]} onPress={() => setShowRoutes(false)}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
 
           {recommendedRoute && !activeRoutes.some(r => r.id === recommendedRoute.id) && (
             <TouchableOpacity
-              style={styles.recommendCard}
+              style={[styles.recommendCard, { backgroundColor: isDark ? colors.backgroundSecondary : "#F0F7FF", borderColor: colors.border }]}
               onPress={() => handleRoutePress(recommendedRoute)}
             >
               <View style={[styles.recommendColor, { backgroundColor: recommendedRoute.color }]} />
               <View style={styles.recommendInfo}>
-                <Text style={styles.recommendText}>Recomendada: {recommendedRoute.name}</Text>
+                <Text style={[styles.recommendText, { color: colors.textPrimary }]}>Recomendada: {recommendedRoute.name}</Text>
               </View>
               {isLoadingRoute === recommendedRoute.id ? (
-                <ActivityIndicator size="small" color="#205EA6" />
+                <ActivityIndicator size="small" color={colors.buttonMain} />
               ) : (
                 <Ionicons name="star" size={18} color="#FFB800" />
               )}
@@ -389,20 +391,20 @@ export default function MapScreen() {
               const estimatedDistance = routesDistance[item.id];
               return (
                 <TouchableOpacity
-                  style={[styles.routeCard, isActive && styles.activeRoute]}
+                  style={[styles.routeCard, { borderBottomColor: colors.border }, isActive && [styles.activeRoute, { backgroundColor: colors.backgroundSecondary }]]}
                   onPress={() => handleRoutePress(item)}
                 >
                   <View style={[styles.routeDot, { backgroundColor: item.color }]} />
                   <View style={styles.routeInfo}>
-                    <Text style={styles.routeName}>{item.name}</Text>
+                    <Text style={[styles.routeName, { color: colors.textPrimary }]}>{item.name}</Text>
                     {estimatedTime && (
-                      <Text style={styles.routeDetail}>
+                      <Text style={[styles.routeDetail, { color: colors.textSecondary }]}>
                         {formatTime(estimatedTime)} • {formatDistance(estimatedDistance)}
                       </Text>
                     )}
                   </View>
                   {isLoadingRoute === item.id ? (
-                    <ActivityIndicator size="small" color="#205EA6" />
+                    <ActivityIndicator size="small" color={colors.buttonMain} />
                   ) : isActive && <Ionicons name="checkmark" size={18} color="#2B9348" />}
                 </TouchableOpacity>
               );
@@ -415,234 +417,33 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0F2C4F",
-  },
-  map: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#0F2C4F",
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 18,
-    color: "#DCEEFF",
-    fontWeight: "600",
-  },
-  controlButtons: {
-    position: "absolute",
-    right: 16,
-    top: height * 0.3,
-    gap: 12,
-  },
-  controlBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#0F2C4F",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  mainButton: {
-    position: "absolute",
-    bottom: BOTTOM_SPACING + 10,
-    alignSelf: "center",
-    flexDirection: "row",
-    backgroundColor: "#205EA6",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 40,
-    alignItems: "center",
-    gap: 10,
-    shadowColor: "#0F2C4F",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  mainButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  proximityMessage: {
-    position: "absolute",
-    bottom: BOTTOM_SPACING + 80,
-    alignSelf: "center",
-    flexDirection: "row",
-    backgroundColor: "#0F2C4F",
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 30,
-    alignItems: "center",
-    gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: "#205EA6",
-  },
-  proximityMessageText: {
-    color: "#DCEEFF",
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  userMarkerContainer: {
-    width: 64,
-    height: 64,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  userMarker: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#205EA6",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 6,
-  },
-  userMarkerPulse: {
-    position: "absolute",
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#205EA6",
-    opacity: 0.3,
-  },
-  schoolMarker: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#2B9348",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#0F2C4F",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 6,
-  }, 
-  panel: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: height * 0.5,
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    shadowColor: "#0F2C4F",
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 20,
-  },
-  panelHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E9ECEF",
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#DCEEFF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  panelTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0F2C4F",
-  },
-  recommendCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    margin: 15,
-    backgroundColor: "#F0F7FF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#DCEEFF",
-  },
-  recommendColor: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    marginRight: 10,
-  },
-  recommendInfo: {
-    flex: 1,
-  },
-  recommendText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#0F2C4F",
-  },
-  routeCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E9ECEF",
-  },
-  activeRoute: {
-    backgroundColor: "#F8F9FA",
-  },
-  routeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
-  },
-  routeInfo: {
-    flex: 1,
-  },
-  routeName: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#0F2C4F",
-  },
-  routeDetail: {
-    fontSize: 12,
-    color: "#6C757D",
-    marginTop: 2,
-  },
+  container: { flex: 1 },
+  map: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 16, fontSize: 18, fontWeight: "600" },
+  controlButtons: { position: "absolute", right: 16, top: height * 0.3, gap: 12 },
+  controlBtn: { width: 52, height: 52, borderRadius: 26, justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 5 },
+  mainButton: { position: "absolute", bottom: BOTTOM_SPACING + 10, alignSelf: "center", flexDirection: "row", paddingVertical: 14, paddingHorizontal: 28, borderRadius: 40, alignItems: "center", gap: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  mainButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  proximityMessage: { position: "absolute", bottom: BOTTOM_SPACING + 80, alignSelf: "center", flexDirection: "row", paddingVertical: 10, paddingHorizontal: 18, borderRadius: 30, alignItems: "center", gap: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5, borderWidth: 1 },
+  proximityMessageText: { fontSize: 13, fontWeight: "500" },
+  userMarker: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderColor: "#FFFFFF", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 6 },
+  userMarkerPulse: { position: "absolute", width: 64, height: 64, borderRadius: 32, opacity: 0.3 },
+  schoolMarker: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#2B9348", borderWidth: 3, borderColor: "#FFFFFF", justifyContent: "center", alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 6, elevation: 6 }, 
+  panel: { position: "absolute", bottom: 0, left: 0, right: 0, height: height * 0.5, borderTopLeftRadius: 28, borderTopRightRadius: 28, shadowColor: "#000", shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 20 },
+  panelHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 18, borderBottomWidth: 1 },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 12 },
+  iconBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: "center", alignItems: "center" },
+  panelTitle: { fontSize: 18, fontWeight: "700" },
+  recommendCard: { flexDirection: "row", alignItems: "center", padding: 12, margin: 15, borderRadius: 16, borderWidth: 1 },
+  recommendColor: { width: 14, height: 14, borderRadius: 7, marginRight: 10 },
+  recommendInfo: { flex: 1 },
+  recommendText: { fontSize: 15, fontWeight: "600" },
+  routeCard: { flexDirection: "row", alignItems: "center", paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 1 },
+  activeRoute: { },
+  routeDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
+  routeInfo: { flex: 1 },
+  routeName: { fontSize: 15, fontWeight: "500" },
+  routeDetail: { fontSize: 12, marginTop: 2 },
 });

@@ -1,5 +1,5 @@
 // MapScreen.tsx
-import { View, StyleSheet, TouchableOpacity, Text, Dimensions, ActivityIndicator, SafeAreaView } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Text, Dimensions, ActivityIndicator, SafeAreaView, StatusBar } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import Mapbox from "@rnmapbox/maps";
 import * as Location from "expo-location";
@@ -64,8 +64,6 @@ export default function MapScreen({ route, navigation }: any) {
   useEffect(() => {
     if (mapaListo && cameraRef.current) {
       console.log("[Map] Reposicionando cámara después de filtrar");
-      // Esperar a que las anotaciones se rendericen y Mapbox ajuste el viewport
-      // Luego sobrescribir con nuestra posición deseada
       const timer = setTimeout(() => {
         cameraRef.current?.setCamera({
           centerCoordinate: [TEC_ITM.longitude, TEC_ITM.latitude],
@@ -83,7 +81,6 @@ export default function MapScreen({ route, navigation }: any) {
     try {
       const token = await AsyncStorage.getItem('token');
       
-      // Construir query params si hay filtros
       let url = `${API_BASE_URL}/inmuebles`;
       if (filtros) {
         const params = new URLSearchParams();
@@ -123,14 +120,11 @@ export default function MapScreen({ route, navigation }: any) {
             };
         }) || [];
 
-        // Lógica inteligente para la foto del anfitrión
         let fotoUrl = item.arrendador?.foto;
         if (fotoUrl && !fotoUrl.startsWith('http')) {
             fotoUrl = `${API_BASE_URL}${fotoUrl}`;
         }
         
-        console.log(`[Map] Inmueble: ${item.titulo} | Anfitrión: ${item.arrendador?.nombre} | Foto: ${fotoUrl}`);
-
         return {
           ...item,
           anfitrion: item.arrendador ? `${item.arrendador.nombre} ${item.arrendador.apellidos}` : "Anónimo",
@@ -155,13 +149,11 @@ export default function MapScreen({ route, navigation }: any) {
   };
 
   const filtrarInmuebles = (datos: any) => {
-    console.log("[Map] Aplicando filtros:", datos);
     setModalFiltros(false);
     fetchInmuebles(datos);
   };
 
   const abrirDetalle = (inmueble: any) => {
-    console.log("[Map] Abriendo detalle para:", inmueble.id_inmueble);
     AsyncStorage.getItem('token').then(token => {
         navigation.navigate("InmuebleScreen", { inmueble, token });
     });
@@ -178,15 +170,14 @@ export default function MapScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Encabezado con Filtros (Rama Said) */}
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.cardBackground} />
       <View style={[styles.header, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitulo, { color: colors.textPrimary }]}>UniRoomie Morelia</Text>
         <TouchableOpacity style={[styles.btnFiltro, { backgroundColor: colors.buttonMain }]} onPress={() => setModalFiltros(true)}>
-          <MaterialCommunityIcons name="tune" size={24} color={colors.buttonText} />
+          <MaterialCommunityIcons name="tune" size={24} color={colors.buttonText || "#fff"} />
         </TouchableOpacity>
       </View>
 
-      {/* Mapa Principal (Tu Rama HEAD) */}
       <Mapbox.MapView
         style={styles.map}
         styleURL={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12"}
@@ -196,17 +187,12 @@ export default function MapScreen({ route, navigation }: any) {
       >
         <Mapbox.Camera ref={cameraRef} />
 
-        {/* Marcador fijo de la escuela */}
-        <Mapbox.PointAnnotation
-          id="escuela"
-          coordinate={[TEC_ITM.longitude, TEC_ITM.latitude]}
-        >
-          <View style={styles.marcadorEscuela}>
+        <Mapbox.PointAnnotation id="escuela" coordinate={[TEC_ITM.longitude, TEC_ITM.latitude]}>
+          <View style={[styles.marcadorEscuela, { backgroundColor: colors.cardBackground, borderColor: colors.error }]}>
             <Text style={styles.emojiEscuela}>🏫</Text>
           </View>
         </Mapbox.PointAnnotation>
 
-        {/* Pines generados dinámicamente desde la BD/Filtros */}
         {inmuebles.map((prop) => (
           <Mapbox.PointAnnotation
             key={`prop-${prop.id_inmueble}`}
@@ -215,7 +201,7 @@ export default function MapScreen({ route, navigation }: any) {
             onSelected={() => abrirDetalle(prop)}
           >
             <View style={[styles.pin, { backgroundColor: colors.buttonMain, borderColor: isDark ? colors.border : '#fff' }]}>
-              <Text style={[styles.pinText, { color: colors.buttonText }]}>
+              <Text style={[styles.pinText, { color: colors.buttonText || "#fff" }]}>
                 ${Number(prop.precio_mensual).toLocaleString('es-MX')}
               </Text>
             </View>
@@ -223,58 +209,21 @@ export default function MapScreen({ route, navigation }: any) {
         ))}
       </Mapbox.MapView>
 
-      {/* Modal de Filtros */}
-      <FiltrosModal 
-        visible={modalFiltros} 
-        onClose={() => setModalFiltros(false)} 
-        onApply={filtrarInmuebles} 
-      />
+      <FiltrosModal visible={modalFiltros} onClose={() => setModalFiltros(false)} onApply={filtrarInmuebles} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    padding: 20, 
-    backgroundColor: '#fff', 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#E2E8F0',
-    zIndex: 10 
-  },
-  headerTitulo: { fontSize: 20, fontWeight: '800', color: '#1E293B' },
-  btnFiltro: { backgroundColor: '#205EA6', padding: 8, borderRadius: 12 },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, zIndex: 10 },
+  headerTitulo: { fontSize: 20, fontWeight: '800' },
+  btnFiltro: { padding: 8, borderRadius: 12 },
   map: { flex: 1, width: '100%', height: '100%' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
-  textoCarga: { marginTop: 15, fontSize: 16, color: '#64748B', fontWeight: '500' },
-  pin: { 
-    backgroundColor: '#205EA6', 
-    paddingHorizontal: 10, 
-    paddingVertical: 6, 
-    borderRadius: 8, 
-    borderWidth: 1.5, 
-    borderColor: '#fff', 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.3, 
-    shadowRadius: 3, 
-    elevation: 5 
-  },
-  pinText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
-  marcadorEscuela: { 
-    backgroundColor: '#fff', 
-    padding: 6, 
-    borderRadius: 20, 
-    borderWidth: 2, 
-    borderColor: '#E74C3C',
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.3, 
-    shadowRadius: 3, 
-    elevation: 5
-  },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  textoCarga: { marginTop: 15, fontSize: 16, fontWeight: '500' },
+  pin: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1.5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 5 },
+  pinText: { fontWeight: 'bold', fontSize: 13 },
+  marcadorEscuela: { padding: 6, borderRadius: 20, borderWidth: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 5 },
   emojiEscuela: { fontSize: 22 }
 });

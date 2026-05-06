@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../context/ThemeContext';
 import Constants from 'expo-constants';
 
 // URLs y Credenciales
@@ -15,6 +16,7 @@ const MP_PUBLIC_KEY = process.env.EXPO_PUBLIC_MP_PUBLIC_KEY || "TEST-PUBLIC-KEY-
 
 export default function PaymentScreen({ navigation, route }: any) {
     const insets = useSafeAreaInsets();
+    const { colors, isDark } = useTheme();
     
     const token = route.params?.token;
     const tipoPago = route.params?.tipo || 'servicio'; // 'servicio' o 'renta'
@@ -24,7 +26,6 @@ export default function PaymentScreen({ navigation, route }: any) {
     
     const esRenta = tipoPago === 'renta';
     const monto = esRenta && montoPersonalizado ? montoPersonalizado : 50;
-    const descripcionPago = esRenta ? `Renta mensual — ${tituloInmueble || 'Inmueble'}` : 'Tarifa de servicio de contacto UniR00M';
     
     const [cardNumber, setCardNumber] = useState('');
     const [expiration, setExpiration] = useState('');
@@ -77,7 +78,7 @@ export default function PaymentScreen({ navigation, route }: any) {
         visa: { backgroundColor: '#1A1F71', icon: 'cc-visa' },
         master: { backgroundColor: '#222222', icon: 'cc-mastercard' },
         amex: { backgroundColor: '#002663', icon: 'cc-amex' },
-        unknown: { backgroundColor: '#0F2C4F', icon: 'credit-card-outline' }
+        unknown: { backgroundColor: isDark ? colors.backgroundSecondary : '#0F2C4F', icon: 'credit-card-outline' }
     };
     
     const currentCardStyle = cardStyles[cardType as keyof typeof cardStyles];
@@ -174,42 +175,42 @@ export default function PaymentScreen({ navigation, route }: any) {
 
     return (
         <KeyboardAvoidingView 
-            style={[styles.container, { paddingTop: insets.top }]} 
+            style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]} 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
                 
                 <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                    <MaterialCommunityIcons name="chevron-left" size={28} color="#0F2C4F"/>
+                    <MaterialCommunityIcons name="chevron-left" size={28} color={colors.textPrimary}/>
                 </TouchableOpacity>
 
-                <Text style={styles.title}>{esRenta ? 'Pago de Renta' : 'Tarifa de Servicio'}</Text>
-                <Text style={styles.subtitle}>
+                <Text style={[styles.title, { color: colors.textPrimary }]}>{esRenta ? 'Pago de Renta' : 'Tarifa de Servicio'}</Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                     {esRenta
                         ? `Completa el pago para rentar ${tituloInmueble || 'este inmueble'}.`
                         : 'Completa el pago seguro para acceder a la información de contacto.'}
                 </Text>
 
                 {errorMessage ? (
-                    <View style={styles.errorContainer}>
+                    <View style={[styles.errorContainer, { backgroundColor: isDark ? '#3a1a1a' : '#FDEDEC', borderColor: isDark ? '#5a1a1a' : '#FADBD8' }]}>
                         <MaterialCommunityIcons name="alert-circle" size={20} color="#E74C3C" />
                         <Text style={styles.errorTextUI}>{errorMessage}</Text>
                     </View>
                 ) : null}
 
                 {successMessage ? (
-                    <View style={styles.successContainer}>
+                    <View style={[styles.successContainer, { backgroundColor: isDark ? '#1a3a2a' : '#EAFAF1', borderColor: isDark ? '#1a5a2a' : '#D5F5E3' }]}>
                         <MaterialCommunityIcons name="check-circle" size={24} color="#27AE60" />
                         <View style={styles.successTextContainer}>
                             <Text style={styles.successTitle}>¡Pago Exitoso!</Text>
-                            <Text style={styles.successTextUI}>{successMessage}</Text>
+                            <Text style={[styles.successTextUI, { color: colors.textPrimary }]}>{successMessage}</Text>
                         </View>
                     </View>
                 ) : null}
 
-                <View style={styles.amountContainer}>
-                    <Text style={styles.amountLabel}>{esRenta ? 'Renta mensual' : 'Total a pagar'}</Text>
-                    <Text style={styles.amountValue}>${monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</Text>
+                <View style={[styles.amountContainer, { backgroundColor: isDark ? colors.backgroundSecondary : '#DCEEFF' }]}>
+                    <Text style={[styles.amountLabel, { color: colors.textPrimary }]}>{esRenta ? 'Renta mensual' : 'Total a pagar'}</Text>
+                    <Text style={[styles.amountValue, { color: colors.buttonMain }]}>${monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</Text>
                 </View>
 
                 {/* Tarjeta Virtual Visual */}
@@ -238,11 +239,12 @@ export default function PaymentScreen({ navigation, route }: any) {
 
                 <View style={styles.form}>
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Número de Tarjeta</Text>
+                        <Text style={[styles.label, { color: colors.textPrimary }]}>Número de Tarjeta</Text>
                         <TextInput 
-                            style={styles.input}
+                            style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                             keyboardType="number-pad"
                             placeholder="0000 0000 0000 0000"
+                            placeholderTextColor={colors.textSecondary}
                             maxLength={19}
                             value={cardNumber}
                             onChangeText={handleCardNumberChange}
@@ -251,22 +253,24 @@ export default function PaymentScreen({ navigation, route }: any) {
 
                     <View style={styles.row}>
                         <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-                            <Text style={styles.label}>Expiración</Text>
+                            <Text style={[styles.label, { color: colors.textPrimary }]}>Expiración</Text>
                             <TextInput 
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                                 keyboardType="number-pad"
                                 placeholder="MM/YY"
+                                placeholderTextColor={colors.textSecondary}
                                 maxLength={5}
                                 value={expiration}
                                 onChangeText={handleExpirationChange}
                             />
                         </View>
                         <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
-                            <Text style={styles.label}>CVC</Text>
+                            <Text style={[styles.label, { color: colors.textPrimary }]}>CVC</Text>
                             <TextInput 
-                                style={styles.input}
+                                style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                                 keyboardType="number-pad"
                                 placeholder="123"
+                                placeholderTextColor={colors.textSecondary}
                                 secureTextEntry
                                 maxLength={4}
                                 value={cvc}
@@ -276,24 +280,25 @@ export default function PaymentScreen({ navigation, route }: any) {
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Nombre del Titular</Text>
+                        <Text style={[styles.label, { color: colors.textPrimary }]}>Nombre del Titular</Text>
                         <TextInput 
-                            style={styles.input}
+                            style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                             placeholder="Como aparece en la tarjeta"
+                            placeholderTextColor={colors.textSecondary}
                             autoCapitalize="words"
                             value={cardholderName}
                             onChangeText={setCardholderName}
                         />
                     </View>
 
-                    <View style={styles.switchContainer}>
+                    <View style={[styles.switchContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                         <View>
-                            <Text style={styles.switchLabel}>Guardar tarjeta</Text>
+                            <Text style={[styles.switchLabel, { color: colors.textPrimary }]}>Guardar tarjeta</Text>
                             <Text style={styles.switchSubLabel}>Para compras futuras de manera segura</Text>
                         </View>
                         <Switch
-                            trackColor={{ false: "#767577", true: "#81b0ff" }}
-                            thumbColor={saveCard ? "#205EA6" : "#f4f3f4"}
+                            trackColor={{ false: "#767577", true: colors.buttonMain }}
+                            thumbColor={saveCard ? "#fff" : "#f4f3f4"}
                             onValueChange={setSaveCard}
                             value={saveCard}
                         />
@@ -301,7 +306,7 @@ export default function PaymentScreen({ navigation, route }: any) {
                 </View>
 
                 <TouchableOpacity 
-                    style={[styles.payButton, isLoading && { opacity: 0.7 }]} 
+                    style={[styles.payButton, { backgroundColor: colors.buttonMain }, isLoading && { opacity: 0.7 }]} 
                     onPress={processPayment}
                     disabled={isLoading}
                 >
@@ -314,8 +319,8 @@ export default function PaymentScreen({ navigation, route }: any) {
                     )}
                 </TouchableOpacity>
                 <View style={styles.secureBadge}>
-                    <MaterialCommunityIcons name="lock" size={14} color="#7F8C8D" />
-                    <Text style={styles.secureText}>Pagos protegidos por Mercado Pago</Text>
+                    <MaterialCommunityIcons name="lock" size={14} color={colors.textSecondary} />
+                    <Text style={[styles.secureText, { color: colors.textSecondary }]}>Pagos protegidos por Mercado Pago</Text>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -323,195 +328,35 @@ export default function PaymentScreen({ navigation, route }: any) {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F5F7FA',
-    },
-    scroll: {
-        padding: 24,
-    },
-    backButton: {
-        marginBottom: 20,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#0F2C4F',
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 15,
-        color: '#7F8C8D',
-        marginBottom: 24,
-        lineHeight: 22,
-    },
-    amountContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#DCEEFF',
-        padding: 20,
-        borderRadius: 16,
-        marginBottom: 24,
-    },
-    amountLabel: {
-        fontSize: 16,
-        color: '#0F2C4F',
-        fontWeight: '600',
-    },
-    amountValue: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#205EA6',
-    },
-    cardVisual: {
-        backgroundColor: '#0F2C4F',
-        borderRadius: 16,
-        padding: 24,
-        height: 200,
-        justifyContent: 'space-between',
-        marginBottom: 24,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 15,
-        elevation: 8,
-    },
-    cardVisualNumber: {
-        color: '#FFFFFF',
-        fontSize: 22,
-        letterSpacing: 2,
-        fontWeight: '600',
-    },
-    cardVisualFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    cardVisualLabel: {
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: 10,
-        textTransform: 'uppercase',
-        marginBottom: 4,
-    },
-    cardVisualText: {
-        color: '#FFFFFF',
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    form: {
-        marginBottom: 24,
-    },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    inputGroup: {
-        marginBottom: 16,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#2C3E50',
-        marginBottom: 8,
-    },
-    input: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: '#0F2C4F',
-    },
-    switchContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 10,
-        padding: 16,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    switchLabel: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#2C3E50',
-    },
-    switchSubLabel: {
-        fontSize: 12,
-        color: '#7F8C8D',
-        marginTop: 4,
-    },
-    payButton: {
-        backgroundColor: '#205EA6',
-        padding: 18,
-        borderRadius: 12,
-        alignItems: 'center',
-        shadowColor: "#205EA6",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    payButtonText: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    secureBadge: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 16,
-        marginBottom: 40,
-    },
-    secureText: {
-        fontSize: 12,
-        color: '#7F8C8D',
-        marginLeft: 6,
-    },
-    errorContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FDEDEC',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#FADBD8',
-    },
-    errorTextUI: {
-        color: '#E74C3C',
-        marginLeft: 8,
-        fontSize: 15,
-        flex: 1,
-    },
-    successContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#EAFAF1',
-        padding: 20,
-        borderRadius: 12,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#D5F5E3',
-        alignItems: 'flex-start',
-    },
-    successTextContainer: {
-        marginLeft: 12,
-        flex: 1,
-    },
-    successTitle: {
-        color: '#27AE60',
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 4,
-    },
-    successTextUI: {
-        color: '#2E4053',
-        fontSize: 15,
-        marginBottom: 16,
-        lineHeight: 22,
-    }
+    container: { flex: 1 },
+    scroll: { padding: 24 },
+    backButton: { marginBottom: 20 },
+    title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
+    subtitle: { fontSize: 15, marginBottom: 24, lineHeight: 22 },
+    amountContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderRadius: 16, marginBottom: 24 },
+    amountLabel: { fontSize: 16, fontWeight: '600' },
+    amountValue: { fontSize: 24, fontWeight: 'bold' },
+    cardVisual: { borderRadius: 16, padding: 24, height: 200, justifyContent: 'space-between', marginBottom: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 8 },
+    cardVisualNumber: { color: '#FFFFFF', fontSize: 22, letterSpacing: 2, fontWeight: '600' },
+    cardVisualFooter: { flexDirection: 'row', justifyContent: 'space-between' },
+    cardVisualLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, textTransform: 'uppercase', marginBottom: 4 },
+    cardVisualText: { color: '#FFFFFF', fontSize: 14, fontWeight: '500' },
+    form: { marginBottom: 24 },
+    row: { flexDirection: 'row', justifyContent: 'space-between' },
+    inputGroup: { marginBottom: 16 },
+    label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+    input: { borderWidth: 1, borderRadius: 12, padding: 16, fontSize: 16 },
+    switchContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, padding: 16, borderRadius: 12, borderWidth: 1 },
+    switchLabel: { fontSize: 15, fontWeight: '600' },
+    switchSubLabel: { fontSize: 12, color: '#7F8C8D', marginTop: 4 },
+    payButton: { padding: 18, borderRadius: 12, alignItems: 'center', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+    payButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
+    secureBadge: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16, marginBottom: 40 },
+    secureText: { fontSize: 12, marginLeft: 6 },
+    errorContainer: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 12, marginBottom: 20, borderWidth: 1 },
+    errorTextUI: { color: '#E74C3C', marginLeft: 8, fontSize: 15, flex: 1 },
+    successContainer: { flexDirection: 'row', padding: 20, borderRadius: 12, marginBottom: 20, borderWidth: 1, alignItems: 'flex-start' },
+    successTextContainer: { marginLeft: 12, flex: 1 },
+    successTitle: { color: '#27AE60', fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
+    successTextUI: { fontSize: 15, marginBottom: 16, lineHeight: 22 }
 });
