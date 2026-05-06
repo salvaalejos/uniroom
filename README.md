@@ -1,10 +1,12 @@
 # REVISIONES DE PRUEBAS RECIENTES CON MERGE DE TODOS LOS PUNTOS TRATADOS EN WHATSAPP 
 ## FALLOS INMEDIATOS A RESOLVER (ahorita los resuelv0, que la noche aún es joven como yo 💃): 
-
-- Si el arrendador ha confirmado la cita en la notificación, si la confirma dos veces, se envía correo nuevamente (cambiar para que si selecciona dos veces, mostrar mensaje "has respondido ya a este mensaje" and no mandar nada). 
-- Al recién pagar la renta, el apartado de notificaciones no te deja mandar notificaciones a menos que cierres sesión. 
+    Los detalles esteticos los dejamos para despues, todo lo demás parece funcionar a la perfección (en teoría). Falta la parte del merge nuevo de Mercado Pago con Salvador. 
+ 
 
 ## Completados:
+- ~~Si el arrendador ha confirmado la cita en la notificación, si la confirma dos veces, se envía correo nuevamente (cambiar para que si selecciona dos veces, mostrar mensaje "has respondido ya a este mensaje" and no mandar nada).~~ 
+- ~~Al recién pagar la renta, el apartado de notificaciones no te deja mandar notificaciones a menos que cierres sesión.~~ 
+- Cambiar mensaje de confirmar visita (eliminar apargado de cobro de tarifa de 50 pesos).
 - ~~Checar apartado de cuartos al seleccionar una casa.~~ 
 - ~~Al agregar casa, los cuartos no se ven reflejados, eliminar por ahora el apartado de casa.~~
 - ~~La fotografía y nombre de usuario en la reseña son simulados (mostrar reales).~~
@@ -52,3 +54,4 @@
 
 ## PROBLEMAS A LARGO PLAZO: 
 - Si un estudiante agenda una cita y el arrendador la acepta, esta debe no estar disponible más tiempo. 
+- Necesito hacer más pruebas a futuro. 

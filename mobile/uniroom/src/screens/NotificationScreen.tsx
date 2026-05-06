@@ -60,6 +60,7 @@ export default function NotificationScreen() {
   const [ratingEstudiante, setRatingEstudiante] = useState(0);
   const [comentarioEstudiante, setComentarioEstudiante] = useState("");
   const [enviandoCalificacion, setEnviandoCalificacion] = useState(false);
+  const [procesandoAccion, setProcesandoAccion] = useState(false);
   const [ratingEstudianteMap, setRatingEstudianteMap] = useState<Record<string, number>>({});
 
   // Ref para acceder al userRole actual dentro de los listeners
@@ -99,15 +100,16 @@ export default function NotificationScreen() {
 
     // Listeners existentes
     socketService.on('mensaje_nuevo', (data) => {
+      const d = new Date(data.fecha || new Date());
       const nuevaNotif: Notificacion = {
-        id: data.id,
+        id: data.id.toString(),
         tipo: data.tipo || 'REPORTE',
         titulo: data.titulo,
         mensaje: data.mensaje,
         leida: false,
         remitente: data.remitente_nombre,
         remitenteFoto: data.remitente_foto,
-        fecha: new Date().toLocaleString(),
+        fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
         datosExtra: data,
       };
       setNotificaciones(prev => [nuevaNotif, ...prev]);
@@ -116,16 +118,17 @@ export default function NotificationScreen() {
 
     socketService.on('solicitud_cita', (data) => {
       if (userRoleRef.current === 'anfitrion') {
+        const d = new Date(data.fecha || new Date());
         const nuevaNotif: Notificacion = {
-          id: data.id,
+          id: data.id.toString(),
           tipo: 'solicitud_cita',
           titulo: 'Nueva solicitud de visita',
-          mensaje: `${data.estudianteNombre} quiere visitar tu propiedad ${data.propiedadTitulo} el ${new Date(data.fecha).toLocaleString()}`,
+          mensaje: data.mensaje,
           leida: false,
           remitente: data.estudianteNombre,
           remitenteFoto: data.remitenteFoto,
-          fecha: new Date().toLocaleString(),
-          relacionado_a: data.id, // ID de la cita
+          fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
+          relacionado_a: data.id_cita || data.id, 
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
@@ -135,18 +138,17 @@ export default function NotificationScreen() {
 
     socketService.on('respuesta_cita', (data) => {
       if (userRoleRef.current === 'estudiante') {
+        const d = new Date(data.fecha || new Date());
         const nuevaNotif: Notificacion = {
-          id: data.id,
+          id: data.id.toString(),
           tipo: 'respuesta_cita',
           titulo: data.aceptada ? 'Cita aceptada' : 'Cita rechazada',
-          mensaje: data.aceptada
-            ? `Tu solicitud para visitar ${data.propiedadTitulo} ha sido ACEPTADA. Fecha: ${new Date(data.fecha).toLocaleString()}`
-            : `Tu solicitud para visitar ${data.propiedadTitulo} fue RECHAZADA. Motivo: ${data.motivo || 'No especificado'}.`,
+          mensaje: data.mensaje,
           leida: false,
           remitente: data.anfitrionNombre,
           remitenteFoto: data.remitenteFoto,
-          fecha: new Date().toLocaleString(),
-          relacionado_a: data.id, // ID de la cita
+          fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
+          relacionado_a: data.id_cita || data.id, 
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
@@ -157,16 +159,17 @@ export default function NotificationScreen() {
     // NUEVO: Listener para decisión de renta pendiente (anfitrión)
     socketService.on('decision_renta_pendiente', (data) => {
       if (userRoleRef.current === 'anfitrion') {
+        const d = new Date(data.fecha || new Date());
         const nuevaNotif: Notificacion = {
-          id: `dr_${data.id}`,
+          id: data.id.toString(),
           tipo: 'decision_renta_pendiente',
           titulo: 'Decisión de renta requerida',
           mensaje: data.mensaje,
           leida: false,
           remitente: 'Sistema UniRoom',
           remitenteFoto: data.remitenteFoto,
-          fecha: new Date().toLocaleString(),
-          relacionado_a: data.id, // ID de la cita
+          fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
+          relacionado_a: data.id_cita || data.id, 
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
@@ -177,20 +180,27 @@ export default function NotificationScreen() {
     // NUEVO: Listener para decisión de renta (estudiante)
     socketService.on('decision_renta', (data) => {
       if (userRoleRef.current === 'estudiante') {
+        const d = new Date(data.fecha || new Date());
         const nuevaNotif: Notificacion = {
-          id: `dr_resp_${data.id}`,
+          id: data.id.toString(),
           tipo: 'decision_renta',
           titulo: data.aceptada ? '¡Renta aprobada!' : 'Renta rechazada',
           mensaje: data.mensaje,
           leida: false,
           remitente: data.anfitrionNombre,
           remitenteFoto: data.remitenteFoto,
-          fecha: new Date().toLocaleString(),
-          relacionado_a: data.id, // ID de la cita
+          fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
+          relacionado_a: data.id_cita || data.id, 
           datosExtra: data,
         };
         setNotificaciones(prev => [nuevaNotif, ...prev]);
         refreshUnreadCount();
+      }
+    });
+
+    socketService.on('renta_confirmada_estudiante', (data) => {
+      if (userRoleRef.current === 'estudiante' && userIdRef.current) {
+        cargarContactosReales(userIdRef.current);
       }
     });
 
@@ -244,10 +254,7 @@ export default function NotificationScreen() {
 
   const cargarTodo = async (idActual: string, rolActual: string) => {
     setCargando(true);
-    await Promise.all([
-      cargarNotificacionesBD(idActual),
-      cargarCitasComoNotificaciones(rolActual)
-    ]);
+    await cargarNotificacionesBD(idActual);
     setCargando(false);
   };
 
@@ -288,7 +295,7 @@ export default function NotificationScreen() {
             : notif.remitente_nombre;
 
           return {
-            id: notif.id,
+            id: notif.id.toString(),
             tipo: notif.tipo || 'mensaje',
             titulo: notif.titulo,
             mensaje: notif.mensaje,
@@ -297,82 +304,14 @@ export default function NotificationScreen() {
             remitenteFoto: notif.remitente?.foto,
             fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
             relacionado_a: notif.relacionado_a,
-            datosExtra: notif
+            datosExtra: { ...notif, estado: notif.estado_cita } // Sincronizar estado de la cita
           };
         });
         
-        setNotificaciones(prev => {
-          const ids = new Set(formateadas.map(n => n.id));
-          const resto = prev.filter(n => !ids.has(n.id));
-          return [...formateadas, ...resto];
-        });
+        setNotificaciones(formateadas);
       }
     } catch (error) {
       console.error("Error conectando al backend:", error);
-    }
-  };
-
-  const cargarCitasComoNotificaciones = async (rolActual: string) => {
-    try {
-      const citas = await obtenerMisCitas();
-      const notifsCitas: Notificacion[] = citas.map((cita: any) => {
-        const esEstudiante = rolActual === 'estudiante';
-        const titular = esEstudiante ? cita.anfitrion?.nombre : cita.estudiante?.nombre;
-        let titulo = '', mensaje = '', tipo = '';
-        
-        if (cita.estado === 'PENDIENTE') {
-          titulo = esEstudiante ? 'Cita pendiente' : 'Nueva solicitud de visita';
-          mensaje = esEstudiante
-            ? `Tienes una cita pendiente con ${cita.anfitrion?.nombre} para ${cita.inmueble.titulo}`
-            : `${cita.estudiante?.nombre} solicitó visitar ${cita.inmueble.titulo}`;
-          tipo = 'solicitud_cita';
-        } else if (cita.estado === 'ACEPTADA') {
-          titulo = 'Cita aceptada';
-          mensaje = `Tu cita para ${cita.inmueble.titulo} ha sido ACEPTADA. Recuerda marcarla como realizada después de la visita.`;
-          tipo = 'respuesta_cita';
-        } else if (cita.estado === 'RECHAZADA') {
-          titulo = 'Cita rechazada';
-          mensaje = `Tu cita para ${cita.inmueble.titulo} fue RECHAZADA.`;
-          tipo = 'respuesta_cita';
-        } else if (cita.estado === 'REALIZADA') {
-          if (!esEstudiante) {
-            titulo = 'Visita realizada — Decisión pendiente';
-            mensaje = `La visita de ${cita.estudiante?.nombre} a ${cita.inmueble.titulo} se realizó. ¿Deseas autorizarlo para rentar?`;
-            tipo = 'decision_renta_pendiente';
-          } else {
-            titulo = 'Visita realizada';
-            mensaje = `Tu visita a ${cita.inmueble.titulo} se realizó. Espera la decisión del arrendador.`;
-            tipo = 'respuesta_cita';
-          }
-        } else if (cita.estado === 'RENTA_APROBADA') {
-          titulo = '¡Renta aprobada!';
-          mensaje = `Has sido autorizado para rentar ${cita.inmueble.titulo}. ¡Procede al pago desde el detalle del inmueble!`;
-          tipo = 'decision_renta';
-        } else if (cita.estado === 'RENTA_RECHAZADA') {
-          titulo = 'Renta rechazada';
-          mensaje = `El arrendador decidió no autorizarte para rentar ${cita.inmueble.titulo}.`;
-          tipo = 'decision_renta';
-        }
-
-        return {
-          id: cita.id_cita,
-          tipo,
-          titulo,
-          mensaje,
-          leida: citasLeidas.includes(cita.id_cita), // Cargar estado de lectura local
-          remitente: titular || 'Sistema',
-          fecha: new Date(cita.fecha_hora).toLocaleString(),
-          datosExtra: cita,
-        };
-      }).filter(n => n.tipo !== '' && !citasOcultas.includes(n.id)); // Ocultar si está en la lista negra
-      
-      setNotificaciones(prev => {
-        const idsExistentes = new Set(prev.map(n => n.id));
-        const nuevas = notifsCitas.filter(n => !idsExistentes.has(n.id));
-        return [...nuevas, ...prev];
-      });
-    } catch (error) {
-      console.error("Error cargando citas:", error);
     }
   };
 
@@ -444,37 +383,46 @@ export default function NotificationScreen() {
 
   const responderSolicitud = async (notif: Notificacion, aceptar: boolean, motivoRechazo?: string) => {
     const citaId = notif.relacionado_a || notif.datosExtra?.id_cita || notif.id;
-    if (!citaId) return;
+    if (!citaId || procesandoAccion) return;
 
+    setProcesandoAccion(true);
     try {
       const nuevoEstado = aceptar ? 'ACEPTADA' : 'RECHAZADA';
       await actualizarEstadoCita(citaId, nuevoEstado, motivoRechazo);
       Alert.alert(aceptar ? 'Cita aceptada' : 'Cita rechazada', 'Se ha notificado al solicitante.');
       setModalVisible(false);
-      if(userId) cargarCitasComoNotificaciones(userRole);
+      if(userId) await cargarTodo(userId, userRole);
     } catch (error: any) {
       Alert.alert('Error', error.message);
+    } finally {
+      setProcesandoAccion(false);
     }
   };
 
   // NUEVO: Marcar cita como realizada
   const marcarRealizada = async (notif: Notificacion) => {
     const citaId = notif.relacionado_a || notif.datosExtra?.id_cita || notif.id;
-    if (!citaId) return;
+    if (!citaId || procesandoAccion) return;
+
+    setProcesandoAccion(true);
     try {
       await marcarCitaRealizada(citaId);
       Alert.alert('Visita registrada', 'Ahora puedes decidir si autorizas al estudiante para rentar.');
       setModalVisible(false);
-      if(userId) cargarCitasComoNotificaciones(userRole);
+      if(userId) await cargarTodo(userId, userRole);
     } catch (error: any) {
       Alert.alert('Error', error.message);
+    } finally {
+      setProcesandoAccion(false);
     }
   };
 
   // NUEVO: Decisión de renta (aprobar/rechazar)
   const responderDecisionRenta = async (notif: Notificacion, aprobar: boolean) => {
     const citaId = notif.relacionado_a || notif.datosExtra?.id_cita || notif.id;
-    if (!citaId) return;
+    if (!citaId || procesandoAccion) return;
+
+    setProcesandoAccion(true);
     try {
       await decisionRenta(citaId, aprobar ? 'APROBAR' : 'RECHAZAR');
       Alert.alert(
@@ -484,9 +432,11 @@ export default function NotificationScreen() {
           : `Has rechazado la renta.`
       );
       setModalVisible(false);
-      if(userId) cargarCitasComoNotificaciones(userRole);
+      if(userId) await cargarTodo(userId, userRole);
     } catch (error: any) {
       Alert.alert('Error', error.message);
+    } finally {
+      setProcesandoAccion(false);
     }
   };
 
@@ -834,28 +784,35 @@ export default function NotificationScreen() {
                 {/* BOTONES ANFITRIÓN — Aceptar/Rechazar cita */}
                 {userRole === 'anfitrion' && notificacionSeleccionada.tipo === 'solicitud_cita' && (
                   <View style={styles.botonesRespuesta}>
-                    <TouchableOpacity style={styles.botonAceptar} onPress={() => responderSolicitud(notificacionSeleccionada, true)}>
-                      <Text style={styles.textoBotonAceptar}>Aceptar</Text>
+                    <TouchableOpacity 
+                      style={[styles.botonAceptar, procesandoAccion && { opacity: 0.7 }]} 
+                      onPress={() => responderSolicitud(notificacionSeleccionada, true)}
+                      disabled={procesandoAccion}
+                    >
+                      {procesandoAccion ? <ActivityIndicator color="#fff" /> : <Text style={styles.textoBotonAceptar}>Aceptar</Text>}
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.botonRechazar} onPress={() => {
-                      if (Platform.OS === 'ios') {
-                        Alert.prompt(
-                          'Motivo de rechazo', 
-                          'Escribe el motivo del rechazo (opcional):', 
-                          (motivo) => responderSolicitud(notificacionSeleccionada, false, motivo)
-                        );
-                      } else {
-                        // Para Android o como fallback: Preguntar confirmación simple
-                        Alert.alert(
-                          'Rechazar Cita',
-                          '¿Estás seguro de que deseas rechazar esta solicitud de visita?',
-                          [
-                            { text: 'Cancelar', style: 'cancel' },
-                            { text: 'Rechazar', style: 'destructive', onPress: () => responderSolicitud(notificacionSeleccionada, false) }
-                          ]
-                        );
-                      }
-                    }}>
+                    <TouchableOpacity 
+                      style={[styles.botonRechazar, procesandoAccion && { opacity: 0.7 }]} 
+                      onPress={() => {
+                        if (Platform.OS === 'ios') {
+                          Alert.prompt(
+                            'Motivo de rechazo', 
+                            'Escribe el motivo del rechazo (opcional):', 
+                            (motivo) => responderSolicitud(notificacionSeleccionada, false, motivo)
+                          );
+                        } else {
+                          Alert.alert(
+                            'Rechazar Cita',
+                            '¿Estás seguro de que deseas rechazar esta solicitud de visita?',
+                            [
+                              { text: 'Cancelar', style: 'cancel' },
+                              { text: 'Rechazar', style: 'destructive', onPress: () => responderSolicitud(notificacionSeleccionada, false) }
+                            ]
+                          );
+                        }
+                      }}
+                      disabled={procesandoAccion}
+                    >
                       <Text style={styles.textoBotonRechazar}>Rechazar</Text>
                     </TouchableOpacity>
                   </View>
@@ -864,19 +821,31 @@ export default function NotificationScreen() {
                 {/* BOTONES ANFITRIÓN — Marcar como realizada (cuando cita está ACEPTADA) */}
                 {userRole === 'anfitrion' && notificacionSeleccionada.datosExtra?.estado === 'ACEPTADA' && (
                   <View style={styles.botonesRespuesta}>
-                    <TouchableOpacity style={[styles.botonRentar, { backgroundColor: colors.buttonMain }]} onPress={() => marcarRealizada(notificacionSeleccionada)}>
-                      <Text style={styles.textoBotonRentar}>Marcar visita realizada</Text>
+                    <TouchableOpacity 
+                      style={[styles.botonRentar, { backgroundColor: colors.buttonMain }, procesandoAccion && { opacity: 0.7 }]} 
+                      onPress={() => marcarRealizada(notificacionSeleccionada)}
+                      disabled={procesandoAccion}
+                    >
+                      {procesandoAccion ? <ActivityIndicator color="#fff" /> : <Text style={styles.textoBotonRentar}>Marcar visita realizada</Text>}
                     </TouchableOpacity>
                   </View>
                 )}
 
                 {/* BOTONES ANFITRIÓN — Decisión de renta (cuando es decision_renta_pendiente) */}
-                {userRole === 'anfitrion' && (notificacionSeleccionada.tipo === 'decision_renta_pendiente' || notificacionSeleccionada.datosExtra?.estado === 'REALIZADA') && (
+                {userRole === 'anfitrion' && (notificacionSeleccionada.tipo === 'decision_renta' || notificacionSeleccionada.datosExtra?.estado === 'REALIZADA') && (
                   <View style={styles.botonesRespuesta}>
-                    <TouchableOpacity style={styles.botonAceptar} onPress={() => responderDecisionRenta(notificacionSeleccionada, true)}>
-                      <Text style={styles.textoBotonAceptar}>Aceptar Renta</Text>
+                    <TouchableOpacity 
+                      style={[styles.botonAceptar, procesandoAccion && { opacity: 0.7 }]} 
+                      onPress={() => responderDecisionRenta(notificacionSeleccionada, true)}
+                      disabled={procesandoAccion}
+                    >
+                      {procesandoAccion ? <ActivityIndicator color="#fff" /> : <Text style={styles.textoBotonAceptar}>Aceptar Renta</Text>}
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.botonRechazar} onPress={() => responderDecisionRenta(notificacionSeleccionada, false)}>
+                    <TouchableOpacity 
+                      style={[styles.botonRechazar, procesandoAccion && { opacity: 0.7 }]} 
+                      onPress={() => responderDecisionRenta(notificacionSeleccionada, false)}
+                      disabled={procesandoAccion}
+                    >
                       <Text style={styles.textoBotonRechazar}>Cancelar Renta</Text>
                     </TouchableOpacity>
                   </View>
