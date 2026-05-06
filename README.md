@@ -2,8 +2,6 @@
 
 ## FALLOS INMEDIATOS A RESOLVER (ahorita los resuelvo, que la noche aún es joven como yo 💃): 
 
-- Falta agregar apartado de "Otro" a los servicios y Restricciones. (Omitir y definir en descripción de inmueble,       	agregaremos más a la BD más adelante, para evitar poner "Otro").
-- Eliminar botón de Contactar (comentar y guardar para después). 
 - Editar perfil permite eliminar número de teléfono. 
 - Botón de "Rechazar" visita no funciona correctamente. 
 - Notificación duplicada en arrendador al momento de Agendar cita por parte del estudiante (una con hora simulada y otra con hora real [eliminar la simulada]). 
@@ -17,6 +15,8 @@
 - Al recién pagar la renta, el apartado de notificaciones no te deja mandar notificaciones a menos que cierres sesión. 
 
 ## Completados:
+- ~~Eliminar botón de Contactar (comentar y guardar para después).~~
+- ~~Falta agregar apartado de "Otro" a los servicios y Restricciones. (Omitir y definir en descripción de inmueble,       	agregaremos más a la BD más adelante, para evitar poner "Otro").~~
 - ~~Falta agregar botón de "Come Back" al Agregar Inmueble o Editar Inmueble Screen.~~
 - ~~Falta modo oscuro para pestaña de carga (cargando propiedades).~~
 - ~~Falta vinculación de tarjeta de parte del arrendador al crear la cuenta (seguro requerirá una modificación a la BD, ahora si la última) (Chava).~~ 

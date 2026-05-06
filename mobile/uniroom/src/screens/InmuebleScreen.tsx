@@ -372,6 +372,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     </TouchableOpacity>
                 )}
 
+                {/* 
                 <TouchableOpacity
                     style={[styles.btnContacto, { backgroundColor: colors.buttonMain }]}
                     onPress={() => setModalTarifaVisible(true)}
@@ -379,6 +380,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
                     <Text style={styles.btnContactoTexto}>Contactar</Text>
                 </TouchableOpacity>
+                */}
             </View>
 
             {/* Modal de Confirmar Renta */}
