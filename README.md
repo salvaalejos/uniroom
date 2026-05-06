@@ -1,7 +1,7 @@
 # REVISIONES DE PRUEBAS RECIENTES CON MERGE DE TODOS LOS PUNTOS TRATADOS EN WHATSAPP 
-
 ## FALLOS INMEDIATOS A RESOLVER (ahorita los resuelvo, que la noche aún es joven como yo 💃): 
-- Botón de "Rechazar" visita no funciona correctamente. 
+
+- Editar perfil permite eliminar número de teléfono. 
 - Notificación duplicada en arrendador al momento de Agendar cita por parte del estudiante (una con hora simulada y otra con hora real [eliminar la simulada]). 
 - Lo mismo que arriba pero con vista de estudiante xd. 
 - La pestaña de Mi Casa solo se actualiza al cerrar sesión. 
@@ -12,9 +12,10 @@
 - Al recién pagar la renta, el apartado de notificaciones no te deja mandar notificaciones a menos que cierres sesión. 
 
 ## Completados:
-- ~~Editar perfil permite eliminar número de teléfono.~~
 - ~~Apartado de Guardar Tarjeta no guarda tarjeta.~~ 
+- ~~Botón de "Rechazar" visita no funciona correctamente.~~ 
 - ~~Eliminar botón de Contactar (comentar y guardar para después).~~
+
 - ~~Falta agregar apartado de "Otro" a los servicios y Restricciones. (Omitir y definir en descripción de inmueble,       	agregaremos más a la BD más adelante, para evitar poner "Otro").~~
 - ~~Falta agregar botón de "Come Back" al Agregar Inmueble o Editar Inmueble Screen.~~
 - ~~Falta modo oscuro para pestaña de carga (cargando propiedades).~~

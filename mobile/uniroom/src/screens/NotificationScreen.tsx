@@ -803,9 +803,23 @@ export default function NotificationScreen() {
                       <Text style={styles.textoBotonAceptar}>Aceptar</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.botonRechazar} onPress={() => {
-                      Alert.prompt('Motivo de rechazo', 'Escribe el motivo (opcional)', (motivo) =>
-                        responderSolicitud(notificacionSeleccionada, false, motivo)
-                      );
+                      if (Platform.OS === 'ios') {
+                        Alert.prompt(
+                          'Motivo de rechazo', 
+                          'Escribe el motivo del rechazo (opcional):', 
+                          (motivo) => responderSolicitud(notificacionSeleccionada, false, motivo)
+                        );
+                      } else {
+                        // Para Android o como fallback: Preguntar confirmación simple
+                        Alert.alert(
+                          'Rechazar Cita',
+                          '¿Estás seguro de que deseas rechazar esta solicitud de visita?',
+                          [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Rechazar', style: 'destructive', onPress: () => responderSolicitud(notificacionSeleccionada, false) }
+                          ]
+                        );
+                      }
                     }}>
                       <Text style={styles.textoBotonRechazar}>Rechazar</Text>
                     </TouchableOpacity>
