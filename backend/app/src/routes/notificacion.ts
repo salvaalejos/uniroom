@@ -99,7 +99,7 @@ export const notificacionRoutes = new Elysia({ prefix: '/api/notificaciones' })
       return { error: "No autorizado" };
     }
     try {
-      return await db.notificacion.findMany({
+      const notifications = await db.notificacion.findMany({
         where: { usuario_id: id },
         include: {
           remitente: {
@@ -112,6 +112,24 @@ export const notificacionRoutes = new Elysia({ prefix: '/api/notificaciones' })
         },
         orderBy: { fecha_creacion: 'desc' }
       });
+
+      // Mapear para incluir el estado real de la cita relacionada
+      const results = await Promise.all(notifications.map(async (n) => {
+        if (n.relacionado_a && (
+          n.tipo === 'solicitud_cita' || 
+          n.tipo === 'respuesta_cita' || 
+          n.tipo === 'decision_renta_pendiente' || 
+          n.tipo === 'decision_renta'
+        )) {
+          const cita = await db.cita.findUnique({
+            where: { id_cita: n.relacionado_a }
+          });
+          return { ...n, estado_cita: cita?.estado };
+        }
+        return n;
+      }));
+
+      return results;
     } catch (error) {
       set.status = 500;
       return { error: "Error al cargar" };
