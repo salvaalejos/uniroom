@@ -302,29 +302,45 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                             Aún no hay reseñas para este lugar.
                         </Text>
                     ) : verComentarios ? (
-                        reseñasConComentario.map((c: any, i: number) => (
-                            <View key={i} style={styles.comentario}>
-                                <Image source={c.estudiante?.foto ? getMediaUri(c.estudiante.foto) : ANFITRION} style={styles.comentarioAvatar}/>
-                                <View style={{flex: 1}}>
-                                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                                        <View>
-                                            <Text style={[styles.comentarioAutor, { color: colors.textPrimary }]}>{c.estudiante?.nombre || "Usuario"}</Text>
-                                            <View style={{ flexDirection: "row", gap: 2 }}>
-                                                {[1, 2, 3, 4, 5].map((star) => (
-                                                    <MaterialCommunityIcons
-                                                        key={star}
-                                                        name={star <= c.calificacion ? "star" : "star-outline"}
-                                                        size={14}
-                                                        color="#f39c12"
-                                                    />
-                                                ))}
+                        reseñasConComentario.map((c: any, i: number) => {
+                            const studentName = c.estudiante 
+                                ? `${c.estudiante.nombre} ${c.estudiante.apellidos}`.trim() 
+                                : "Usuario UniRoom";
+                            
+                            const studentPhoto = c.estudiante?.foto 
+                                ? (c.estudiante.foto.startsWith("http") ? { uri: c.estudiante.foto } : { uri: `${API_BASE_URL}${c.estudiante.foto}` })
+                                : null;
+
+                            return (
+                                <View key={i} style={styles.comentario}>
+                                    {studentPhoto ? (
+                                        <Image source={studentPhoto} style={styles.comentarioAvatar}/>
+                                    ) : (
+                                        <View style={[styles.comentarioAvatar, { backgroundColor: colors.buttonMain, justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>{studentName.charAt(0)}</Text>
+                                        </View>
+                                    )}
+                                    <View style={{flex: 1}}>
+                                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                                            <View>
+                                                <Text style={[styles.comentarioAutor, { color: colors.textPrimary }]}>{studentName}</Text>
+                                                <View style={{ flexDirection: "row", gap: 2 }}>
+                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                        <MaterialCommunityIcons
+                                                            key={star}
+                                                            name={star <= c.calificacion ? "star" : "star-outline"}
+                                                            size={14}
+                                                            color="#f39c12"
+                                                        />
+                                                    ))}
+                                                </View>
                                             </View>
                                         </View>
+                                        <Text style={[styles.comentarioTexto, { color: colors.textSecondary }]}>{c.descripcion}</Text>
                                     </View>
-                                    <Text style={[styles.comentarioTexto, { color: colors.textSecondary }]}>{c.descripcion}</Text>
                                 </View>
-                            </View>
-                        ))
+                            );
+                        })
                     ) : (
                         <Text style={{ color: colors.textSecondary, textAlign: "center", marginBottom: 20, fontSize: 13 }}>
                             Toca la flecha para ver las reseñas.

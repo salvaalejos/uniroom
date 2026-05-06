@@ -90,7 +90,12 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         restricciones: true,
         imagenes: true,
         disponibilidad: true,
-        calificaciones: { take: 5 },
+        calificaciones: { 
+          take: 5,
+          include: {
+            estudiante: { select: { nombre: true, apellidos: true, foto: true } }
+          }
+        },
         estudianteAutorizado: { select: { id_usuario: true } },
       },
     });
