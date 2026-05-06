@@ -12,7 +12,7 @@ import {
     Modal,
     FlatList
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,6 +29,8 @@ export default function ProfileScreen({ navigation, route }: any) {
     const [showTransactions, setShowTransactions] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [loadingTransactions, setLoadingTransactions] = useState(false);
+    const [savedCards, setSavedCards] = useState<any[]>([]);
+    const [loadingCards, setLoadingCards] = useState(false);
 
     const { colors, isDark, toggleTheme } = useTheme();
 
@@ -50,9 +52,53 @@ export default function ProfileScreen({ navigation, route }: any) {
         }
     }, [navigation, userId])
 
+    // Cargar tarjetas guardadas
+    const fetchSavedCards = async () => {
+        try {
+            setLoadingCards(true);
+            const response = await fetch(`${API_BASE_URL}/payments/cards`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setSavedCards(data.cards || []);
+        } catch (error) {
+            console.log("Error cargando tarjetas:", error);
+        } finally {
+            setLoadingCards(false);
+        }
+    };
+
+    const deleteCard = async (cardId: string) => {
+        Alert.alert("Eliminar tarjeta", "¿Deseas eliminar esta tarjeta guardada?", [
+            { text: "Cancelar", style: "cancel" },
+            {
+                text: "Eliminar", style: "destructive",
+                onPress: async () => {
+                    try {
+                        await fetch(`${API_BASE_URL}/payments/cards/${cardId}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        setSavedCards(prev => prev.filter(c => c.id !== cardId));
+                    } catch (error) {
+                        Alert.alert("Error", "No se pudo eliminar la tarjeta");
+                    }
+                }
+            }
+        ]);
+    };
+
+    const getCardIcon = (pmId: string) => {
+        if (pmId === 'visa') return 'cc-visa';
+        if (pmId === 'master') return 'cc-mastercard';
+        if (pmId === 'amex') return 'cc-amex';
+        return 'credit-card';
+    };
+
     useFocusEffect(
         useCallback(() => {
             getUserData();
+            fetchSavedCards();
         }, [userId, token])
     );
 
@@ -214,6 +260,32 @@ export default function ProfileScreen({ navigation, route }: any) {
                     </TouchableOpacity>
                 )}
                 
+                {/* Mis Tarjetas (solo estudiantes) */}
+                {userData.rol === 'ESTUDIANTE' && savedCards.length > 0 && (
+                    <View style={[styles.card, { backgroundColor: colors.cardBackground, marginTop: 16 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                            <MaterialCommunityIcons name="credit-card-multiple-outline" size={22} color={colors.textPrimary} />
+                            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginLeft: 8 }}>Mis Tarjetas</Text>
+                        </View>
+                        {savedCards.map((card: any) => (
+                            <View key={card.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border || '#E2E8F0' }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                    <FontAwesome name={getCardIcon(card.payment_method?.id) as any} size={24} color={colors.textSecondary} />
+                                    <View style={{ marginLeft: 12 }}>
+                                        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary, letterSpacing: 1 }}>•••• {card.last_four_digits}</Text>
+                                        <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+                                            {card.cardholder?.name || 'Titular'} · Exp. {String(card.expiration_month).padStart(2, '0')}/{card.expiration_year}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <TouchableOpacity onPress={() => deleteCard(card.id)} style={{ padding: 8 }}>
+                                    <MaterialCommunityIcons name="trash-can-outline" size={18} color="#E74C3C" />
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
                 <TouchableOpacity 
                     style={[styles.final_button, { backgroundColor: colors.buttonMain }]}
                     onPress={() => setShowLogoutModal(true)}>

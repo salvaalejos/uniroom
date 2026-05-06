@@ -70,33 +70,35 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
       try {
         let customerId = user.mp_customer_id;
 
-        // Si el usuario quiere guardar la tarjeta y no tiene customer_id, se crea
-        if (body.saveCard && !customerId) {
-          const newCustomer = await customerClient.create({
-            body: {
-              email: user.email,
-              first_name: user.nombre,
-              last_name: user.apellidos,
-            }
-          });
-          customerId = newCustomer.id || null;
-          // Actualizar en base de datos
-          await db.usuario.update({
-            where: { id_usuario: user.id_usuario },
-            data: { mp_customer_id: customerId }
-          });
-        }
-
-        // Si se va a guardar la tarjeta, la asociamos al customer
-        if (body.saveCard && customerId && body.token) {
-          try {
-            await customerCardClient.create({
-              customerId,
-              body: { token: body.token }
+        // Si el usuario quiere guardar la tarjeta, creamos/usamos un customer
+        if (body.saveCard) {
+          if (!customerId) {
+            const newCustomer = await customerClient.create({
+              body: {
+                email: user.email,
+                first_name: user.nombre,
+                last_name: user.apellidos,
+              }
             });
-          } catch (e) {
-            console.log("Error al guardar tarjeta:", e);
-            // Ignorar el error para no detener el cobro principal
+            customerId = newCustomer.id || null;
+            await db.usuario.update({
+              where: { id_usuario: user.id_usuario },
+              data: { mp_customer_id: customerId }
+            });
+          }
+
+          // Guardar la tarjeta ANTES del pago (el token aún no se ha consumido)
+          if (customerId && body.token) {
+            try {
+              await customerCardClient.create({
+                customerId,
+                body: { token: body.token }
+              });
+              console.log(`✅ Tarjeta guardada para customer ${customerId}`);
+            } catch (e: any) {
+              // Si la tarjeta ya existe, no es un error crítico
+              console.log("Aviso al guardar tarjeta (puede que ya exista):", e?.message || e);
+            }
           }
         }
 
@@ -227,11 +229,30 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
           return { cards: [] };
         }
         const cards = await customerCardClient.list({ customerId: user.mp_customer_id });
-        return { cards };
+        return { cards: cards || [] };
       } catch (error) {
         console.error("Error obteniendo tarjetas:", error);
+        return { cards: [] };
+      }
+    }
+  )
+  .delete(
+    "/cards/:cardId",
+    async ({ params: { cardId }, user, set }) => {
+      try {
+        if (!user.mp_customer_id) {
+          set.status = 400;
+          return { error: "No tienes tarjetas guardadas" };
+        }
+        await customerCardClient.remove({
+          customerId: user.mp_customer_id,
+          cardId: cardId
+        });
+        return { message: "Tarjeta eliminada correctamente" };
+      } catch (error) {
+        console.error("Error eliminando tarjeta:", error);
         set.status = 500;
-        return { error: "No se pudieron obtener las tarjetas guardadas" };
+        return { error: "No se pudo eliminar la tarjeta" };
       }
     }
   )
