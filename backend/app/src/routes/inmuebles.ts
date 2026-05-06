@@ -28,48 +28,16 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   })
   // 1. Listar todos los inmuebles (público, pero se puede filtrar)
   .get("/", async ({ authenticatedUser, query }) => {
-    const { estado, tipo, arrendadorId, precioMax, servicios, restricciones, distanciaMax, calificacionMin } = query;
-    console.log("[Inmuebles] GET / - Filtros:", { estado, tipo, arrendadorId, precioMax, servicios, restricciones, distanciaMax, calificacionMin });
+    const { estado, tipo, arrendadorId } = query;
+    console.log("[Inmuebles] GET / - Filtros:", { estado, tipo, arrendadorId });
 
     const where: any = {};
     if (estado) where.estado = estado;
     if (tipo) where.tipo_inmueble = tipo;
-
+    
     // Si se pide un arrendador específico, filtramos por él
     if (arrendadorId) {
       where.id_arrendador = arrendadorId;
-    }
-
-    // Filtro por precio máximo
-    if (precioMax) {
-      const precio = parseFloat(precioMax);
-      if (!isNaN(precio)) {
-        where.precio_mensual = { lte: precio };
-      }
-    }
-
-    // Filtro por servicios (coma-separado)
-    if (servicios) {
-      const serviciosArray = servicios.split(',').map(s => s.trim()).filter(s => s);
-      if (serviciosArray.length > 0) {
-        where.servicios = {
-          some: {
-            nombre: { in: serviciosArray }
-          }
-        };
-      }
-    }
-
-    // Filtro por restricciones (coma-separado)
-    if (restricciones) {
-      const restriccionesArray = restricciones.split(',').map(r => r.trim()).filter(r => r);
-      if (restriccionesArray.length > 0) {
-        where.restricciones = {
-          some: {
-            nombre: { in: restriccionesArray }
-          }
-        };
-      }
     }
 
     // Lógica de visibilidad:
@@ -91,90 +59,21 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         imagenes: true,
         disponibilidad: true,
         calificaciones: { take: 5 },
-        estudianteAutorizado: { select: { id_usuario: true } },
       },
     });
-
+    
     // Log para depuración
     if (inmuebles.length > 0) {
         console.log("[Inmuebles] Ejemplo de arrendador:", JSON.stringify(inmuebles[0].arrendador));
     }
-
-    // Filtro por distancia (post-query, usando fórmula de Haversine)
-    let resultadosFiltrados = inmuebles;
-    if (distanciaMax) {
-      const distMax = parseFloat(distanciaMax);
-      if (!isNaN(distMax)) {
-        const TEC_LAT = 19.721869;
-        const TEC_LNG = -101.185483;
-
-        resultadosFiltrados = resultadosFiltrados.filter(inm => {
-          const lat = Number(inm.direccion_latitud);
-          const lng = Number(inm.direccion_longitud);
-          if (isNaN(lat) || isNaN(lng)) return false;
-
-          const R = 6371;
-          const dLat = (lat - TEC_LAT) * Math.PI / 180;
-          const dLon = (lng - TEC_LNG) * Math.PI / 180;
-          const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                    Math.cos(TEC_LAT * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
-                    Math.sin(dLon/2) * Math.sin(dLon/2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-          const distancia = R * c;
-
-          return distancia <= distMax;
-        });
-      }
-    }
-
-    // Filtro por calificación mínima (post-query)
-    if (calificacionMin) {
-      const calMin = parseFloat(calificacionMin);
-      if (!isNaN(calMin)) {
-        resultadosFiltrados = resultadosFiltrados.filter(inm => {
-          if (!inm.calificaciones || inm.calificaciones.length === 0) return false;
-          const promedio = inm.calificaciones.reduce((acc, c) => acc + c.calificacion, 0) / inm.calificaciones.length;
-          return promedio >= calMin;
-        });
-      }
-    }
-
-    // Verificar si el usuario autenticado está rentando actualmente cualquier inmueble
-    let usuarioActualmenteRentando = false;
-    if (authenticatedUser) {
-      const rentaActiva = await db.inmueble.findFirst({
-        where: {
-          id_estudiante: authenticatedUser.id_usuario,
-          estado: "OCUPADO",
-        },
-      });
-      usuarioActualmenteRentando = !!rentaActiva;
-    }
-
-    // Agregar info de autorización para cada inmueble
-    const resultados = resultadosFiltrados.map((inm) => {
-      const result: any = { ...inm };
-      result.id_estudiante_autorizado = inm.estudianteAutorizado?.id_usuario || null;
-      result.puede_rentar = authenticatedUser
-        ? inm.id_estudiante_autorizado === authenticatedUser.id_usuario
-        : false;
-      result.usuario_actualmente_rentando = usuarioActualmenteRentando;
-      delete result.estudianteAutorizado;
-      return result;
-    });
-
-    console.log(`[Inmuebles] GET / - Encontrados: ${resultados.length}`);
-    return resultados;
+    
+    console.log(`[Inmuebles] GET / - Encontrados: ${inmuebles.length}`);
+    return inmuebles;
   }, {
     query: t.Object({
       estado: t.Optional(t.Union([t.Literal("DISPONIBLE"), t.Literal("OCUPADO"), t.Literal("OCULTO")])),
       tipo: t.Optional(t.Union([t.Literal("CASA"), t.Literal("DEPA"), t.Literal("CUARTO")])),
       arrendadorId: t.Optional(t.String()),
-      precioMax: t.Optional(t.String()),
-      servicios: t.Optional(t.String()),
-      restricciones: t.Optional(t.String()),
-      distanciaMax: t.Optional(t.String()),
-      calificacionMin: t.Optional(t.String()),
     }),
   })
 
@@ -188,8 +87,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         restricciones: true,
         imagenes: true,
         disponibilidad: true,
-        calificaciones: { include: { estudiante: { select: { nombre: true, apellidos: true, foto: true } } } },
-        estudianteAutorizado: { select: { id_usuario: true, nombre: true, apellidos: true } },
+        calificaciones: { include: { estudiante: { select: { nombre: true, apellidos: true } } } },
       },
     });
 
@@ -210,36 +108,23 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         return { error: "No autorizado para ver este inmueble oculto" };
       }
     }
-    
-    // Verificar si el usuario autenticado está rentando actualmente
-    let usuarioActualmenteRentando = false;
-    if (authenticatedUser) {
-      const rentaActiva = await db.inmueble.findFirst({
+    // Verificar si el usuario autenticado (estudiante) tiene una cita aprobada para rentar
+    let puede_rentar = false;
+    if (authenticatedUser && authenticatedUser.rol === "ESTUDIANTE") {
+      const citaAprobada = await db.cita.findFirst({
         where: {
+          id_inmueble: parseInt(id),
           id_estudiante: authenticatedUser.id_usuario,
-          estado: "OCUPADO",
-        },
+          estado_renta: "APROBADO"
+        }
       });
-      usuarioActualmenteRentando = !!rentaActiva;
+      if (citaAprobada) {
+        puede_rentar = true;
+      }
     }
-
-    // Agregar info de autorización para el frontend
-    const result: any = {
-      ...inmueble,
-      id_estudiante_autorizado: inmueble.estudianteAutorizado?.id_usuario || null,
-      estudiante_autorizado_nombre: inmueble.estudianteAutorizado
-        ? `${inmueble.estudianteAutorizado.nombre} ${inmueble.estudianteAutorizado.apellidos}`
-        : null,
-      puede_rentar: authenticatedUser
-        ? inmueble.id_estudiante_autorizado === authenticatedUser.id_usuario
-        : false,
-      usuario_actualmente_rentando: usuarioActualmenteRentando,
-    };
-    // Remover el objeto completo para no duplicar
-    delete result.estudianteAutorizado;
     
     // Si no está oculto, cualquier usuario autenticado (estudiante o arrendador) lo puede ver
-    return result;
+    return { ...inmueble, puede_rentar };
   })
 
   // 3. Crear un nuevo inmueble (solo arrendadores)
@@ -252,6 +137,11 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
           console.error("[Inmuebles] Error: No hay usuario en el token");
           set.status = 401;
           return { error: "No autenticado" };
+        }
+
+        if (authenticatedUser.rol === "ARRENDADOR" && !authenticatedUser.mp_access_token) {
+          set.status = 400;
+          return { error: "Necesitas vincular tu cuenta de Mercado Pago en tu perfil antes de publicar un inmueble." };
         }
 
         const { titulo, precio_mensual, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, servicios, restricciones, imagenes, horariosVisita } = body as any;

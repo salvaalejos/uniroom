@@ -1,7 +1,18 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import jwt from "@elysiajs/jwt";
-import { emitToUser } from "../ws-server";
+import { io as socketClient } from "socket.io-client";
+
+const WS_URL = process.env.WS_URL || "http://localhost:3001";
+let wsClient: any = null;
+
+function getWsClient() {
+  if (!wsClient) {
+    wsClient = socketClient(WS_URL, { transports: ["websocket"] });
+    wsClient.on("connect", () => console.log("API conectada al WS server"));
+  }
+  return wsClient;
+}
 
 export const citasRoutes = new Elysia({ prefix: "/citas" })
   .use(
@@ -67,29 +78,16 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         },
       });
       // Notificar al anfitrión vía WebSocket
-      emitToUser(nuevaCita.id_anfitrion, "solicitud_cita", {
+      const ws = getWsClient();
+      ws.emit("solicitud_cita", {
         id: nuevaCita.id_cita,
         propiedadId: nuevaCita.id_inmueble,
         propiedadTitulo: nuevaCita.inmueble.titulo,
         estudianteId: nuevaCita.id_estudiante,
         estudianteNombre: `${nuevaCita.estudiante.nombre} ${nuevaCita.estudiante.apellidos}`,
-        remitenteFoto: user.foto,
         anfitrionId: nuevaCita.id_anfitrion,
         fecha: nuevaCita.fecha_hora.toISOString(),
         mensaje: `Solicitud de visita para ${nuevaCita.inmueble.titulo} el ${nuevaCita.fecha_hora.toLocaleString()}`,
-      });
-      // Crear notificación en BD para el anfitrión
-      await db.notificacion.create({
-        data: {
-          usuario_id: nuevaCita.id_anfitrion,
-          titulo: "Nueva solicitud de visita",
-          mensaje: `${nuevaCita.estudiante.nombre} ${nuevaCita.estudiante.apellidos} quiere visitar tu propiedad ${nuevaCita.inmueble.titulo} el ${nuevaCita.fecha_hora.toLocaleString()}`,
-          tipo: "solicitud_cita",
-          remitente_nombre: `${nuevaCita.estudiante.nombre} ${nuevaCita.estudiante.apellidos}`,
-          remitente_id: user.id_usuario,
-          visto: false,
-          relacionado_a: nuevaCita.id_cita,
-        },
       });
       set.status = 201;
       return nuevaCita;
@@ -155,7 +153,8 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         data: updateData,
         include: { estudiante: true, inmueble: true },
       });
-      emitToUser(citaActualizada.id_estudiante, "respuesta_cita", {
+      const ws = getWsClient();
+      ws.emit("respuesta_cita", {
         id: citaActualizada.id_cita,
         aceptada: estado === "ACEPTADA",
         motivo: motivo_rechazo,
@@ -163,26 +162,7 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         propiedadId: citaActualizada.id_inmueble,
         propiedadTitulo: citaActualizada.inmueble.titulo,
         anfitrionNombre: `${user.nombre} ${user.apellidos}`,
-        remitenteFoto: user.foto,
         fecha: citaActualizada.fecha_hora.toISOString(),
-      });
-      // Crear notificación en BD para el estudiante
-      await db.notificacion.create({
-        data: {
-          usuario_id: citaActualizada.id_estudiante,
-          titulo: estado === "ACEPTADA" ? "Cita aceptada" : estado === "RECHAZADA" ? "Cita rechazada" : "Cita reagendada",
-          mensaje:
-            estado === "ACEPTADA"
-              ? `Tu solicitud para visitar ${citaActualizada.inmueble.titulo} ha sido ACEPTADA. Fecha: ${citaActualizada.fecha_hora.toLocaleString()}`
-              : estado === "RECHAZADA"
-              ? `Tu solicitud para visitar ${citaActualizada.inmueble.titulo} fue RECHAZADA. Motivo: ${motivo_rechazo || "No especificado"}.`
-              : `Tu cita para ${citaActualizada.inmueble.titulo} ha sido reagendada. Nueva fecha: ${citaActualizada.fecha_hora.toLocaleString()}`,
-          tipo: "respuesta_cita",
-          remitente_nombre: `${user.nombre} ${user.apellidos}`,
-          remitente_id: user.id_usuario,
-          visto: false,
-          relacionado_a: citaActualizada.id_cita,
-        },
       });
       return citaActualizada;
     },
@@ -198,60 +178,8 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       }),
     }
   )
-  // 4. Marcar cita como realizada (solo anfitrión)
-  .patch(
-    "/:id/realizada",
-    async ({ params: { id }, user, set }) => {
-      const cita = await db.cita.findUnique({
-        where: { id_cita: id },
-        include: { inmueble: true, estudiante: true },
-      });
-      if (!cita) {
-        set.status = 404;
-        return { error: "Cita no encontrada" };
-      }
-      if (cita.id_anfitrion !== user.id_usuario) {
-        set.status = 403;
-        return { error: "No eres el anfitrión de esta propiedad" };
-      }
-      if (cita.estado !== "ACEPTADA") {
-        set.status = 400;
-        return { error: "Solo se pueden marcar como realizadas las citas aceptadas" };
-      }
-      const citaActualizada = await db.cita.update({
-        where: { id_cita: id },
-        data: { estado: "REALIZADA" },
-        include: { estudiante: true, inmueble: true },
-      });
-      // Crear notificación en BD para el anfitrión: preguntar si autoriza la renta
-      await db.notificacion.create({
-        data: {
-          usuario_id: citaActualizada.id_anfitrion,
-          titulo: "Decisión de renta requerida",
-          mensaje: `La visita de ${citaActualizada.estudiante.nombre} ${citaActualizada.estudiante.apellidos} a ${citaActualizada.inmueble.titulo} se realizó. ¿Deseas autorizarlo para rentar?`,
-          tipo: "decision_renta",
-          remitente_nombre: "Sistema UniRoom",
-          visto: false,
-          relacionado_a: citaActualizada.id_cita,
-        },
-      });
-      // Notificar al anfitrión vía WebSocket
-      emitToUser(citaActualizada.id_anfitrion, "decision_renta_pendiente", {
-        id: citaActualizada.id_cita,
-        propiedadId: citaActualizada.id_inmueble,
-        propiedadTitulo: citaActualizada.inmueble.titulo,
-        estudianteId: citaActualizada.id_estudiante,
-        estudianteNombre: `${citaActualizada.estudiante.nombre} ${citaActualizada.estudiante.apellidos}`,
-        remitenteFoto: citaActualizada.estudiante.foto,
-        anfitrionId: citaActualizada.id_anfitrion,
-        fecha: citaActualizada.fecha_hora.toISOString(),
-        mensaje: `La visita de ${citaActualizada.estudiante.nombre} ${citaActualizada.estudiante.apellidos} a ${citaActualizada.inmueble.titulo} se realizó. ¿Deseas autorizarlo para rentar?`,
-      });
-      return citaActualizada;
-    }
-  )
-  // 5. Decisión de renta (solo anfitrión)
-  .patch(
+  // 4. Decisión de renta (solo anfitrión aprueba/rechaza después de la visita)
+  .put(
     "/:id/decision-renta",
     async ({ params: { id }, body, user, set }) => {
       const cita = await db.cita.findUnique({
@@ -266,63 +194,35 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         set.status = 403;
         return { error: "No eres el anfitrión de esta propiedad" };
       }
-      if (cita.estado !== "REALIZADA") {
-        set.status = 400;
-        return { error: "Solo se puede decidir sobre citas realizadas" };
-      }
-      const { decision } = body;
-      if (decision !== "APROBAR" && decision !== "RECHAZAR") {
-        set.status = 400;
-        return { error: "Decisión debe ser APROBAR o RECHAZAR" };
-      }
-      const nuevoEstado = decision === "APROBAR" ? "RENTA_APROBADA" : "RENTA_RECHAZADA";
-      // Si aprueba, actualizar el inmueble con el estudiante autorizado
-      if (decision === "APROBAR") {
-        await db.inmueble.update({
-          where: { id_inmueble: cita.id_inmueble },
-          data: { id_estudiante_autorizado: cita.id_estudiante },
-        });
-      }
+      const { estado_renta } = body;
+      
       const citaActualizada = await db.cita.update({
         where: { id_cita: id },
-        data: { estado: nuevoEstado },
+        data: { estado_renta },
         include: { estudiante: true, inmueble: true },
       });
-      // Crear notificación en BD para el estudiante
-      await db.notificacion.create({
-        data: {
-          usuario_id: citaActualizada.id_estudiante,
-          titulo: decision === "APROBAR" ? "¡Renta aprobada!" : "Renta rechazada",
-          mensaje:
-            decision === "APROBAR"
-              ? `El arrendador ${user.nombre} ${user.apellidos} te ha autorizado para rentar ${citaActualizada.inmueble.titulo}. ¡Procede al pago para confirmar tu renta!`
-              : `El arrendador ${user.nombre} ${user.apellidos} ha decidido no autorizarte para rentar ${citaActualizada.inmueble.titulo}.`,
-          tipo: "decision_renta",
-          remitente_nombre: `${user.nombre} ${user.apellidos}`,
-          remitente_id: user.id_usuario,
-          visto: false,
-          relacionado_a: citaActualizada.id_cita,
-        },
-      });
-      // Notificar al estudiante vía WebSocket
-      emitToUser(citaActualizada.id_estudiante, "decision_renta", {
-        id: citaActualizada.id_cita,
-        aceptada: decision === "APROBAR",
-        propiedadId: citaActualizada.id_inmueble,
-        propiedadTitulo: citaActualizada.inmueble.titulo,
-        anfitrionNombre: `${user.nombre} ${user.apellidos}`,
-        remitenteFoto: user.foto,
-        fecha: citaActualizada.fecha_hora.toISOString(),
-        mensaje:
-          decision === "APROBAR"
-            ? `Has sido autorizado para rentar ${citaActualizada.inmueble.titulo}`
-            : `No fuiste seleccionado para rentar ${citaActualizada.inmueble.titulo}`,
-      });
+
+      // Notificar al estudiante
+      if (estado_renta === "APROBADO") {
+        await db.notificacion.create({
+          data: {
+            titulo: "¡Aprobado para rentar!",
+            mensaje: `El arrendador ${user.nombre} ha aceptado tu solicitud. Ahora puedes rentar ${citaActualizada.inmueble.titulo}.`,
+            tipo: "RENTA_APROBADA",
+            remitente_nombre: `${user.nombre} ${user.apellidos}`,
+            usuario_id: citaActualizada.id_estudiante
+          }
+        });
+      }
+
       return citaActualizada;
     },
     {
       body: t.Object({
-        decision: t.Union([t.Literal("APROBAR"), t.Literal("RECHAZAR")]),
+        estado_renta: t.Union([
+          t.Literal("APROBADO"),
+          t.Literal("RECHAZADO"),
+        ])
       }),
     }
   );
