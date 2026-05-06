@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { db } from "../db";
 import jwt from "@elysiajs/jwt";
 import { MercadoPagoConfig, Payment, Customer, CustomerCard } from "mercadopago";
+import { emitToUser } from "../ws-server";
 
 // Inicializar cliente de MP (se usa una variable de entorno para el token)
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN || "TEST-0000000000000000-000000-00000000000000000000000000000000-000000000" });
@@ -266,7 +267,19 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
               relacionado_a: inmueble.id_inmueble.toString(),
             }
           });
+          // Notificar vía WebSocket al arrendador
+          emitToUser(arrendador.id_usuario, "renta_confirmada", {
+            inmuebleId: inmueble.id_inmueble,
+            estudianteNombre: `${user.nombre} ${user.apellidos}`,
+            mensaje: `${user.nombre} ${user.apellidos} ha pagado la renta de ${inmueble.titulo}`
+          });
         }
+
+        // NUEVO: Notificar vía WebSocket al estudiante para actualizar su HomeScreen
+        emitToUser(user.id_usuario, "renta_confirmada_estudiante", {
+          inmuebleId: inmueble.id_inmueble,
+          mensaje: `Tu pago de renta para ${inmueble.titulo} ha sido procesado exitosamente.`
+        });
         if (result.status === "rejected") {
           set.status = 400;
           return { error: "El pago fue rechazado", detail: result.status_detail };
