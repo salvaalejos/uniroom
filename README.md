@@ -1,42 +1,41 @@
 # REVISIONES DE PRUEBAS RECIENTES CON MERGE DE TODOS LOS PUNTOS TRATADOS EN WHATSAPP 
 
 ## FALLOS INMEDIATOS A RESOLVER (ahorita los resuelvo, que la noche aún es joven como yo 💃): 
-
-- Falta vinculación de tarjeta de parte del arrendador al crear la cuenta (seguro requerirá una modificación a la BD, ahora si la última). 
-- Falta modo oscuro el apartado de notificaciones y pestaña de agregar inmueble (also editar inmueble). 
-- Falta agregar botón de "Come Back" al Agregar Inmueble o Editar Inmueble Screen. 
-- Falta agregar apartado de "Otro" a los servicios y Restricciones. (Omitir y definir en descripción de inmueble,       	agregaremos más a la BD más adelante, para evitar poner "Otro").
-- Falta modo oscuro para visualización de inmueble. 
-- Eliminar botón de Contactar (comentar y guardar para después). 
-- Falta modo oscuro para apartado de Agendar Cita. 
-- Falta modo oscuro para pestaña de carga (cargando propiedades).
-- Editar perfil permite eliminar número de teléfono. 
-- Agregar modo oscuro al modal de Confirmar Cita y Solicitud enviada (al agendar cita).
-- Agregar modo oscuro a la vista de notificación. 
 - Botón de "Rechazar" visita no funciona correctamente. 
 - Notificación duplicada en arrendador al momento de Agendar cita por parte del estudiante (una con hora simulada y otra con hora real [eliminar la simulada]). 
 - Lo mismo que arriba pero con vista de estudiante xd. 
-- Agregar modo oscuro para modal de confirmar pago de renta. 
-- Agregar modo oscuro para módulo de pago. 
-- Agregar modo oscuro para mapa de rutas. 
 - La pestaña de Mi Casa solo se actualiza al cerrar sesión. 
-- Agregar modo oscuro al modal de calificar inmueble. 
 - La fotografía y nombre de usuario en la reseña son simulados (mostrar reales). 
 - Checar apartado de cuartos al seleccionar una casa. 
-- Al agregar casa, los cuartos no se ven reflejados, eliminar por ahora el apartado de casa. 
-- Apartado de Guardar Tarjeta no guarda tarjeta. 
-- Agregar modo oscuro para modal de Nuevo Reporte (Notificación). 
-- Al agendar la cita, debe redirigir a la pestaña de 50 pesos de cobro para la cita. 
+- Al agregar casa, los cuartos no se ven reflejados, eliminar por ahora el apartado de casa.
 - Si el arrendador ha confirmado la cita en la notificación, si la confirma dos veces, se envía correo nuevamente (cambiar para que si selecciona dos veces, mostrar mensaje "has respondido ya a este mensaje" y no mandar nada). 
 - Al recién pagar la renta, el apartado de notificaciones no te deja mandar notificaciones a menos que cierres sesión. 
 
+## Completados:
+- ~~Editar perfil permite eliminar número de teléfono.~~
+- ~~Apartado de Guardar Tarjeta no guarda tarjeta.~~ 
+- ~~Eliminar botón de Contactar (comentar y guardar para después).~~
+- ~~Falta agregar apartado de "Otro" a los servicios y Restricciones. (Omitir y definir en descripción de inmueble,       	agregaremos más a la BD más adelante, para evitar poner "Otro").~~
+- ~~Falta agregar botón de "Come Back" al Agregar Inmueble o Editar Inmueble Screen.~~
+- ~~Falta modo oscuro para pestaña de carga (cargando propiedades).~~
+- ~~Falta vinculación de tarjeta de parte del arrendador al crear la cuenta (seguro requerirá una modificación a la BD, ahora si la última) (Chava).~~ 
+- ~~Al agendar la cita, debe redirigir a la pestaña de 50 pesos de cobro para la cita. (NO IMPLEMENTADO)~~
+- ~~Falta modo oscuro el apartado de notificaciones y pestaña de agregar inmueble (also editar inmueble).~~
+- ~~Falta modo oscuro para visualización de inmueble.~~
+- ~~Falta modo oscuro para apartado de Agendar Cita.~~
+- ~~Agregar modo oscuro al modal de Confirmar Cita y Solicitud enviada (al agendar cita).~~
+- ~~Agregar modo oscuro a la vista de notificación.~~
+- ~~Agregar modo oscuro para modal de confirmar pago de renta.~~
+- ~~Agregar modo oscuro para módulo de pago.~~
+- ~~Agregar modo oscuro para mapa de rutas.~~
+- ~~Agregar modo oscuro al modal de calificar inmueble.~~
+- ~~Agregar modo oscuro para modal de Nuevo Reporte (Notificación).~~
+- ~~Al momento de editar perfíl el usuario puede eliminar su correo electrónico pero no recibe algún aviso, solamente dice "perfíl editado" y deja el correo como tal [mostrar aviso de que correo es no editable] (detalle estético).~~
 
 ## DETALLES MENORES: 
 - Al no seleccionar foto de perfíl al inicio y luego en editar perfil seleccionar una foto, el icono de seleccionar foto de perfíl desaparece. Sin embargo si aparece foto de perfíl (detalle estético). 
 
 - Si el arrendador no cuenta con un estudiante rentando en alguno de sus inmuebles y desea mandar una notificación, mostrar en apartado Para: "Por el momento no tienes residentes". (detalle estético).
-
-- Al momento de editar perfíl el usuario puede eliminar su correo electrónico pero no recibe algún aviso, solamente dice "perfíl editado" y deja el correo como tal [mostrar aviso de que correo es no editable] (detalle estético).
 
 - Agregar cambio de color de modo oscuro a botones de precios en mapa (detalle estético). 
 

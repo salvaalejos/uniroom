@@ -9,6 +9,7 @@ import { Calendar } from 'react-native-calendars'
 import Mapbox from '@rnmapbox/maps'
 import * as Location from 'expo-location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useTheme } from '../context/ThemeContext'
 import Constants from 'expo-constants'
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
@@ -75,6 +76,7 @@ const Lessor_Renthouse = () => {
     const insets = useSafeAreaInsets()
     const navigation = useNavigation<any>()
     const route = useRoute<any>()
+    const { colors, isDark } = useTheme()
 
     const inmuebleExistente = route.params?.inmueble ?? null
     const esEdicion = inmuebleExistente !== null
@@ -424,26 +426,34 @@ const Lessor_Renthouse = () => {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={{ flex: 1 }}
         >
+            {/* Botón de volver fijo */}
+            <TouchableOpacity 
+                style={[styles.btnVolver, { top: insets.top + 16, backgroundColor: colors.background }]} 
+                onPress={() => navigation.goBack()}
+            >
+                <MaterialCommunityIcons name="chevron-left" size={28} color={colors.textPrimary} />
+            </TouchableOpacity>
+
             <ScrollView 
-                style={styles.background} 
-                contentContainerStyle={{ paddingBottom: 120, paddingTop: insets.top + 20 }}
+                style={[styles.background, { backgroundColor: colors.background }]} 
+                contentContainerStyle={{ paddingBottom: 120, paddingTop: insets.top + 70 }}
                 scrollEnabled={scrollEnabled}
                 keyboardShouldPersistTaps="handled"
             >
                 <View style={styles.headerRow}>
-                    <Text style={styles.titulo}>{esEdicion ? "Editar inmueble" : "Nueva publicación"}</Text>
+                    <Text style={[styles.titulo, { color: colors.textPrimary }]}>{esEdicion ? "Editar inmueble" : "Nueva publicación"}</Text>
                 </View>
-                <Text style={styles.subtituloHead}>
+                <Text style={[styles.subtituloHead, { color: colors.textSecondary }]}>
                     {esEdicion ? "Modifica los datos de tu inmueble." : "Tu propiedad quedará en estado pendiente hasta ser verificada."}
                 </Text>
 
                 {/* Fotos y Videos */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Fotos y Videos <Text style={styles.requerido}>*</Text></Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Fotos y Videos <Text style={styles.requerido}>*</Text></Text>
                     <Text style={styles.hint}>Máximo 6 (fotos o videos)</Text>
                     <View style={styles.fotosGrid}>
                         {form.medios.map((media, i) => (
-                            <View key={i} style={styles.fotoContainer}>
+                            <View key={i} style={[styles.fotoContainer, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}>
                                 {media.tipo === "foto" ? (
                                     <Image source={{ uri: media.uri }} style={styles.foto} />
                                 ) : (
@@ -454,20 +464,20 @@ const Lessor_Renthouse = () => {
                                         <MaterialCommunityIcons name="play-circle" size={28} color="#fff" />
                                     </View>
                                 )}
-                                <TouchableOpacity style={styles.btnEliminarFoto} onPress={() => eliminarMedia(i)}>
+                                <TouchableOpacity style={[styles.btnEliminarFoto, { backgroundColor: colors.background }]} onPress={() => eliminarMedia(i)}>
                                     <MaterialCommunityIcons name="close-circle" size={22} color="#e74c3c" />
                                 </TouchableOpacity>
                             </View>
                         ))}
                         {form.medios.length < 6 && (
                             <>
-                                <TouchableOpacity style={styles.btnAgregarFoto} onPress={() => agregarMedia("foto")}>
-                                    <MaterialCommunityIcons name="camera-plus" size={32} color="#205EA6" />
-                                    <Text style={styles.btnAgregarFotoTexto}>Foto</Text>
+                                <TouchableOpacity style={[styles.btnAgregarFoto, { borderColor: colors.buttonMain }]} onPress={() => agregarMedia("foto")}>
+                                    <MaterialCommunityIcons name="camera-plus" size={32} color={colors.buttonMain} />
+                                    <Text style={[styles.btnAgregarFotoTexto, { color: colors.buttonMain }]}>Foto</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.btnAgregarFoto} onPress={() => agregarMedia("video")}>
-                                    <MaterialCommunityIcons name="video-plus" size={32} color="#205EA6" />
-                                    <Text style={styles.btnAgregarFotoTexto}>Video</Text>
+                                <TouchableOpacity style={[styles.btnAgregarFoto, { borderColor: colors.buttonMain }]} onPress={() => agregarMedia("video")}>
+                                    <MaterialCommunityIcons name="video-plus" size={32} color={colors.buttonMain} />
+                                    <Text style={[styles.btnAgregarFotoTexto, { color: colors.buttonMain }]}>Video</Text>
                                 </TouchableOpacity>
                             </>
                         )}
@@ -476,11 +486,11 @@ const Lessor_Renthouse = () => {
 
                 {/* Título */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Título <Text style={styles.requerido}>*</Text></Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Título <Text style={styles.requerido}>*</Text></Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                         placeholder="Ej. Departamento amueblado cerca del Tec"
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textSecondary}
                         value={form.titulo}
                         onChangeText={v => setForm(f => ({ ...f, titulo: v }))}
                     />
@@ -488,17 +498,21 @@ const Lessor_Renthouse = () => {
 
                 {/* Tipo de inmueble */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Tipo de inmueble <Text style={styles.requerido}>*</Text></Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Tipo de inmueble <Text style={styles.requerido}>*</Text></Text>
                     <View style={styles.chips}>
                         {TIPOS_INMUEBLE.map(tipo => {
                             const activo = form.tipoInmueble === tipo
                             return (
                                 <TouchableOpacity
                                     key={tipo}
-                                    style={[styles.chip, activo && styles.chipActivo]}
+                                    style={[
+                                      styles.chip, 
+                                      { backgroundColor: isDark ? colors.backgroundSecondary : "#EEF4FF" },
+                                      activo && [styles.chipActivo, { backgroundColor: colors.buttonMain }]
+                                    ]}
                                     onPress={() => setForm(f => ({ ...f, tipoInmueble: tipo }))}
                                 >
-                                    <Text style={[styles.chipTextoServicio, activo && styles.chipTextoActivo]}>{tipo}</Text>
+                                    <Text style={[styles.chipTextoServicio, { color: colors.buttonMain }, activo && styles.chipTextoActivo]}>{tipo}</Text>
                                 </TouchableOpacity>
                             )
                         })}
@@ -507,10 +521,10 @@ const Lessor_Renthouse = () => {
 
                 {/* Mapa */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Ubicación exacta <Text style={styles.requerido}>*</Text></Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Ubicación exacta <Text style={styles.requerido}>*</Text></Text>
                     <Text style={styles.hint}>Mueve el mapa hasta que el marcador central quede sobre la dirección correcta</Text>
                     <View 
-                        style={styles.mapaContainerReal}
+                        style={[styles.mapaContainerReal, { borderColor: colors.border }]}
                         {...mapPanResponder.panHandlers}
                         onTouchEnd={() => setScrollEnabled(true)}
                         onTouchCancel={() => setScrollEnabled(true)}
@@ -518,7 +532,7 @@ const Lessor_Renthouse = () => {
                         <Mapbox.MapView
                             ref={mapRef}
                             style={styles.mapaReal}
-                            styleURL="mapbox://styles/mapbox/streets-v12"
+                            styleURL={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/streets-v12"}
                             logoEnabled={false}
                             attributionEnabled={false}
                             onDidFinishLoadingMap={() => setMapaListo(true)}
@@ -546,7 +560,7 @@ const Lessor_Renthouse = () => {
                             <View style={styles.puntoReferencia} />
                         </View>
                         <TouchableOpacity
-                            style={styles.botonCentrar}
+                            style={[styles.botonCentrar, { backgroundColor: colors.cardBackground }]}
                             onPress={() => {
                                 if (userLocation && cameraRef.current) {
                                     cameraRef.current.setCamera({
@@ -559,12 +573,12 @@ const Lessor_Renthouse = () => {
                                 }
                             }}
                         >
-                            <MaterialCommunityIcons name="crosshairs-gps" size={20} color="#205EA6" />
+                            <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.buttonMain} />
                         </TouchableOpacity>
                     </View>
-                    <View style={styles.mapaCoordsRow}>
-                        <MaterialCommunityIcons name="crosshairs-gps" size={14} color="#205EA6" />
-                        <Text style={styles.mapaCoordsTexto}>
+                    <View style={[styles.mapaCoordsRow, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                        <MaterialCommunityIcons name="crosshairs-gps" size={14} color={colors.buttonMain} />
+                        <Text style={[styles.mapaCoordsTexto, { color: colors.buttonMain }]}>
                             {mapaCoords.latitude.toFixed(6)}, {mapaCoords.longitude.toFixed(6)}
                         </Text>
                     </View>
@@ -572,11 +586,11 @@ const Lessor_Renthouse = () => {
 
                 {/* Ubicación textual */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Dirección textual <Text style={styles.requerido}>*</Text></Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Dirección textual <Text style={styles.requerido}>*</Text></Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                         placeholder="Ej. Centro Histórico, Morelia"
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textSecondary}
                         value={form.ubicacion}
                         onChangeText={v => setForm(f => ({ ...f, ubicacion: v }))}
                     />
@@ -584,11 +598,11 @@ const Lessor_Renthouse = () => {
 
                 {/* Precio */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Precio mensual (MXN) <Text style={styles.requerido}>*</Text></Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Precio mensual (MXN) <Text style={styles.requerido}>*</Text></Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                         placeholder="Ej. 3500"
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textSecondary}
                         value={form.precio}
                         onChangeText={v => setForm(f => ({ ...f, precio: v.replace(/[^0-9]/g, '') }))}
                         keyboardType="numeric"
@@ -597,11 +611,11 @@ const Lessor_Renthouse = () => {
 
                 {/* Descripción */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Descripción <Text style={styles.requerido}>*</Text></Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Descripción <Text style={styles.requerido}>*</Text></Text>
                     <TextInput
-                        style={[styles.input, styles.inputMultiline]}
+                        style={[styles.input, styles.inputMultiline, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
                         placeholder="Describe tu propiedad..."
-                        placeholderTextColor="#aaa"
+                        placeholderTextColor={colors.textSecondary}
                         value={form.descripcion}
                         onChangeText={v => setForm(f => ({ ...f, descripcion: v }))}
                         multiline
@@ -610,13 +624,21 @@ const Lessor_Renthouse = () => {
 
                 {/* Servicios */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Servicios incluidos</Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Servicios incluidos</Text>
                     <View style={styles.chips}>
                         {SERVICIOS_OPCIONES.map(s => {
                             const activo = form.servicios.includes(s)
                             return (
-                                <TouchableOpacity key={s} style={[styles.chip, activo && styles.chipActivo]} onPress={() => toggleItem("servicios", s)}>
-                                    <Text style={[styles.chipTextoServicio, activo && styles.chipTextoActivo]}>{s}</Text>
+                                <TouchableOpacity 
+                                  key={s} 
+                                  style={[
+                                    styles.chip, 
+                                    { backgroundColor: isDark ? colors.backgroundSecondary : "#EEF4FF" },
+                                    activo && [styles.chipActivo, { backgroundColor: colors.buttonMain }]
+                                  ]} 
+                                  onPress={() => toggleItem("servicios", s)}
+                                >
+                                    <Text style={[styles.chipTextoServicio, { color: colors.buttonMain }, activo && styles.chipTextoActivo]}>{s}</Text>
                                 </TouchableOpacity>
                             )
                         })}
@@ -625,13 +647,22 @@ const Lessor_Renthouse = () => {
 
                 {/* Reglas */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Reglas de la casa</Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Reglas de la casa</Text>
                     <View style={styles.chips}>
                         {REGLAS_OPCIONES.map(r => {
                             const activo = form.reglas.includes(r)
                             return (
-                                <TouchableOpacity key={r} style={[styles.chip, styles.chipRegla, activo && styles.chipReglaActivo]} onPress={() => toggleItem("reglas", r)}>
-                                    <Text style={[styles.chipTextoRegla, activo && styles.chipTextoReglaActivo]}>{r}</Text>
+                                <TouchableOpacity 
+                                  key={r} 
+                                  style={[
+                                    styles.chip, 
+                                    styles.chipRegla, 
+                                    { backgroundColor: isDark ? '#3a1a1a' : "#FFF0F0" },
+                                    activo && [styles.chipReglaActivo, { backgroundColor: '#b83e31' }]
+                                  ]} 
+                                  onPress={() => toggleItem("reglas", r)}
+                                >
+                                    <Text style={[styles.chipTextoRegla, { color: '#b83e31' }, activo && styles.chipTextoReglaActivo]}>{r}</Text>
                                 </TouchableOpacity>
                             )
                         })}
@@ -641,63 +672,64 @@ const Lessor_Renthouse = () => {
                 {/* Cuartos adicionales */}
                 {form.tipoInmueble === "Casa" && (
                     <View style={styles.seccion}>
-                        <Text style={styles.label}>Cuartos adicionales</Text>
+                        <Text style={[styles.label, { color: colors.textPrimary }]}>Cuartos adicionales</Text>
                         {form.cuartosAdicionales.map((cuarto, idx) => (
-                            <View key={idx} style={styles.cuartoCard}>
+                            <View key={idx} style={[styles.cuartoCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                                 <View style={styles.cuartoHeader}>
-                                    <Text style={styles.cuartoTitulo}>{cuarto.nombre}</Text>
+                                    <Text style={[styles.cuartoTitulo, { color: colors.textPrimary }]}>{cuarto.nombre}</Text>
                                     <TouchableOpacity onPress={() => eliminarCuarto(idx)}>
                                         <MaterialCommunityIcons name="close-circle" size={22} color="#e74c3c" />
                                     </TouchableOpacity>
                                 </View>
-                                <TextInput style={styles.inputSmall} placeholder="Nombre" value={cuarto.nombre} onChangeText={v => actualizarCuarto(idx, "nombre", v)} />
-                                <TextInput style={styles.inputSmall} placeholder="Precio" keyboardType="numeric" value={cuarto.precio} onChangeText={v => actualizarCuarto(idx, "precio", v.replace(/[^0-9]/g, ''))} />
-                                <TextInput style={[styles.inputSmall, styles.inputMultiline]} placeholder="Descripción" value={cuarto.descripcion} onChangeText={v => actualizarCuarto(idx, "descripcion", v)} multiline />
+                                <TextInput style={[styles.inputSmall, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]} placeholder="Nombre" placeholderTextColor={colors.textSecondary} value={cuarto.nombre} onChangeText={v => actualizarCuarto(idx, "nombre", v)} />
+                                <TextInput style={[styles.inputSmall, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]} placeholder="Precio" placeholderTextColor={colors.textSecondary} keyboardType="numeric" value={cuarto.precio} onChangeText={v => actualizarCuarto(idx, "precio", v.replace(/[^0-9]/g, ''))} />
+                                <TextInput style={[styles.inputSmall, styles.inputMultiline, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]} placeholder="Descripción" placeholderTextColor={colors.textSecondary} value={cuarto.descripcion} onChangeText={v => actualizarCuarto(idx, "descripcion", v)} multiline />
                             </View>
                         ))}
-                        <TouchableOpacity style={styles.btnAgregarCuarto} onPress={agregarCuarto}>
-                            <MaterialCommunityIcons name="plus-circle" size={20} color="#205EA6" />
-                            <Text style={styles.btnAgregarCuartoTexto}>Agregar otro cuarto</Text>
+                        <TouchableOpacity style={[styles.btnAgregarCuarto, { borderColor: colors.buttonMain }]} onPress={agregarCuarto}>
+                            <MaterialCommunityIcons name="plus-circle" size={20} color={colors.buttonMain} />
+                            <Text style={[styles.btnAgregarCuartoTexto, { color: colors.buttonMain }]}>Agregar otro cuarto</Text>
                         </TouchableOpacity>
                     </View>
                 )}
 
                 {/* Horarios de visita */}
                 <View style={styles.seccion}>
-                    <Text style={styles.label}>Fechas disponibles para visita <Text style={styles.requerido}>*</Text></Text>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Fechas disponibles para visita <Text style={styles.requerido}>*</Text></Text>
                     <Text style={styles.hint}>Selecciona los días en el calendario y agrega sus horarios abajo.</Text>
-                    <TouchableOpacity style={styles.btnAbrirCalendario} onPress={() => setModalFechas(true)}>
-                        <MaterialCommunityIcons name="calendar-plus" size={18} color="#205EA6" />
-                        <Text style={styles.btnAbrirCalendarioTexto}>Seleccionar días en calendario</Text>
+                    <TouchableOpacity style={[styles.btnAbrirCalendario, { borderColor: colors.buttonMain }]} onPress={() => setModalFechas(true)}>
+                        <MaterialCommunityIcons name="calendar-plus" size={18} color={colors.buttonMain} />
+                        <Text style={[styles.btnAbrirCalendarioTexto, { color: colors.buttonMain }]}>Seleccionar días en calendario</Text>
                     </TouchableOpacity>
 
                     <View style={styles.fechasLista}>
                         {form.horariosVisita.map(horario => (
-                            <View key={horario.fecha} style={[styles.fechaCard, fechaActivaVisita === horario.fecha && styles.fechaCardActiva]}>
+                            <View key={horario.fecha} style={[styles.fechaCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, fechaActivaVisita === horario.fecha && [styles.fechaCardActiva, { borderColor: colors.buttonMain }]]}>
                                 <TouchableOpacity style={styles.fechaCardHeader} onPress={() => setFechaActivaVisita(fechaActivaVisita === horario.fecha ? null : horario.fecha)}>
                                     <View style={styles.fechaCardHeaderIzq}>
-                                        <MaterialCommunityIcons name="calendar" size={16} color="#205EA6" />
-                                        <Text style={styles.fechaCardTexto}>{new Date(horario.fecha + "T12:00:00").toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}</Text>
-                                        <View style={styles.fechaCardBadge}><Text style={styles.fechaCardBadgeTexto}>{horario.horas.length} h</Text></View>
+                                        <MaterialCommunityIcons name="calendar" size={16} color={colors.buttonMain} />
+                                        <Text style={[styles.fechaCardTexto, { color: colors.textPrimary }]}>{new Date(horario.fecha + "T12:00:00").toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}</Text>
+                                        <View style={[styles.fechaCardBadge, { backgroundColor: isDark ? colors.backgroundSecondary : "#EEF4FF" }]}><Text style={[styles.fechaCardBadgeTexto, { color: colors.buttonMain }]}>{horario.horas.length} h</Text></View>
                                     </View>
                                     <TouchableOpacity onPress={() => eliminarFechaVisita(horario.fecha)}>
                                         <MaterialCommunityIcons name="close-circle-outline" size={20} color="#e74c3c" />
                                     </TouchableOpacity>
                                 </TouchableOpacity>
                                 {fechaActivaVisita === horario.fecha && (
-                                    <View style={styles.fechaCardBody}>
+                                    <View style={[styles.fechaCardBody, { borderTopColor: colors.border }]}>
                                         <View style={styles.horasChips}>
                                             {horario.horas.map(hora => (
-                                                <View key={hora} style={styles.horaChipArrendador}>
-                                                    <Text style={styles.horaChipTexto}>{hora}</Text>
-                                                    <TouchableOpacity onPress={() => eliminarHora(horario.fecha, hora)}><MaterialCommunityIcons name="close" size={14} color="#205EA6" /></TouchableOpacity>
+                                                <View key={hora} style={[styles.horaChipArrendador, { backgroundColor: isDark ? colors.backgroundSecondary : "#EEF4FF" }]}>
+                                                    <Text style={[styles.horaChipTexto, { color: colors.buttonMain }]}>{hora}</Text>
+                                                    <TouchableOpacity onPress={() => eliminarHora(horario.fecha, hora)}><MaterialCommunityIcons name="close" size={14} color={colors.buttonMain} /></TouchableOpacity>
                                                 </View>
                                             ))}
                                         </View>
                                         <View style={styles.horaInputRow}>
                                             <TextInput 
-                                                style={styles.horaInput} 
+                                                style={[styles.horaInput, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]} 
                                                 placeholder="HH:MM" 
+                                                placeholderTextColor={colors.textSecondary}
                                                 value={nuevaHora} 
                                                 onChangeText={v => {
                                                     let n = v.replace(/[^0-9]/g, '').slice(0, 4);
@@ -706,7 +738,7 @@ const Lessor_Renthouse = () => {
                                                 keyboardType="phone-pad" 
                                                 maxLength={5} 
                                             />
-                                            <TouchableOpacity style={styles.horaInputBtn} onPress={() => agregarHoraAFecha(horario.fecha, nuevaHora)}>
+                                            <TouchableOpacity style={[styles.horaInputBtn, { backgroundColor: colors.buttonMain }]} onPress={() => agregarHoraAFecha(horario.fecha, nuevaHora)}>
                                                 <MaterialCommunityIcons name="plus" size={20} color="#fff" />
                                             </TouchableOpacity>
                                         </View>
@@ -718,29 +750,48 @@ const Lessor_Renthouse = () => {
                 </View>
 
                 {/* Botón Vista Previa */}
-                <TouchableOpacity style={[styles.btnPrevia, !formularioValido() && styles.btnDesactivado]} onPress={() => formularioValido() && setPrevisualizando(true)}>
+                <TouchableOpacity style={[styles.btnPrevia, { backgroundColor: colors.buttonMain }, !formularioValido() && styles.btnDesactivado]} onPress={() => formularioValido() && setPrevisualizando(true)}>
                     <MaterialCommunityIcons name="eye" size={20} color="#fff" />
                     <Text style={styles.btnPreviaTexto}>Vista previa</Text>
                 </TouchableOpacity>
 
-                {cargando && <ActivityIndicator style={{ margin: 20 }} />}
+                {cargando && <ActivityIndicator style={{ margin: 20 }} color={colors.buttonMain} />}
             </ScrollView>
 
             {/* Modal Calendario */}
             <Modal visible={modalFechas} transparent animationType="fade" onRequestClose={() => setModalFechas(false)}>
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalFechasContainer}>
+                    <View style={[styles.modalFechasContainer, { backgroundColor: colors.cardBackground }]}>
                         <View style={styles.modalFechasHeader}>
-                            <Text style={styles.modalFechasTitulo}>Días de visita</Text>
-                            <TouchableOpacity style={styles.modalFechasBtnListo} onPress={() => setModalFechas(false)}>
+                            <Text style={[styles.modalFechasTitulo, { color: colors.textPrimary }]}>Días de visita</Text>
+                            <TouchableOpacity style={[styles.modalFechasBtnListo, { backgroundColor: colors.buttonMain }]} onPress={() => setModalFechas(false)}>
                                 <Text style={styles.modalFechasBtnListoTexto}>Listo</Text>
                             </TouchableOpacity>
                         </View>
                         <Calendar
                             onDayPress={(day) => agregarFechaVisita(day.dateString)}
                             markingType="multi-dot"
-                            markedDates={Object.fromEntries(form.horariosVisita.map(h => [h.fecha, { selected: true, selectedColor: "#205EA6" }]))}
+                            markedDates={Object.fromEntries(form.horariosVisita.map(h => [h.fecha, { selected: true, selectedColor: colors.buttonMain }]))}
                             minDate={new Date().toISOString().split("T")[0]}
+                            theme={{
+                                backgroundColor: colors.cardBackground,
+                                calendarBackground: colors.cardBackground,
+                                textSectionTitleColor: colors.textSecondary,
+                                selectedDayBackgroundColor: colors.buttonMain,
+                                selectedDayTextColor: '#ffffff',
+                                todayTextColor: colors.buttonMain,
+                                dayTextColor: colors.textPrimary,
+                                textDisabledColor: isDark ? '#444' : '#d9e1e8',
+                                dotColor: colors.buttonMain,
+                                arrowColor: colors.buttonMain,
+                                monthTextColor: colors.textPrimary,
+                                textDayFontWeight: '600',
+                                textMonthFontWeight: 'bold',
+                                textDayHeaderFontWeight: '400',
+                                textDayFontSize: 14,
+                                textMonthFontSize: 16,
+                                textDayHeaderFontSize: 12
+                            }}
                         />
                     </View>
                 </View>
@@ -748,10 +799,10 @@ const Lessor_Renthouse = () => {
 
             {/* Modal Vista Previa */}
             <Modal visible={previsualizando} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPrevisualizando(false)}>
-                <ScrollView style={styles.modalContainer} contentContainerStyle={{ paddingBottom: 40 }}>
+                <ScrollView style={[styles.modalContainer, { backgroundColor: colors.background }]} contentContainerStyle={{ paddingBottom: 40 }}>
                     <View style={styles.modalHeader}>
-                        <TouchableOpacity onPress={() => setPrevisualizando(false)}><MaterialCommunityIcons name="chevron-left" size={28} color="#1a1a2e" /></TouchableOpacity>
-                        <Text style={styles.modalTitulo}>Vista previa</Text>
+                        <TouchableOpacity onPress={() => setPrevisualizando(false)}><MaterialCommunityIcons name="chevron-left" size={28} color={colors.textPrimary} /></TouchableOpacity>
+                        <Text style={[styles.modalTitulo, { color: colors.textPrimary }]}>Vista previa</Text>
                     </View>
                     <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
                         {form.medios.map((media, i) => (
@@ -759,9 +810,9 @@ const Lessor_Renthouse = () => {
                         ))}
                     </ScrollView>
                     <View style={styles.previaInfo}>
-                        <Text style={styles.previaTitulo}>{form.titulo}</Text>
-                        <Text style={styles.previaPrecio}>${parseInt(form.precio).toLocaleString('es-MX')} / mes</Text>
-                        <Text style={styles.previaDescripcion}>{form.descripcion}</Text>
+                        <Text style={[styles.previaTitulo, { color: colors.textPrimary }]}>{form.titulo}</Text>
+                        <Text style={[styles.previaPrecio, { color: colors.buttonMain }]}>${parseInt(form.precio || "0").toLocaleString('es-MX')} / mes</Text>
+                        <Text style={[styles.previaDescripcion, { color: colors.textSecondary }]}>{form.descripcion}</Text>
                         <TouchableOpacity style={styles.btnPublicar} onPress={publicar}>
                             <MaterialCommunityIcons name="check-circle" size={20} color="#fff" />
                             <Text style={styles.btnPublicarTexto}>{esEdicion ? "Guardar cambios" : "Enviar para revisión"}</Text>
@@ -776,80 +827,81 @@ const Lessor_Renthouse = () => {
 export default Lessor_Renthouse
 
 const styles = StyleSheet.create({
-    background: { flex: 1, backgroundColor: "#f5f7fa" },
+    background: { flex: 1 },
     headerRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 20 },
-    titulo: { fontSize: 25, fontWeight: "800", color: "#1a1a2e" },
-    subtituloHead: { fontSize: 13, color: "#888", marginHorizontal: 20, marginTop: 4 },
+    titulo: { fontSize: 25, fontWeight: "800" },
+    subtituloHead: { fontSize: 13, marginHorizontal: 20, marginTop: 4 },
     seccion: { marginHorizontal: 20, marginTop: 24 },
-    label: { fontSize: 15, fontWeight: "700", color: "#1a1a2e", marginBottom: 8 },
+    label: { fontSize: 15, fontWeight: "700", marginBottom: 8 },
     requerido: { color: "#e74c3c" },
     hint: { fontSize: 12, color: "#aaa", marginBottom: 12 },
-    input: { backgroundColor: "#fff", borderRadius: 12, padding: 14, fontSize: 14, color: "#1a1a2e", borderWidth: 1, borderColor: "#e0e0e0" },
+    input: { borderRadius: 12, padding: 14, fontSize: 14, borderWidth: 1 },
     inputMultiline: { height: 110, textAlignVertical: "top" },
-    inputSmall: { backgroundColor: "#fff", borderRadius: 10, padding: 10, fontSize: 13, borderWidth: 1, borderColor: "#e0e0e0", marginBottom: 8 },
+    inputSmall: { borderRadius: 10, padding: 10, fontSize: 13, borderWidth: 1, marginBottom: 8 },
     fotosGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
     fotoContainer: { position: "relative" },
     foto: { width: (SCREEN_WIDTH - 60) / 3, height: (SCREEN_WIDTH - 60) / 3, borderRadius: 10 },
     videoIconOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.2)", borderRadius: 10 },
-    btnEliminarFoto: { position: "absolute", top: -6, right: -6, backgroundColor: "#fff", borderRadius: 12 },
-    btnAgregarFoto: { width: (SCREEN_WIDTH - 60) / 3, height: (SCREEN_WIDTH - 60) / 3, borderRadius: 10, borderWidth: 2, borderColor: "#205EA6", borderStyle: "dashed", justifyContent: "center", alignItems: "center" },
-    btnAgregarFotoTexto: { fontSize: 11, color: "#205EA6", fontWeight: "600", marginTop: 4 },
+    btnEliminarFoto: { position: "absolute", top: -6, right: -6, borderRadius: 12 },
+    btnAgregarFoto: { width: (SCREEN_WIDTH - 60) / 3, height: (SCREEN_WIDTH - 60) / 3, borderRadius: 10, borderWidth: 2, borderStyle: "dashed", justifyContent: "center", alignItems: "center" },
+    btnAgregarFotoTexto: { fontSize: 11, fontWeight: "600", marginTop: 4 },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    chip: { backgroundColor: "#EEF4FF", borderRadius: 20, paddingVertical: 6, paddingHorizontal: 14 },
-    chipActivo: { backgroundColor: "#205EA6" },
-    chipTextoServicio: { fontSize: 13, color: "#205EA6", fontWeight: "600" },
-    chipTextoRegla: { fontSize: 13, color: "#b83e31", fontWeight: "600" },
+    chip: { borderRadius: 20, paddingVertical: 6, paddingHorizontal: 14 },
+    chipActivo: { },
+    chipTextoServicio: { fontSize: 13, fontWeight: "600" },
+    chipTextoRegla: { fontSize: 13, fontWeight: "600" },
     chipTextoActivo: { color: "#fff" },
-    chipRegla: { backgroundColor: "#FFF0F0" },
-    chipReglaActivo: { backgroundColor: "#b83e31" },
+    chipRegla: { },
+    chipReglaActivo: { },
     chipTextoReglaActivo: { color: "#fff" },
-    cuartoCard: { backgroundColor: "#fff", borderRadius: 14, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: "#e0e0e0" },
+    cuartoCard: { borderRadius: 14, padding: 12, marginBottom: 12, borderWidth: 1 },
     cuartoHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-    cuartoTitulo: { fontSize: 16, fontWeight: "700", color: "#1a1a2e" },
-    btnAgregarCuarto: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 10, justifyContent: "center", borderWidth: 1, borderColor: "#205EA6", borderStyle: "dashed", borderRadius: 12 },
-    btnAgregarCuartoTexto: { color: "#205EA6", fontWeight: "600" },
-    btnPrevia: { flexDirection: "row", backgroundColor: "#205EA6", borderRadius: 24, paddingVertical: 14, alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 20, marginTop: 32 },
+    cuartoTitulo: { fontSize: 16, fontWeight: "700" },
+    btnAgregarCuarto: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 10, justifyContent: "center", borderWidth: 1, borderStyle: "dashed", borderRadius: 12 },
+    btnAgregarCuartoTexto: { fontWeight: "600" },
+    btnPrevia: { flexDirection: "row", borderRadius: 24, paddingVertical: 14, alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 20, marginTop: 32 },
     btnDesactivado: { opacity: 0.4 },
     btnPreviaTexto: { color: "#fff", fontWeight: "700", fontSize: 16 },
-    modalContainer: { flex: 1, backgroundColor: "#fff" },
+    modalContainer: { flex: 1 },
     modalHeader: { flexDirection: "row", alignItems: "center", padding: 16, gap: 12 },
-    modalTitulo: { fontSize: 18, fontWeight: "800", color: "#1a1a2e", flex: 1 },
+    modalTitulo: { fontSize: 18, fontWeight: "800", flex: 1 },
     previaImagen: { width: SCREEN_WIDTH, height: 260, resizeMode: "cover" },
     previaInfo: { padding: 20, gap: 12 },
-    previaTitulo: { fontSize: 22, fontWeight: "800", color: "#1a1a2e" },
-    previaPrecio: { fontSize: 22, fontWeight: "800", color: "#205EA6" },
-    previaDescripcion: { fontSize: 14, color: "#555", lineHeight: 20 },
+    previaTitulo: { fontSize: 22, fontWeight: "800" },
+    previaPrecio: { fontSize: 22, fontWeight: "800" },
+    previaDescripcion: { fontSize: 14, lineHeight: 20 },
     btnPublicar: { flexDirection: "row", backgroundColor: "#5db682", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: "center", gap: 8, marginTop: 20 },
     btnPublicarTexto: { color: "#fff", fontWeight: "700", fontSize: 16 },
-    mapaContainerReal: { height: 240, borderRadius: 16, overflow: "hidden", position: "relative" },
+    btnVolver: { position: "absolute", left: 16, borderRadius: 20, padding: 6, elevation: 5, zIndex: 10, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4 },
+    mapaContainerReal: { height: 240, borderRadius: 16, overflow: "hidden", position: "relative", borderWidth: 1 },
     mapaReal: { flex: 1 },
     marcadorCentroOverlay: { position: 'absolute', top: '50%', left: '50%', marginLeft: -21, marginTop: -42, alignItems: 'center' },
     puntoReferencia: { width: 4, height: 4, backgroundColor: '#e74c3c', borderRadius: 2, marginTop: -2 },
-    botonCentrar: { position: "absolute", bottom: 12, right: 12, backgroundColor: "#fff", borderRadius: 30, padding: 10, elevation: 4 },
-    mapaCoordsRow: { flexDirection: "row", alignItems: "center", gap: 6, padding: 10, backgroundColor: "#fff", borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0, borderColor: "#e0e0e0" },
-    mapaCoordsTexto: { fontSize: 12, color: "#205EA6", fontWeight: "600", flex: 1 },
-    btnAbrirCalendario: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.5, borderColor: "#205EA6", borderStyle: "dashed", borderRadius: 12, padding: 14, justifyContent: "center" },
-    btnAbrirCalendarioTexto: { color: "#205EA6", fontWeight: "700", fontSize: 14 },
+    botonCentrar: { position: "absolute", bottom: 12, right: 12, borderRadius: 30, padding: 10, elevation: 4 },
+    mapaCoordsRow: { flexDirection: "row", alignItems: "center", gap: 6, padding: 10, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0 },
+    mapaCoordsTexto: { fontSize: 12, fontWeight: "600", flex: 1 },
+    btnAbrirCalendario: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.5, borderStyle: "dashed", borderRadius: 12, padding: 14, justifyContent: "center" },
+    btnAbrirCalendarioTexto: { fontWeight: "700", fontSize: 14 },
     fechasLista: { marginTop: 16, gap: 10 },
-    fechaCard: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: "#e0e0e0", overflow: "hidden" },
-    fechaCardActiva: { borderColor: "#205EA6", borderWidth: 1.5 },
+    fechaCard: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
+    fechaCardActiva: { borderWidth: 1.5 },
     fechaCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 12 },
     fechaCardHeaderIzq: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
-    fechaCardTexto: { fontSize: 14, fontWeight: "700", color: "#1a1a2e" },
-    fechaCardBadge: { backgroundColor: "#EEF4FF", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-    fechaCardBadgeTexto: { fontSize: 11, color: "#205EA6", fontWeight: "600" },
-    fechaCardBody: { borderTopWidth: 1, borderTopColor: "#f0f0f0", padding: 12, gap: 12 },
+    fechaCardTexto: { fontSize: 14, fontWeight: "700" },
+    fechaCardBadge: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+    fechaCardBadgeTexto: { fontSize: 11, fontWeight: "600" },
+    fechaCardBody: { borderTopWidth: 1, padding: 12, gap: 12 },
     horasChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-    horaChipArrendador: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#EEF4FF", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-    horaChipTexto: { fontSize: 12, fontWeight: "700", color: "#205EA6" },
+    horaChipArrendador: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+    horaChipTexto: { fontSize: 12, fontWeight: "700" },
     horaInputRow: { flexDirection: "row", gap: 8 },
-    horaInput: { flex: 1, backgroundColor: "#f9f9f9", borderRadius: 10, padding: 10, fontSize: 14, borderWidth: 1, borderColor: "#e0e0e0" },
-    horaInputBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: "#205EA6", justifyContent: "center", alignItems: "center" },
+    horaInput: { flex: 1, borderRadius: 10, padding: 10, fontSize: 14, borderWidth: 1 },
+    horaInputBtn: { width: 44, height: 44, borderRadius: 10, justifyContent: "center", alignItems: "center" },
     modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
-    modalFechasContainer: { backgroundColor: "#fff", borderRadius: 20, padding: 20, width: "100%", gap: 12 },
+    modalFechasContainer: { borderRadius: 20, padding: 20, width: "100%", gap: 12 },
     modalFechasHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    modalFechasTitulo: { fontSize: 18, fontWeight: "800", color: "#1a1a2e" },
-    modalFechasBtnListo: { backgroundColor: "#205EA6", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
+    modalFechasTitulo: { fontSize: 18, fontWeight: "800" },
+    modalFechasBtnListo: { borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
     modalFechasBtnListoTexto: { color: "#fff", fontWeight: "700" },
     modalFechasHint: { fontSize: 13, color: "#666" },
 })

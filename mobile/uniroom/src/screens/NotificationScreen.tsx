@@ -11,6 +11,7 @@ import { socketService } from '../services/websocketService';
 import { obtenerMisCitas, actualizarEstadoCita, marcarCitaRealizada, decisionRenta, crearCalificacionEstudiante, obtenerPerfil } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
 import Constants from 'expo-constants';
 
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
@@ -41,6 +42,7 @@ export default function NotificationScreen() {
   const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<Notificacion | null>(null);
   const [cargando, setCargando] = useState(false);
   const { refreshUnreadCount } = useNotifications();
+  const { colors, isDark } = useTheme();
   
   const [userId, setUserId] = useState<string>("");
   const [userRole, setUserRole] = useState<"estudiante" | "anfitrion">("estudiante");
@@ -212,7 +214,8 @@ export default function NotificationScreen() {
       socketService.off('decision_renta_pendiente');
       socketService.off('decision_renta');
       socketService.off('calificar_estudiante');
-    };  }, []);
+    };
+  }, []);
 
   // --- FUNCIONES DE CARGA DE DATOS ---
   const cargarContactosReales = async (idActual: string) => {
@@ -238,12 +241,14 @@ export default function NotificationScreen() {
     ]);
     setCargando(false);
   };
+
   const onRefresh = async () => {
     if (userId) {
       await cargarTodo(userId, userRole);
       await refreshUnreadCount();
     }
   };
+
   // Cargar rating de estudiante
   const cargarRatingEstudiante = async (idEstudiante: string) => {
     try {
@@ -467,6 +472,7 @@ export default function NotificationScreen() {
       Alert.alert('Error', error.message);
     }
   };
+
   const enviarReporte = async () => {
     if (userRole === 'estudiante' && contactos.length === 0) {
       Alert.alert("Acceso Restringido", "Solo puedes enviar reportes si tienes una renta activa con un arrendador.");
@@ -656,6 +662,7 @@ export default function NotificationScreen() {
       Alert.alert("Error de conexión", "Asegúrate de tener internet.");
     }
   };
+
   // --- RENDERIZADOS ---
   const renderLeftActions = (id: string) => (
     <TouchableOpacity style={styles.contenedorEliminarSwipe} onPress={() => borrarIndividual(id)}>
@@ -677,7 +684,11 @@ export default function NotificationScreen() {
     return (
       <Swipeable renderLeftActions={() => renderLeftActions(item.id)} friction={2} rightThreshold={40}>
         <TouchableOpacity 
-          style={[styles.tarjeta, !item.leida && styles.tarjetaNoLeida]}
+          style={[
+            styles.tarjeta, 
+            { backgroundColor: colors.cardBackground, borderBottomColor: colors.border },
+            !item.leida && [styles.tarjetaNoLeida, { backgroundColor: isDark ? '#1a2634' : '#f0f7ff', borderLeftColor: colors.buttonMain }]
+          ]}
           onPress={() => abrirDetalle(item)}
         >
           <View style={styles.encabezadoTarjeta}>
@@ -685,24 +696,24 @@ export default function NotificationScreen() {
                {fotoUrl ? (
                  <Image source={{ uri: fotoUrl }} style={styles.avatarMiniatura} />
                ) : (
-                 <View style={[styles.avatarMiniatura, { backgroundColor: '#205EA6', justifyContent: 'center', alignItems: 'center' }]}>
+                 <View style={[styles.avatarMiniatura, { backgroundColor: colors.buttonMain, justifyContent: 'center', alignItems: 'center' }]}>
                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>{item.remitente.charAt(0)}</Text>
                  </View>
                )}
-               <Text style={[styles.titulo, !item.leida && styles.textoNegrita]} numberOfLines={1}>{item.titulo}</Text>
+               <Text style={[styles.titulo, { color: colors.textPrimary }, !item.leida && styles.textoNegrita]} numberOfLines={1}>{item.titulo}</Text>
             </View>
-            <Text style={styles.fecha}>{item.fecha}</Text>
+            <Text style={[styles.fecha, { color: colors.textSecondary }]}>{item.fecha}</Text>
           </View>
           <View style={styles.remitenteRow}>
-            <Text style={styles.remitenteLista}>{item.remitente}</Text>
+            <Text style={[styles.remitenteLista, { color: colors.textSecondary }]}>{item.remitente}</Text>
             {rating > 0 && (
-              <View style={styles.ratingBadgeLista}>
+              <View style={[styles.ratingBadgeLista, { backgroundColor: isDark ? '#3a301a' : '#FFF8E1' }]}>
                 <Ionicons name="star" size={12} color="#FFD700" />
-                <Text style={styles.ratingTextLista}>{rating.toFixed(1)}</Text>
+                <Text style={[styles.ratingTextLista, { color: isDark ? '#f1c40f' : '#F57F17' }]}>{rating.toFixed(1)}</Text>
               </View>
             )}
           </View>
-          <Text style={styles.mensajeResumen} numberOfLines={1}>{item.mensaje}</Text>
+          <Text style={[styles.mensajeResumen, { color: colors.textSecondary }]} numberOfLines={1}>{item.mensaje}</Text>
         </TouchableOpacity>
       </Swipeable>
     );
@@ -710,31 +721,31 @@ export default function NotificationScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.contenedor}>
+      <View style={[styles.contenedor, { backgroundColor: colors.background }]}>
         {/* ENCABEZADO */}
         <View style={styles.contenedorEncabezado}>
-          <Text style={styles.encabezadoPrincipal}>Bandeja de Entrada</Text>
+          <Text style={[styles.encabezadoPrincipal, { color: colors.textPrimary }]}>Bandeja de Entrada</Text>
           <View style={styles.iconosEncabezado}>
             <TouchableOpacity 
               onPress={marcarTodoVisto}
               onLongPress={() => mostrarTooltip("Marcar todo como leído")}
               style={styles.botonIconoHeader}
             >
-              <Ionicons name="eye-outline" size={28} color="#205EA6" />
+              <Ionicons name="eye-outline" size={28} color={colors.buttonMain} />
             </TouchableOpacity>
             <TouchableOpacity 
               onPress={vaciarBandeja}
               onLongPress={() => mostrarTooltip("Limpiar mensajes leídos")}
               style={styles.botonIconoHeader}
             >
-              <Image source={require('../../assets/borrarnotificaciones.png')} resizeMode="contain" style={styles.imagenBorrar} /> 
+              <Image source={require('../../assets/borrarnotificaciones.png')} resizeMode="contain" style={[styles.imagenBorrar, { tintColor: colors.buttonMain }]} /> 
             </TouchableOpacity>
           </View>
         </View>
 
         {/* TOOLTIP FLOTANTE */}
         {tooltip.visible && (
-          <View style={styles.contenedorTooltip}>
+          <View style={[styles.contenedorTooltip, { backgroundColor: isDark ? '#444' : 'rgba(0,0,0,0.8)' }]}>
             <Text style={styles.textoTooltip}>{tooltip.message}</Text>
           </View>
         )}
@@ -745,27 +756,27 @@ export default function NotificationScreen() {
           keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
           renderItem={renderNotificacion}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={cargando} onRefresh={onRefresh} colors={["#205EA6"]} />}
-          ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 50, color: '#888'}}>No hay notificaciones aún.</Text>}
+          refreshControl={<RefreshControl refreshing={cargando} onRefresh={onRefresh} colors={[colors.buttonMain]} />}
+          ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 50, color: colors.textSecondary}}>No hay notificaciones aún.</Text>}
         />
 
         {/* BOTÓN FLOTANTE NUEVO REPORTE */}
-        <TouchableOpacity style={styles.botonFlotanteCircular} onPress={() => setModalFormularioVisible(true)}>
+        <TouchableOpacity style={[styles.botonFlotanteCircular, { backgroundColor: colors.buttonMain }]} onPress={() => setModalFormularioVisible(true)}>
           <Ionicons name="add" size={28} color="white" /> 
         </TouchableOpacity>
 
         {/* ================= MODAL 1: DETALLE ================= */}
         <Modal animationType="slide" transparent={false} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
           {notificacionSeleccionada && (
-            <SafeAreaView style={styles.contenedorModal}>
-              <View style={styles.barraSuperiorModal}>
+            <SafeAreaView style={[styles.contenedorModal, { backgroundColor: colors.background }]}>
+              <View style={[styles.barraSuperiorModal, { borderBottomColor: colors.border }]}>
                 <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <Text style={styles.botonCerrar}>← Regresar</Text>
+                  <Text style={[styles.botonCerrar, { color: colors.buttonMain }]}>← Regresar</Text>
                 </TouchableOpacity>
               </View>
               
               <View style={styles.contenidoDetalle}>
-                <Text style={styles.tituloModal}>{notificacionSeleccionada.titulo}</Text>
+                <Text style={[styles.tituloModal, { color: colors.textPrimary }]}>{notificacionSeleccionada.titulo}</Text>
                 <View style={styles.infoRemitente}>
                   {notificacionSeleccionada.remitenteFoto ? (
                     <Image 
@@ -773,17 +784,17 @@ export default function NotificationScreen() {
                       style={styles.avatarCircular} 
                     />
                   ) : (
-                    <View style={styles.avatarCircular}>
+                    <View style={[styles.avatarCircular, { backgroundColor: colors.buttonMain }]}>
                       <Text style={styles.letraAvatar}>{notificacionSeleccionada.remitente.charAt(0)}</Text>
                     </View>
                   )}
                   <View>
-                    <Text style={styles.nombreRemitente}>{notificacionSeleccionada.remitente}</Text>
-                    <Text style={styles.fechaModal}>{notificacionSeleccionada.fecha}</Text>
+                    <Text style={[styles.nombreRemitente, { color: colors.textPrimary }]}>{notificacionSeleccionada.remitente}</Text>
+                    <Text style={[styles.fechaModal, { color: colors.textSecondary }]}>{notificacionSeleccionada.fecha}</Text>
                   </View>
                 </View>
-                <View style={styles.separador} />
-                <Text style={styles.mensajeCompleto}>{notificacionSeleccionada.mensaje}</Text>
+                <View style={[styles.separador, { backgroundColor: colors.border }]} />
+                <Text style={[styles.mensajeCompleto, { color: colors.textPrimary }]}>{notificacionSeleccionada.mensaje}</Text>
 
                 {/* BOTONES ANFITRIÓN — Aceptar/Rechazar cita */}
                 {userRole === 'anfitrion' && notificacionSeleccionada.tipo === 'solicitud_cita' && (
@@ -804,7 +815,7 @@ export default function NotificationScreen() {
                 {/* BOTONES ANFITRIÓN — Marcar como realizada (cuando cita está ACEPTADA) */}
                 {userRole === 'anfitrion' && notificacionSeleccionada.datosExtra?.estado === 'ACEPTADA' && (
                   <View style={styles.botonesRespuesta}>
-                    <TouchableOpacity style={styles.botonRentar} onPress={() => marcarRealizada(notificacionSeleccionada)}>
+                    <TouchableOpacity style={[styles.botonRentar, { backgroundColor: colors.buttonMain }]} onPress={() => marcarRealizada(notificacionSeleccionada)}>
                       <Text style={styles.textoBotonRentar}>Marcar visita realizada</Text>
                     </TouchableOpacity>
                   </View>
@@ -826,7 +837,7 @@ export default function NotificationScreen() {
                 {userRole === 'estudiante' && notificacionSeleccionada.tipo === 'decision_renta' && notificacionSeleccionada.datosExtra?.aceptada && (
                   <View style={styles.botonesRespuesta}>
                     <TouchableOpacity
-                      style={styles.botonRentar}
+                      style={[styles.botonRentar, { backgroundColor: colors.buttonMain }]}
                       onPress={() => {
                         setModalVisible(false);
                         // Navegar al inmueble directamente
@@ -862,7 +873,7 @@ export default function NotificationScreen() {
                 {userRole === 'anfitrion' && notificacionSeleccionada.tipo === 'calificar_estudiante' && (
                   <View style={styles.botonesRespuesta}>
                     <TouchableOpacity 
-                      style={styles.botonRentar}
+                      style={[styles.botonRentar, { backgroundColor: colors.buttonMain }]}
                       onPress={() => {
                         setEstudianteACalificar({ 
                           id: notificacionSeleccionada.relacionado_a || '', 
@@ -884,19 +895,27 @@ export default function NotificationScreen() {
         {/* ================= MODAL 2: FORMULARIO ================= */}
         <Modal animationType="fade" transparent={true} visible={modalFormularioVisible} onRequestClose={() => setModalFormularioVisible(false)}>
           <View style={styles.fondoOscuroModal}>
-            <View style={styles.tarjetaFormulario}>
-              <Text style={styles.tituloFormulario}>Nuevo Reporte</Text>
+            <View style={[styles.tarjetaFormulario, { backgroundColor: colors.cardBackground }]}>
+              <Text style={[styles.tituloFormulario, { color: colors.textPrimary }]}>Nuevo Reporte</Text>
              
-              <Text style={styles.labelInput}>Para:</Text>
+              <Text style={[styles.labelInput, { color: colors.textPrimary }]}>Para:</Text>
               <View style={styles.contenedorScrollChips}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {contactos.map((contacto) => (
                     <TouchableOpacity
                       key={contacto.id_usuario}
-                      style={[styles.chipContacto, destinatarioSeleccionado === contacto.id_usuario && styles.chipSeleccionado]}
+                      style={[
+                        styles.chipContacto, 
+                        { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
+                        destinatarioSeleccionado === contacto.id_usuario && [styles.chipSeleccionado, { backgroundColor: colors.buttonMain, borderColor: colors.buttonMain }]
+                      ]}
                       onPress={() => setDestinatarioSeleccionado(contacto.id_usuario)}
                     >
-                      <Text style={[styles.textoChip, destinatarioSeleccionado === contacto.id_usuario && styles.textoChipSeleccionado]}>
+                      <Text style={[
+                        styles.textoChip, 
+                        { color: colors.textSecondary },
+                        destinatarioSeleccionado === contacto.id_usuario && styles.textoChipSeleccionado
+                      ]}>
                         {contacto.nombre}
                       </Text>
                     </TouchableOpacity>
@@ -904,17 +923,32 @@ export default function NotificationScreen() {
                 </ScrollView>
               </View>
               
-              <Text style={styles.labelInput}>Asunto</Text>
-              <TextInput style={styles.inputTexto} placeholder="Ej. Problema con el internet" value={nuevoTitulo} onChangeText={setNuevoTitulo} />
+              <Text style={[styles.labelInput, { color: colors.textPrimary }]}>Asunto</Text>
+              <TextInput 
+                style={[styles.inputTexto, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]} 
+                placeholder="Ej. Problema con el internet" 
+                placeholderTextColor={colors.textSecondary}
+                value={nuevoTitulo} 
+                onChangeText={setNuevoTitulo} 
+              />
               
-              <Text style={styles.labelInput}>Mensaje</Text>
-              <TextInput style={[styles.inputTexto, styles.inputMultilinea]} placeholder="Describe los detalles aquí..." multiline={true} numberOfLines={4} textAlignVertical="top" value={nuevoMensaje} onChangeText={setNuevoMensaje} />
+              <Text style={[styles.labelInput, { color: colors.textPrimary }]}>Mensaje</Text>
+              <TextInput 
+                style={[styles.inputTexto, styles.inputMultilinea, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]} 
+                placeholder="Describe los detalles aquí..." 
+                placeholderTextColor={colors.textSecondary}
+                multiline={true} 
+                numberOfLines={4} 
+                textAlignVertical="top" 
+                value={nuevoMensaje} 
+                onChangeText={setNuevoMensaje} 
+              />
               
               <View style={styles.contenedorBotonesForm}>
-                <TouchableOpacity style={styles.botonCancelar} onPress={() => { setModalFormularioVisible(false); setDestinatarioSeleccionado(null); }}>
-                  <Text style={styles.textoBotonCancelar}>Cancelar</Text>
+                <TouchableOpacity style={[styles.botonCancelar, { backgroundColor: isDark ? '#333' : '#f0f0f0' }]} onPress={() => { setModalFormularioVisible(false); setDestinatarioSeleccionado(null); }}>
+                  <Text style={[styles.textoBotonCancelar, { color: colors.textSecondary }]}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.botonEnviar} onPress={enviarReporte}>
+                <TouchableOpacity style={[styles.botonEnviar, { backgroundColor: colors.buttonMain }]} onPress={enviarReporte}>
                   <Text style={styles.textoBotonEnviar}>Enviar</Text>
                 </TouchableOpacity>
               </View>
@@ -925,7 +959,7 @@ export default function NotificationScreen() {
         {/* ================= MODAL 3: CALIFICAR ESTUDIANTE ================= */}
         <Modal visible={modalCalificarEstudianteVisible} transparent animationType="fade">
           <View style={styles.ratingOverlay}>
-            <View style={styles.ratingCard}>
+            <View style={[styles.ratingCard, { backgroundColor: colors.cardBackground }]}>
               <TouchableOpacity
                 style={styles.ratingSkipBtn}
                 onPress={() => {
@@ -935,10 +969,10 @@ export default function NotificationScreen() {
                   setComentarioEstudiante("");
                 }}
               >
-                <Text style={styles.ratingSkipBtnText}>Cerrar</Text>
+                <Text style={[styles.ratingSkipBtnText, { color: colors.buttonMain }]}>Cerrar</Text>
               </TouchableOpacity>
 
-              <Text style={styles.ratingTitle}>
+              <Text style={[styles.ratingTitle, { color: colors.textPrimary }]}>
                 Calificar a {estudianteACalificar?.nombre || "Estudiante"}
               </Text>
 
@@ -955,9 +989,9 @@ export default function NotificationScreen() {
               </View>
 
               <TextInput
-                style={styles.ratingInput}
+                style={[styles.ratingInput, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]}
                 placeholder="Comentario sobre el estudiante (opcional)"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={colors.textSecondary}
                 value={comentarioEstudiante}
                 onChangeText={setComentarioEstudiante}
                 multiline
@@ -966,7 +1000,7 @@ export default function NotificationScreen() {
               />
 
               <TouchableOpacity
-                style={[styles.ratingSubmitBtn, enviandoCalificacion && { opacity: 0.7 }]}
+                style={[styles.ratingSubmitBtn, { backgroundColor: colors.buttonMain }, enviandoCalificacion && { opacity: 0.7 }]}
                 onPress={handleCalificarEstudiante}
                 disabled={enviandoCalificacion}
               >
@@ -986,21 +1020,21 @@ export default function NotificationScreen() {
 }
 
 const styles = StyleSheet.create({
-  contenedor: { flex: 1, backgroundColor: "#f8f9fa", paddingHorizontal: 16, paddingTop: 40 },
-  encabezadoPrincipal: { fontSize: 25, fontWeight: "bold", marginBottom: 16, color: "#1a1a1a" },
-  tarjeta: { backgroundColor: "#ffffff", padding: 14, borderRadius: 8, marginBottom: 10, borderBottomWidth: 1, borderColor: "#eee" },
-  tarjetaNoLeida: { backgroundColor: "#f0f7ff", borderLeftWidth: 3, borderLeftColor: "#205EA6" },
+  contenedor: { flex: 1, paddingHorizontal: 16, paddingTop: 40 },
+  encabezadoPrincipal: { fontSize: 25, fontWeight: "bold", marginBottom: 16 },
+  tarjeta: { padding: 14, borderRadius: 8, marginBottom: 10, borderBottomWidth: 1 },
+  tarjetaNoLeida: { borderLeftWidth: 3 },
   encabezadoTarjeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  titulo: { fontSize: 16, color: "#212529", flex: 1, paddingRight: 8 },
+  titulo: { fontSize: 16, flex: 1, paddingRight: 8 },
   textoNegrita: { fontWeight: "600" },
-  fecha: { fontSize: 12, color: "#6c757d", marginLeft: 8 },
+  fecha: { fontSize: 12, marginLeft: 8 },
   avatarMiniatura: { width: 24, height: 24, borderRadius: 12, marginRight: 8 },
-  remitenteLista: { fontSize: 14, color: "#495057", marginTop: 2 },
+  remitenteLista: { fontSize: 14, marginTop: 2 },
   remitenteRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
-  ratingBadgeLista: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF8E1", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 },
-  ratingTextLista: { fontSize: 12, color: "#F57F17", fontWeight: "bold" },
-  mensajeResumen: { fontSize: 14, color: "#6c757d", marginTop: 6 },
-  botonFlotanteCircular: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#205EA6', padding: 16, borderRadius: 30, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  ratingBadgeLista: { flexDirection: "row", alignItems: "center", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, gap: 2 },
+  ratingTextLista: { fontSize: 12, fontWeight: "bold" },
+  mensajeResumen: { fontSize: 14, marginTop: 6 },
+  botonFlotanteCircular: { position: 'absolute', bottom: 90, right: 20, padding: 16, borderRadius: 30, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
   contenedorEncabezado: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginTop: 6, marginBottom: 10 },
   iconosEncabezado: { flexDirection: 'row', alignItems: 'center', gap: 15 },
   botonIconoHeader: { padding: 4 },
@@ -1009,7 +1043,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 85,
     right: 20,
-    backgroundColor: 'rgba(0,0,0,0.8)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1021,33 +1054,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   contenedorEliminarSwipe: { backgroundColor: '#ff0056', justifyContent: 'center', alignItems: 'center', width: 80, height: '90%', marginTop: 5, borderRadius: 10, marginLeft: 10 },
-  contenedorModal: { flex: 1, backgroundColor: "#fff" },
-  barraSuperiorModal: { padding: 16, borderBottomWidth: 1, borderColor: "#eee" },
-  botonCerrar: { fontSize: 16, color: "#205EA6", fontWeight: "bold" },
+  contenedorModal: { flex: 1 },
+  barraSuperiorModal: { padding: 16, borderBottomWidth: 1 },
+  botonCerrar: { fontSize: 16, fontWeight: "bold" },
   contenidoDetalle: { padding: 20 },
-  tituloModal: { fontSize: 22, fontWeight: "bold", color: "#1a1a1a", marginBottom: 16 },
+  tituloModal: { fontSize: 22, fontWeight: "bold", marginBottom: 16 },
   infoRemitente: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  avatarCircular: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#205EA6", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  avatarCircular: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginRight: 12 },
   letraAvatar: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  nombreRemitente: { fontSize: 16, fontWeight: "bold", color: "#212529" },
-  fechaModal: { fontSize: 13, color: "#6c757d" },
-  separador: { height: 1, backgroundColor: "#eee", marginBottom: 16 },
-  mensajeCompleto: { fontSize: 16, lineHeight: 24, color: "#343a40" },
-  fondoOscuroModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 16 },
-  tarjetaFormulario: { backgroundColor: "#fff", width: "100%", borderRadius: 12, padding: 20 },
-  tituloFormulario: { fontSize: 20, fontWeight: "bold", color: "#1a1a1a", marginBottom: 20, textAlign: "center" },
-  labelInput: { fontSize: 15, fontWeight: "bold", color: "#495057", marginBottom: 6 },
-  inputTexto: { borderWidth: 1, borderColor: "#ced4da", borderRadius: 6, padding: 10, fontSize: 16, marginBottom: 16, backgroundColor: "#fff" },
+  nombreRemitente: { fontSize: 16, fontWeight: "bold" },
+  fechaModal: { fontSize: 13 },
+  separador: { height: 1, marginBottom: 16 },
+  mensajeCompleto: { fontSize: 16, lineHeight: 24 },
+  fondoOscuroModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 16 },
+  tarjetaFormulario: { width: "100%", borderRadius: 12, padding: 20 },
+  tituloFormulario: { fontSize: 20, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  labelInput: { fontSize: 15, fontWeight: "bold", marginBottom: 6 },
+  inputTexto: { borderWidth: 1, borderRadius: 6, padding: 10, fontSize: 16, marginBottom: 16 },
   inputMultilinea: { minHeight: 120 },
   contenedorBotonesForm: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
-  botonCancelar: { flex: 1, padding: 14, borderRadius: 6, marginRight: 8, backgroundColor: "#f0f0f0", alignItems: "center" },
-  textoBotonCancelar: { fontSize: 16, color: "#666", fontWeight: "bold" },
-  botonEnviar: { flex: 1, padding: 14, borderRadius: 6, marginLeft: 8, backgroundColor: "#205EA6", alignItems: "center" },
+  botonCancelar: { flex: 1, padding: 14, borderRadius: 6, marginRight: 8, alignItems: "center" },
+  textoBotonCancelar: { fontSize: 16, fontWeight: "bold" },
+  botonEnviar: { flex: 1, padding: 14, borderRadius: 6, marginLeft: 8, alignItems: "center" },
   textoBotonEnviar: { fontSize: 16, color: "#fff", fontWeight: "bold" },
   contenedorScrollChips: { height: 40, marginBottom: 16 },
-  chipContacto: { backgroundColor: "#e9ecef", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8, borderWidth: 1, borderColor: "#dee2e6", justifyContent: "center" },
-  chipSeleccionado: { backgroundColor: "#205EA6", borderColor: "#205EA6" },
-  textoChip: { fontSize: 14, color: "#495057" },
+  chipContacto: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8, borderWidth: 1, justifyContent: "center" },
+  chipSeleccionado: { },
+  textoChip: { fontSize: 14 },
   textoChipSeleccionado: { color: "#fff", fontWeight: "bold" },
   botonesRespuesta: { flexDirection: "row", justifyContent: "space-around", marginTop: 24, flexWrap: "wrap", gap: 12 },
   botonAceptar: { backgroundColor: "#2B9348", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30 },
@@ -1055,7 +1088,6 @@ const styles = StyleSheet.create({
   botonRechazar: { backgroundColor: "#DC2F02", paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30 },
   textoBotonRechazar: { color: "#fff", fontWeight: "bold" },
   botonRentar: { 
-    backgroundColor: "#205EA6", 
     paddingVertical: 12, 
     paddingHorizontal: 32, 
     borderRadius: 30,
@@ -1073,7 +1105,6 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   ratingCard: {
-    backgroundColor: "#fff",
     borderRadius: 20,
     padding: 24,
     width: "90%",
@@ -1087,13 +1118,11 @@ const styles = StyleSheet.create({
   },
   ratingSkipBtnText: {
     fontSize: 14,
-    color: "#205EA6",
     fontWeight: "600",
   },
   ratingTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#1a1a2e",
     textAlign: "center",
   },
   starsRow: {
@@ -1101,18 +1130,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   ratingInput: {
-    backgroundColor: "#f5f7fa",
     borderRadius: 12,
     padding: 14,
     width: "100%",
     minHeight: 90,
     fontSize: 14,
-    color: "#1a1a2e",
     borderWidth: 1,
-    borderColor: "#e0e0e0",
   },
   ratingSubmitBtn: {
-    backgroundColor: "#205EA6",
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 32,

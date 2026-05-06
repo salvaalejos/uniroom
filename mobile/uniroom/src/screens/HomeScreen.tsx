@@ -237,8 +237,8 @@ const HomeScreen = ({ navigation, route }: Props) => {
                         <View style={styles.timeline}>
                             <View style={styles.tlItem}>
                                 <View style={styles.tlLeft}>
-                                    <View style={styles.tlDot} />
-                                    <View style={styles.tlLinea} />
+                                    <View style={[styles.tlDot, { backgroundColor: colors.buttonMain }]} />
+                                    <View style={[styles.tlLinea, { backgroundColor: isDark ? colors.border : "#a0b9e9" }]} />
                                 </View>
                                 <View style={styles.tlContent}>
                                     <Text style={[styles.tlLbl, { color: colors.textSecondary }]}>Inicio</Text>
@@ -247,7 +247,7 @@ const HomeScreen = ({ navigation, route }: Props) => {
                             </View>
                             <View style={styles.tlItem}>
                                 <View style={styles.tlLeft}>
-                                    <View style={[styles.tlDot, styles.tlDotFin]} />
+                                    <View style={[styles.tlDot, styles.tlDotFin, { borderColor: colors.buttonMain }]} />
                                 </View>
                                 <View style={styles.tlContent}>
                                     <Text style={[styles.tlLbl, { color: colors.textSecondary }]}>Fin</Text>
@@ -306,8 +306,8 @@ const HomeScreen = ({ navigation, route }: Props) => {
                             <Text style={[styles.cardLbl, { color: colors.textSecondary }]}>Reglas de la vivienda</Text>
                             <View style={styles.chips}>
                                 {rentaActual.restricciones.map((r: any, i: number) => (
-                                    <View key={i} style={[styles.chip, styles.chipRegla, { backgroundColor: colors.errorBackground || "#FFF0F0" }]}>
-                                        <Text style={[styles.chipTxt, styles.chipTxtRegla, { color: colors.error || "#b83e31" }]}>{typeof r === "object" ? r.nombre : r}</Text>
+                                    <View key={i} style={[styles.chip, styles.chipRegla, { backgroundColor: isDark ? '#3a1a1a' : "#FFF0F0" }]}>
+                                        <Text style={[styles.chipTxt, styles.chipTxtRegla, { color: "#b83e31" }]}>{typeof r === "object" ? r.nombre : r}</Text>
                                     </View>
                                 ))}
                             </View>
@@ -407,15 +407,15 @@ const HomeScreen = ({ navigation, route }: Props) => {
             {/* Modal calificación */}
             <Modal visible={modalCalificacionVisible} transparent animationType="fade">
                 <View style={styles.ratingOverlay}>
-                    <View style={styles.ratingCard}>
+                    <View style={[styles.ratingCard, { backgroundColor: colors.cardBackground }]}>
                         <TouchableOpacity
                             style={styles.ratingSkipBtn}
                             onPress={() => setModalOmitirVisible(true)}
                         >
-                            <Text style={styles.ratingSkipBtnText}>Omitir</Text>
+                            <Text style={[styles.ratingSkipBtnText, { color: colors.buttonMain }]}>Omitir</Text>
                         </TouchableOpacity>
 
-                        <Text style={styles.ratingTitle}>¿Cómo calificas tu experiencia?</Text>
+                        <Text style={[styles.ratingTitle, { color: colors.textPrimary }]}>¿Cómo calificas tu experiencia?</Text>
 
                         <View style={styles.starsRow}>
                             {[1, 2, 3, 4, 5].map((star) => (
@@ -430,9 +430,9 @@ const HomeScreen = ({ navigation, route }: Props) => {
                         </View>
 
                         <TextInput
-                            style={styles.ratingInput}
+                            style={[styles.ratingInput, { backgroundColor: colors.backgroundSecondary, color: colors.textPrimary, borderColor: colors.border }]}
                             placeholder="Cuéntanos tu experiencia (opcional)"
-                            placeholderTextColor="#aaa"
+                            placeholderTextColor={colors.textSecondary}
                             value={comentario}
                             onChangeText={setComentario}
                             multiline
@@ -441,7 +441,7 @@ const HomeScreen = ({ navigation, route }: Props) => {
                         />
 
                         <TouchableOpacity
-                            style={[styles.ratingSubmitBtn, enviando && { opacity: 0.7 }]}
+                            style={[styles.ratingSubmitBtn, { backgroundColor: colors.buttonMain }, enviando && { opacity: 0.7 }]}
                             onPress={handleEnviarCalificacion}
                             disabled={enviando}
                         >
@@ -458,14 +458,14 @@ const HomeScreen = ({ navigation, route }: Props) => {
             {/* Modal confirmar omitir */}
             <Modal visible={modalOmitirVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
-                        <MaterialCommunityIcons name="comment-text-outline" size={48} color="#205EA6" style={{ marginBottom: 12 }} />
-                        <Text style={styles.omitirTitulo}>¿Seguro que deseas omitir?</Text>
-                        <Text style={styles.omitirSubtitulo}>
+                    <View style={[styles.modalCard, { backgroundColor: colors.cardBackground }]}>
+                        <MaterialCommunityIcons name="comment-text-outline" size={48} color={colors.buttonMain} style={{ marginBottom: 12 }} />
+                        <Text style={[styles.omitirTitulo, { color: colors.textPrimary }]}>¿Seguro que deseas omitir?</Text>
+                        <Text style={[styles.omitirSubtitulo, { color: colors.textSecondary }]}>
                             Tu opinión puede ayudar a más usuarios
                         </Text>
                         <TouchableOpacity
-                            style={styles.omitirBtnContinuar}
+                            style={[styles.omitirBtnContinuar, { backgroundColor: colors.buttonMain }]}
                             onPress={() => {
                                 setModalCalificacionVisible(false)
                                 setModalOmitirVisible(false)
@@ -478,7 +478,7 @@ const HomeScreen = ({ navigation, route }: Props) => {
                             style={styles.modalBtnVolver}
                             onPress={() => setModalOmitirVisible(false)}
                         >
-                            <Text style={styles.modalBtnVolverTxt}>Volver</Text>
+                            <Text style={[styles.modalBtnVolverTxt, { color: colors.textSecondary }]}>Volver</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -490,442 +490,76 @@ const HomeScreen = ({ navigation, route }: Props) => {
 export default HomeScreen
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#f5f7fa",
-    },
-
-    // Sin renta
-    sinRentaContainer: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 32,
-    },
-    sinRentaTitulo: {
-        fontSize: 22,
-        fontWeight: "800",
-        marginTop: 16,
-        textAlign: "center",
-    },
-    sinRentaSub: {
-        fontSize: 15,
-        marginTop: 8,
-        textAlign: "center",
-        marginBottom: 24,
-    },
-    btnExplorar: {
-        flexDirection: "row",
-        borderRadius: 24,
-        paddingVertical: 14,
-        paddingHorizontal: 28,
-        alignItems: "center",
-        gap: 10,
-    },
-    btnExplorarTexto: {
-        color: "#fff",
-        fontWeight: "700",
-        fontSize: 16,
-    },
-
-    // Header
-    headerAzul: {
-        height: SCREEN_HEIGHT * 0.32,
-        backgroundColor: "#1477e9",
-        overflow: "hidden",
-    },
-    headerImagen: {
-        position: "absolute",
-        width: "100%",
-        height: "100%",
-        resizeMode: "cover",
-    },
-    headerOverlay: {
-        position: "absolute",
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: "#2a558891",
-        opacity: 0.55,
-    },
-    headerContenido: {
-        position: "absolute",
-        bottom: 20,
-        left: 16,
-        right: 16,
-    },
-    headerTopRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 10,
-    },
-    headerLbl: {
-        fontSize: 16,
-        color: "rgba(255,255,255,0.80)",
-        fontWeight: "700",
-        letterSpacing: 0.8,
-        textTransform: "uppercase",
-    },
-    badge: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 5,
-        backgroundColor: "rgba(255,255,255,0.25)",
-        borderRadius: 20,
-        paddingVertical: 3,
-        paddingHorizontal: 9,
-    },
-    badgeDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: "#4ade80",
-    },
-    badgeTxt: {
-        fontSize: 15,
-        color: "#fff",
-        fontWeight: "600",
-    },
-    headerTitulo: {
-        fontSize: 25,
-        fontWeight: "800",
-        color: "#fff",
-        marginBottom: 4,
-    },
-    headerSub: {
-        fontSize: 15,
-        color: "rgba(255,255,255,0.85)",
-    },
-
-    // Menú
-    menuDesplegable: {
-        position: "absolute",
-        top: 44,
-        right: 16,
-        borderRadius: 10,
-        paddingVertical: 6,
-        borderWidth: 0.5,
-        zIndex: 100,
-        shadowColor: "#000",
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 6,
-    },
-    menuItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-    },
-    menuItemTxt: {
-        fontSize: 13,
-        color: "#A32D2D",
-        fontWeight: "600",
-    },
-
-    // Body
-    body: {
-        borderRadius: 20,
-        marginTop: -12,
-        padding: 14,
-        gap: 10,
-    },
-
-    // Galería
-    galeriaRow: {
-        flexDirection: "row",
-        gap: 6,
-    },
-    imgMiniatura: {
-        height: 150,
-        width: "100%",
-        borderRadius: 10,
-        resizeMode: "cover",
-    },
-    imgSmVideo: {
-        backgroundColor: "#1a1a2e",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
-    // Cards
-    cardVacio: {
-        padding: 14,
-        gap: 8,
-    },
-    card: {
-        borderRadius: 14,
-        padding: 14,
-        gap: 8,
-        borderWidth: 0.5,
-    },
-    cardDouble: {
-        borderRadius: 14,
-        padding: 14,
-        borderWidth: 0.5,
-        flexDirection: "row",
-        alignItems: "flex-start",
-        gap: 12,
-    },
-    cardLbl: {
-        fontSize: 15,
-        fontWeight: "700",
-        letterSpacing: 0.8,
-        textTransform: "uppercase",
-        marginBottom: 10,
-    },
-
-    // Timeline
-    timeline: {
-        gap: 0,
-    },
-    tlItem: {
-        flexDirection: "row",
-        gap: 10,
-        alignItems: "flex-start",
-    },
-    tlLeft: {
-        alignItems: "center",
-        width: 16,
-        flexShrink: 0,
-        marginTop: 2,
-    },
-    tlDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: "#205EA6",
-    },
-    tlDotFin: {
-        backgroundColor: "transparent",
-        borderWidth: 2,
-        borderColor: "#205EA6",
-    },
-    tlLinea: {
-        width: 2,
-        flex: 1,
-        backgroundColor: "#a0b9e9",
-        minHeight: 30,
-    },
-    tlContent: {
-        paddingBottom: 14,
-        flex: 1,
-    },
-    tlLbl: {
-        fontSize: 11,
-        fontWeight: "700",
-        letterSpacing: 0.6,
-        textTransform: "uppercase",
-    },
-    tlVal: {
-        fontSize: 14,
-        fontWeight: "700",
-        marginTop: 2,
-        textTransform: "capitalize",
-    },
-    tlPill: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        borderRadius: 20,
-        paddingVertical: 3,
-        paddingHorizontal: 8,
-        alignSelf: "flex-start",
-        marginTop: 6,
-    },
-    tlPillTxt: {
-        fontSize: 11,
-        fontWeight: "700",
-    },
-
-    // Arrendador
-    arrenRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-    },
-    avatar: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-    },
-    arrenNombre: {
-        fontSize: 14,
-        fontWeight: "700",
-    },
-    arrenSub: {
-        fontSize: 11,
-    },
-    contactarLbl: {
-        marginBottom: 4,
-    },
-    contactarVal: {
-        fontSize: 12,
-        fontWeight: "600",
-    },
-
-    // Chips
-    chips: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-    },
-    chip: {
-        borderRadius: 20,
-        paddingVertical: 4,
-        paddingHorizontal: 10,
-    },
-    chipTxt: {
-        fontSize: 12,
-        fontWeight: "600",
-    },
-    chipRegla: {
-        // backgroundColor handled dynamically
-    },
-    chipTxtRegla: {
-        // color handled dynamically
-    },
-
-    // Modal
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.45)",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 24,
-    },
-    modalCard: {
-        borderRadius: 20,
-        padding: 24,
-        width: "80%",
-        alignItems: "center",
-        gap: 10,
-    },
-    modalIcono: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 4,
-    },
-    modalTitulo: {
-        fontSize: 18,
-        fontWeight: "800",
-    },
-    modalSubtitulo: {
-        fontSize: 13,
-        textAlign: "center",
-        lineHeight: 20,
-    },
-    modalBtnPeligro: {
-        borderRadius: 12,
-        paddingVertical: 13,
-        paddingHorizontal: 24,
-        width: "80%",
-        alignItems: "center",
-        marginTop: 6,
-    },
-    modalBtnPeligroTxt: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#ffffff",
-    },
-    modalBtnVolver: {
-        paddingVertical: 10,
-    },
-    modalBtnVolverTxt: {
-        fontSize: 13,
-        fontWeight: "600",
-    },
-
-    // Rating
-    ratingOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.45)",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 24,
-    },
-    ratingCard: {
-        backgroundColor: "#fff",
-        borderRadius: 20,
-        padding: 24,
-        width: "90%",
-        alignItems: "center",
-        gap: 16,
-    },
-    ratingSkipBtn: {
-        position: "absolute",
-        top: 16,
-        right: 16,
-    },
-    ratingSkipBtnText: {
-        fontSize: 14,
-        color: "#205EA6",
-        fontWeight: "600",
-    },
-    ratingTitle: {
-        fontSize: 18,
-        fontWeight: "800",
-        color: "#1a1a2e",
-        textAlign: "center",
-    },
-    starsRow: {
-        flexDirection: "row",
-        gap: 10,
-    },
-    ratingInput: {
-        backgroundColor: "#f5f7fa",
-        borderRadius: 12,
-        padding: 14,
-        width: "100%",
-        minHeight: 90,
-        fontSize: 14,
-        color: "#1a1a2e",
-        borderWidth: 1,
-        borderColor: "#e0e0e0",
-    },
-    ratingSubmitBtn: {
-        backgroundColor: "#205EA6",
-        borderRadius: 12,
-        paddingVertical: 14,
-        paddingHorizontal: 32,
-        width: "100%",
-        alignItems: "center",
-    },
-    ratingSubmitBtnText: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#fff",
-    },
-
-    // Omitir
-    omitirTitulo: {
-        fontSize: 18,
-        fontWeight: "800",
-        color: "#1a1a2e",
-        textAlign: "center",
-    },
-    omitirSubtitulo: {
-        fontSize: 13,
-        color: "#666",
-        textAlign: "center",
-        lineHeight: 20,
-        marginBottom: 6,
-    },
-    omitirBtnContinuar: {
-        backgroundColor: "#205EA6",
-        borderRadius: 12,
-        paddingVertical: 13,
-        paddingHorizontal: 24,
-        width: "80%",
-        alignItems: "center",
-        marginTop: 6,
-    },
-    omitirBtnContinuarText: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#ffffff",
-    },
+    container: { flex: 1 },
+    sinRentaContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
+    sinRentaTitulo: { fontSize: 22, fontWeight: "800", marginTop: 16, textAlign: "center" },
+    sinRentaSub: { fontSize: 15, marginTop: 8, textAlign: "center", marginBottom: 24 },
+    btnExplorar: { flexDirection: "row", borderRadius: 24, paddingVertical: 14, paddingHorizontal: 28, alignItems: "center", gap: 10 },
+    btnExplorarTexto: { color: "#fff", fontWeight: "700", fontSize: 16 },
+    headerAzul: { height: SCREEN_HEIGHT * 0.32, backgroundColor: "#1477e9", overflow: "hidden" },
+    headerImagen: { position: "absolute", width: "100%", height: "100%", resizeMode: "cover" },
+    headerOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#2a558891", opacity: 0.55 },
+    headerContenido: { position: "absolute", bottom: 20, left: 16, right: 16 },
+    headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+    headerLbl: { fontSize: 16, color: "rgba(255,255,255,0.80)", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" },
+    badge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 20, paddingVertical: 3, paddingHorizontal: 9 },
+    badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#4ade80" },
+    badgeTxt: { fontSize: 15, color: "#fff", fontWeight: "600" },
+    headerTitulo: { fontSize: 25, fontWeight: "800", color: "#fff", marginBottom: 4 },
+    headerSub: { fontSize: 15, color: "rgba(255,255,255,0.85)" },
+    menuDesplegable: { position: "absolute", top: 44, right: 16, borderRadius: 10, paddingVertical: 6, borderWidth: 0.5, zIndex: 100, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 8, elevation: 6 },
+    menuItem: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 14 },
+    menuItemTxt: { fontSize: 13, color: "#A32D2D", fontWeight: "600" },
+    body: { borderRadius: 20, marginTop: -12, padding: 14, gap: 10 },
+    galeriaRow: { flexDirection: "row", gap: 6 },
+    imgMiniatura: { height: 150, width: "100%", borderRadius: 10, resizeMode: "cover" },
+    imgSmVideo: { backgroundColor: "#1a1a2e", justifyContent: "center", alignItems: "center" },
+    cardVacio: { padding: 14, gap: 8 },
+    card: { borderRadius: 14, padding: 14, gap: 8, borderWidth: 0.5 },
+    cardDouble: { borderRadius: 14, padding: 14, borderWidth: 0.5, flexDirection: "row", alignItems: "flex-start", gap: 12 },
+    cardLbl: { fontSize: 15, fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 },
+    timeline: { gap: 0 },
+    tlItem: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
+    tlLeft: { alignItems: "center", width: 16, flexShrink: 0, marginTop: 2 },
+    tlDot: { width: 10, height: 10, borderRadius: 5 },
+    tlDotFin: { backgroundColor: "transparent", borderOfWidth: 2, borderBottomWidth: 2, borderTopWidth: 2, borderLeftWidth: 2, borderRightWidth: 2 },
+    tlLinea: { width: 2, flex: 1, minHeight: 30 },
+    tlContent: { paddingBottom: 14, flex: 1 },
+    tlLbl: { fontSize: 11, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },
+    tlVal: { fontSize: 14, fontWeight: "700", marginTop: 2, textTransform: "capitalize" },
+    tlPill: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 20, paddingVertical: 3, paddingHorizontal: 8, alignSelf: "flex-start", marginTop: 6 },
+    tlPillTxt: { fontSize: 11, fontWeight: "700" },
+    arrenRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+    avatar: { width: 38, height: 38, borderRadius: 19 },
+    arrenNombre: { fontSize: 14, fontWeight: "700" },
+    arrenSub: { fontSize: 11 },
+    contactarLbl: { marginBottom: 4 },
+    contactarVal: { fontSize: 12, fontWeight: "600" },
+    chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    chip: { borderRadius: 20, paddingVertical: 4, paddingHorizontal: 10 },
+    chipTxt: { fontSize: 12, fontWeight: "600" },
+    chipRegla: { },
+    chipTxtRegla: { },
+    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
+    modalCard: { borderRadius: 20, padding: 24, width: "80%", alignItems: "center", gap: 10 },
+    modalIcono: { width: 64, height: 64, borderRadius: 32, justifyContent: "center", alignItems: "center", marginBottom: 4 },
+    modalTitulo: { fontSize: 18, fontWeight: "800" },
+    modalSubtitulo: { fontSize: 13, textAlign: "center", lineHeight: 20 },
+    modalBtnPeligro: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 24, width: "80%", alignItems: "center", marginTop: 6 },
+    modalBtnPeligroTxt: { fontSize: 14, fontWeight: "700", color: "#ffffff" },
+    modalBtnVolver: { paddingVertical: 10 },
+    modalBtnVolverTxt: { fontSize: 13, fontWeight: "600" },
+    ratingOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
+    ratingCard: { borderRadius: 20, padding: 24, width: "90%", alignItems: "center", gap: 16 },
+    ratingSkipBtn: { position: "absolute", top: 16, right: 16 },
+    ratingSkipBtnText: { fontSize: 14, fontWeight: "600" },
+    ratingTitle: { fontSize: 18, fontWeight: "800", textAlign: "center" },
+    starsRow: { flexDirection: "row", gap: 10 },
+    ratingInput: { borderRadius: 12, padding: 14, width: "100%", minHeight: 90, fontSize: 14, borderWidth: 1 },
+    ratingSubmitBtn: { borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32, width: "100%", alignItems: "center" },
+    ratingSubmitBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+    omitirTitulo: { fontSize: 18, fontWeight: "800", textAlign: "center" },
+    omitirSubtitulo: { fontSize: 13, textAlign: "center", lineHeight: 20, marginBottom: 6 },
+    omitirBtnContinuar: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 24, width: "80%", alignItems: "center", marginTop: 6 },
+    omitirBtnContinuarText: { fontSize: 14, fontWeight: "700", color: "#ffffff" },
 })

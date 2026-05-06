@@ -141,9 +141,9 @@ const MisInmuebles = () => {
 
     if (cargando) {
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color="#205EA6" />
-                <Text style={{ marginTop: 10, color: '#888' }}>Cargando tus propiedades...</Text>
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }]}>
+                <ActivityIndicator size="large" color={colors.buttonMain} />
+                <Text style={{ marginTop: 10, color: colors.textSecondary }}>Cargando tus propiedades...</Text>
             </View>
         );
     }
