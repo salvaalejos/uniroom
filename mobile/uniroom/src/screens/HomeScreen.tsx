@@ -7,6 +7,7 @@ import { useTheme } from "../context/ThemeContext"
 import Constants from "expo-constants"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { obtenerRentaActual, cancelarRenta, crearCalificacion } from "../services/api"
+import { socketService } from "../services/websocketService"
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window")
 const ANFITRION = require("../default_images/anfi.jpg")
@@ -75,12 +76,18 @@ const HomeScreen = ({ navigation, route }: Props) => {
 
     useEffect(() => {
         const fetchRenta = async () => {
-            if (!userId) {
+            let currentUserId = userId
+            if (!currentUserId) {
+                const savedUserId = await AsyncStorage.getItem('userId')
+                if (savedUserId) currentUserId = savedUserId
+            }
+            
+            if (!currentUserId) {
                 setCargando(false)
                 return
             }
             try {
-                const data = await obtenerRentaActual(userId)
+                const data = await obtenerRentaActual(currentUserId)
                 setRentaActual(data.rentaActual)
             } catch (error) {
                 console.error("Error obteniendo renta actual:", error)
@@ -88,8 +95,25 @@ const HomeScreen = ({ navigation, route }: Props) => {
                 setCargando(false)
             }
         }
+
         fetchRenta()
-    }, [userId])
+
+        // Listener de navegación para refrescar al entrar a la pestaña
+        const unsubscribe = navigation.addListener('focus', () => {
+            fetchRenta()
+        })
+
+        // Listener de WebSocket para actualización en tiempo real tras pago
+        socketService.on('renta_confirmada_estudiante', (data) => {
+            console.log("Renta confirmada recibida vía WebSocket:", data)
+            fetchRenta()
+        })
+
+        return () => {
+            unsubscribe()
+            socketService.off('renta_confirmada_estudiante')
+        }
+    }, [userId, navigation])
 
     const handleCancelarRenta = async () => {
         setCancelando(true)

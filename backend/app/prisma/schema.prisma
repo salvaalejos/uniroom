@@ -244,6 +244,10 @@ model Cita {
   // Auditoría
   creado_en       DateTime    @default(now())
   actualizado_en  DateTime    @updatedAt
+
+  // Persistencia de notificaciones vistas/ocultas
+  visto_estudiante Boolean    @default(false)
+  visto_anfitrion  Boolean    @default(false)
 }
 
 model VerificacionEmail {

@@ -7,6 +7,8 @@ import { useVideoPlayer, VideoView } from "expo-video"
 import { useNavigation } from "@react-navigation/native"
 import { useTheme } from "../context/ThemeContext"
 import AgendarCita from "./AgendarCita"
+import Constants from "expo-constants"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 // ─ Constantes ─
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -115,15 +117,14 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
         }
     }, [imagenActual, esVideo, player, videoSource, visible])
 
-    // ── FIX 3: Early return DESPUÉS de todos los hooks ──
-    useEffect(() => {
-        if (inmueble) {
-            console.log("[Detail] Inmueble cargado:", inmueble.titulo);
-            console.log("[Detail] Foto Anfitrión:", inmueble.fotoAnfitrion);
-        }
-    }, [inmueble]);
-
     if (!inmueble) return null
+
+    const calificaciones = inmueble.calificaciones || []
+    const ratingPromedio = calificaciones.length > 0
+        ? (calificaciones.reduce((sum, c) => sum + c.calificacion, 0) / calificaciones.length)
+        : 0
+    const totalOpiniones = calificaciones.length
+    const reseñasConComentario = calificaciones.filter(c => c.descripcion && c.descripcion.trim().length > 0)
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -188,35 +189,36 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     {/* Titulo y calificaciones */}
                     <Text style={[styles.titulo, { color: colors.textPrimary }]}>{inmueble.titulo}</Text>
 
-                    <View style={styles.calificacionContainer}>
-                        <View style={styles.calificacionItem}>
-                            <Text style={[styles.calificacionNumero, { color: colors.textPrimary }]}>{inmueble.calificacion}</Text>
-                            {/* La idea es que saca el promedio de las valoraciones de las resenas de los usuarios */}
-                            <View style={styles.estrellas}>
-                            {(() => {
-                                const rating = Number(inmueble.calificacion) || 0
-                                return [1, 2, 3, 4, 5].map((i) => {
-                                    const icon = i <= Math.floor(rating)
-                                        ? "star"
-                                        : i === Math.ceil(rating) && rating % 1 !== 0
-                                            ? "star-half"
-                                            : "star-outline"
-                                    return (
-                                        <MaterialCommunityIcons
-                                            key={i}
-                                            name={icon}
-                                            size={25}
-                                            color="#f39c12"
-                                        />
-                                    )
-                                })
-                            })()}
-                        </View>
-                        </View>
+                    {totalOpiniones > 0 ? (
+                        <View style={styles.calificacionContainer}>
+                            <View style={styles.calificacionItem}>
+                                <Text style={[styles.calificacionNumero, { color: colors.textPrimary }]}>{ratingPromedio.toFixed(1)}</Text>
+                                <View style={styles.estrellas}>
+                                {(() => {
+                                    const rating = ratingPromedio
+                                    return [1, 2, 3, 4, 5].map((i) => {
+                                        const icon = i <= Math.floor(rating)
+                                            ? "star"
+                                            : i === Math.ceil(rating) && rating % 1 !== 0
+                                                ? "star-half"
+                                                : "star-outline"
+                                        return (
+                                            <MaterialCommunityIcons
+                                                key={i}
+                                                name={icon}
+                                                size={25}
+                                                color="#f39c12"
+                                            />
+                                        )
+                                    })
+                                })()}
+                            </View>
+                            </View>
 
-                        <View style={styles.calificacionItem}>
-                            <Text style={[styles.calificacionNumero, { color: colors.textPrimary }]}>{inmueble.opiniones}</Text>
-                            <Text style={[styles.opinionesLabel, { color: colors.textSecondary }]}>opiniones</Text>
+                            <View style={styles.calificacionItem}>
+                                <Text style={[styles.calificacionNumero, { color: colors.textPrimary }]}>{totalOpiniones}</Text>
+                                <Text style={[styles.opinionesLabel, { color: colors.textSecondary }]}>opiniones</Text>
+                            </View>
                         </View>
                     ) : (
                         <View style={styles.sinReseñas}>
@@ -275,16 +277,16 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
                     <View style={[styles.divider, { backgroundColor: colors.border }]}/>
 
-                    {/* Comentarios predefinidos */}
-                    {/* <View style={[styles.comentarioEncabezado, { backgroundColor: isDark ? colors.backgroundSecondary : "#f0f5fc", borderLeftColor: colors.buttonMain }]}>
+                    {/* Reseñas de usuarios */}
+                    <View style={[styles.comentarioEncabezado, { backgroundColor: isDark ? colors.backgroundSecondary : "#f0f5fc", borderLeftColor: colors.buttonMain }]}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                             <MaterialCommunityIcons name="star" size={18} color="#f39c12" />
                             <View>
                                 <Text style={[styles.comentarioEncabezadoTexto, { color: isDark ? colors.textPrimary : "#0C447C" }]}>Reseñas del público</Text>
-                                <Text style={{ fontSize: 12, color: colors.buttonMain }}>{RESENAS.length} opiniones</Text>
+                                <Text style={{ fontSize: 12, color: colors.buttonMain }}>{totalOpiniones} opiniones</Text>
                             </View>
                         </View>
-                        {RESENAS.length > 0 && (
+                        {reseñasConComentario.length > 0 && (
                             <TouchableOpacity onPress={() => setVerComentarios(!verComentarios)}>
                                 <MaterialCommunityIcons
                                     name={verComentarios ? "chevron-up" : "chevron-down"}
@@ -295,28 +297,55 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         )}
                     </View>
 
-                    {RESENAS.length === 0 ? (
+                    {reseñasConComentario.length === 0 ? (
                         <Text style={{ color: colors.textSecondary, textAlign: "center", marginBottom: 20 }}>
                             Aún no hay reseñas para este lugar.
                         </Text>
                     ) : verComentarios ? (
-                        RESENAS.map((c, i) => (
-                            <View key={i} style={styles.comentario}>
-                                <Image source={ANFITRION} style={styles.comentarioAvatar}/>
-                                <View style={{flex: 1}}>
-                                    <View style={{ flexDirection: "column", justifyContent: "space-between" }}>
-                                        <Text style={[styles.comentarioAutor, { color: colors.textPrimary }]}>{c.autor}</Text>
-                                        <Text style={{ fontSize: 11, color: "#aaa" }}>{c.fecha}</Text>
+                        reseñasConComentario.map((c: any, i: number) => {
+                            const studentName = c.estudiante 
+                                ? `${c.estudiante.nombre} ${c.estudiante.apellidos}`.trim() 
+                                : "Usuario UniRoom";
+                            
+                            const studentPhoto = c.estudiante?.foto 
+                                ? (c.estudiante.foto.startsWith("http") ? { uri: c.estudiante.foto } : { uri: `${API_BASE_URL}${c.estudiante.foto}` })
+                                : null;
+
+                            return (
+                                <View key={i} style={styles.comentario}>
+                                    {studentPhoto ? (
+                                        <Image source={studentPhoto} style={styles.comentarioAvatar}/>
+                                    ) : (
+                                        <View style={[styles.comentarioAvatar, { backgroundColor: colors.buttonMain, justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>{studentName.charAt(0)}</Text>
+                                        </View>
+                                    )}
+                                    <View style={{flex: 1}}>
+                                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                                            <View>
+                                                <Text style={[styles.comentarioAutor, { color: colors.textPrimary }]}>{studentName}</Text>
+                                                <View style={{ flexDirection: "row", gap: 2 }}>
+                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                        <MaterialCommunityIcons
+                                                            key={star}
+                                                            name={star <= c.calificacion ? "star" : "star-outline"}
+                                                            size={14}
+                                                            color="#f39c12"
+                                                        />
+                                                    ))}
+                                                </View>
+                                            </View>
+                                        </View>
+                                        <Text style={[styles.comentarioTexto, { color: colors.textSecondary }]}>{c.descripcion}</Text>
                                     </View>
-                                    <Text style={[styles.comentarioTexto, { color: colors.textSecondary }]}>{c.texto}</Text>
                                 </View>
-                            </View>
-                        ))
+                            );
+                        })
                     ) : (
                         <Text style={{ color: colors.textSecondary, textAlign: "center", marginBottom: 20, fontSize: 13 }}>
                             Toca la flecha para ver las reseñas.
                         </Text>
-                    )} */}
+                    )}
 
                 </View>
             </ScrollView>
@@ -337,7 +366,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         style={[styles.btnContacto, { backgroundColor: colors.buttonMain }]}
                         onPress={() => setModalRentarVisible(true)}
                     >
-                        <MaterialCommunityIcons name="check-circle" size={18} color="#fff"/>
+                        <MaterialCommunityIcons name="key" size={18} color="#fff"/>
                         <Text style={styles.btnContactoTexto}>Rentar</Text>
                     </TouchableOpacity>
                 ) : (
@@ -355,17 +384,14 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         }}
                     >
                         <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>
-                        <Text style={styles.btnContactoTexto}>Agendar</Text>
+                        <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
                     </TouchableOpacity>
                 )}
 
-                {/*
+                {/* 
                 <TouchableOpacity
                     style={[styles.btnContacto, { backgroundColor: colors.buttonMain }]}
-                    onPress={() => {
-                        const contacto = inmueble.arrendador?.numero_contacto || "No disponible";
-                        Alert.alert("Contacto del Arrendador", `Teléfono: ${contacto}`);
-                    }}
+                    onPress={() => setModalTarifaVisible(true)}
                 >
                     <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
                     <Text style={styles.btnContactoTexto}>Contactar</Text>

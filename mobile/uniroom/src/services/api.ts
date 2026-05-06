@@ -45,6 +45,12 @@ export const decidirRenta = (id: string, estado_renta: 'APROBADO' | 'RECHAZADO')
     body: JSON.stringify({ estado_renta }),
   });
 
+export const marcarCitaRealizada = (id: string) =>
+  apiRequest(`/citas/${id}/realizada`, {
+    method: 'PATCH',
+    body: JSON.stringify({}),
+  });
+
 export const obtenerHistorialPagos = () => apiRequest('/payments/history');
 
 export const obtenerRentaActual = (userId: string) =>
@@ -61,26 +67,11 @@ export const crearCalificacion = (data: { id_inmueble: number; calificacion: num
     body: JSON.stringify(data),
   });
 
-export const marcarCitaRealizada = (id: string) =>
-  apiRequest(`/citas/${id}/realizada`, {
-    method: 'POST',
-  });
-
-export const decisionRenta = (id: string, decision: string) =>
-  apiRequest(`/citas/${id}/decision-renta`, {
-    method: 'PUT',
-    body: JSON.stringify({ estado_renta: decision }),
-  });
-
 export const crearCalificacionEstudiante = (data: { id_estudiante: string; calificacion: number; comentario?: string }) =>
   apiRequest('/calificaciones/estudiantes', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
-export const obtenerPerfil = (userId: string, token: string) =>
-  fetch(`${API_URL}/users/${userId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-  }).then(res => res.json());
+export const obtenerPerfil = (userId: string) =>
+  apiRequest(`/users/${userId}`);

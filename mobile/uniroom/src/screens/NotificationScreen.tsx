@@ -68,11 +68,20 @@ export default function NotificationScreen() {
   const userIdRef = useRef(userId);
   useEffect(() => { userIdRef.current = userId; }, [userId]);
 
+  const [citasOcultas, setCitasOcultas] = useState<string[]>([]);
+  const [citasLeidas, setCitasLeidas] = useState<string[]>([]);
+
   // --- INICIALIZACIÓN Y WEBSOCKETS ---
   useEffect(() => {
     const init = async () => {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
+
+      // Cargar preferencias locales de citas (ocultas y leídas)
+      const ocultas = await AsyncStorage.getItem('citas_ocultas');
+      if (ocultas) setCitasOcultas(JSON.parse(ocultas));
+      const leidas = await AsyncStorage.getItem('citas_leidas');
+      if (leidas) setCitasLeidas(JSON.parse(leidas));
       
       const payload = JSON.parse(atob(token.split('.')[1]));
       const id = payload.sub || payload.id_usuario; 
@@ -350,12 +359,12 @@ export default function NotificationScreen() {
           tipo,
           titulo,
           mensaje,
-          leida: false,
+          leida: citasLeidas.includes(cita.id_cita), // Cargar estado de lectura local
           remitente: titular || 'Sistema',
           fecha: new Date(cita.fecha_hora).toLocaleString(),
           datosExtra: cita,
         };
-      }).filter(n => n.tipo !== '');
+      }).filter(n => n.tipo !== '' && !citasOcultas.includes(n.id)); // Ocultar si está en la lista negra
       
       setNotificaciones(prev => {
         const idsExistentes = new Set(prev.map(n => n.id));
@@ -374,6 +383,14 @@ export default function NotificationScreen() {
 
     if (!item.leida) {
       setNotificaciones(prev => prev.map(n => n.id === item.id ? { ...n, leida: true } : n));
+      
+      // Si es una cita, guardar estado de lectura localmente (por ahora)
+      if (item.datosExtra?.id_cita) {
+        const listaLeidasActualizada = [...new Set([...citasLeidas, item.id])];
+        setCitasLeidas(listaLeidasActualizada);
+        AsyncStorage.setItem('citas_leidas', JSON.stringify(listaLeidasActualizada));
+      }
+
       refreshUnreadCount();
       try {
         const token = await AsyncStorage.getItem('token');
@@ -547,45 +564,48 @@ export default function NotificationScreen() {
   const ejecutarBorrado = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      // Usamos el mismo patrón de ID que en marcarTodoVisto
-      let currentId = userId;
-      if (!currentId) {
-        currentId = await AsyncStorage.getItem('userId');
-      }
+      let currentId = userId || await AsyncStorage.getItem('userId');
 
       if (!currentId) {
         Alert.alert("Error", "No se pudo identificar al usuario.");
         return;
       }
 
+      // 1. Borrar notificaciones normales en el backend
       const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${currentId}/todas`, { 
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      // 2. Ocultar citas finalizadas en el backend de forma persistente
+      await fetch(`${BACKEND_URL}/citas/ocultar-todas`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (respuesta.ok) {
         const data = await respuesta.json().catch(() => ({}));
-        // Solo quitamos de la lista las que ya estaban leídas si el servidor confirmó
-        // EXCEPCIÓN: Mantenemos las Citas aunque estén leídas porque no se borran en la BD
-        const tiposCitas = ['solicitud_cita', 'respuesta_cita', 'decision_renta_pendiente', 'decision_renta'];
+        
+        // 3. ACTUALIZACIÓN INMEDIATA DEL ESTADO LOCAL
+        const estadosFinales = ['RENTA_APROBADA', 'RECHAZADA', 'RENTA_RECHAZADA'];
         
         setNotificaciones(prev => prev.filter(n => {
-          const esCita = tiposCitas.includes(n.tipo);
-          if (esCita) return true; // Las citas se quedan siempre
-          return !n.leida; // Las notificaciones normales solo se quedan si no han sido leídas
+          // Si es una cita...
+          if (n.datosExtra?.id_cita) {
+            // Mantener solo si NO está en un estado final (las activas se quedan)
+            return !estadosFinales.includes(n.datosExtra.estado);
+          }
+          // Si es notificación normal, el delete del backend ya borró las leídas,
+          // así que aquí solo mantenemos las NO leídas que queden en el estado.
+          return !n.leida;
         }));
-        
+
         refreshUnreadCount();
         const cantidad = data.count !== undefined ? data.count : '';
-        mostrarTooltip(`¡Borrados! ${cantidad} eliminados. (Las citas persisten)`);
-      } else {
-        const errorData = await respuesta.json().catch(() => ({}));
-        Alert.alert("Error", errorData.error || "No se pudo limpiar la bandeja en el servidor.");
+        mostrarTooltip(`¡Bandeja limpia! ${cantidad} eliminados.`);
       }
     } catch (error) { 
-      console.error("Error al borrar notificaciones:", error);
+      console.error("Error al borrar:", error);
       Alert.alert("Error de conexión", "Revisa tu internet.");
     }
   };
@@ -645,11 +665,26 @@ export default function NotificationScreen() {
       const contentType = respuesta.headers.get("content-type");
       if (respuesta.ok) {
         const data = await respuesta.json().catch(() => ({}));
+
+        // 1. Marcar como leídas las notificaciones normales en el estado
         setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })));
+
+        // 2. Persistir localmente que todas las citas actuales se marquen como leídas
+        const idsCitasActuales = notificaciones
+          .filter(n => n.datosExtra?.id_cita)
+          .map(n => n.id);
+
+        if (idsCitasActuales.length > 0) {
+          const listaLeidasActualizada = [...new Set([...citasLeidas, ...idsCitasActuales])];
+          setCitasLeidas(listaLeidasActualizada);
+          await AsyncStorage.setItem('citas_leidas', JSON.stringify(listaLeidasActualizada));
+        }
+
         refreshUnreadCount();
         const cantidad = data.count !== undefined ? data.count : '';
-        mostrarTooltip(`¡Hecho! ${cantidad} marcados. (Citas no incluidas)`);
-      } else {
+        mostrarTooltip(`¡Hecho! ${cantidad} marcados.`);
+      }
+ else {
         let mensajeError = `Error (${respuesta.status})`;
         if (contentType && contentType.includes("application/json")) {
            const errorData = await respuesta.json();
@@ -803,9 +838,23 @@ export default function NotificationScreen() {
                       <Text style={styles.textoBotonAceptar}>Aceptar</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.botonRechazar} onPress={() => {
-                      Alert.prompt('Motivo de rechazo', 'Escribe el motivo (opcional)', (motivo) =>
-                        responderSolicitud(notificacionSeleccionada, false, motivo)
-                      );
+                      if (Platform.OS === 'ios') {
+                        Alert.prompt(
+                          'Motivo de rechazo', 
+                          'Escribe el motivo del rechazo (opcional):', 
+                          (motivo) => responderSolicitud(notificacionSeleccionada, false, motivo)
+                        );
+                      } else {
+                        // Para Android o como fallback: Preguntar confirmación simple
+                        Alert.alert(
+                          'Rechazar Cita',
+                          '¿Estás seguro de que deseas rechazar esta solicitud de visita?',
+                          [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Rechazar', style: 'destructive', onPress: () => responderSolicitud(notificacionSeleccionada, false) }
+                          ]
+                        );
+                      }
                     }}>
                       <Text style={styles.textoBotonRechazar}>Rechazar</Text>
                     </TouchableOpacity>
