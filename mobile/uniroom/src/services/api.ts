@@ -36,3 +36,11 @@ export const actualizarEstadoCita = (id: string, estado: string, motivo_rechazo?
     method: 'PATCH',
     body: JSON.stringify({ estado, motivo_rechazo, nueva_fecha_hora }),
   });
+
+export const decidirRenta = (id: string, estado_renta: 'APROBADO' | 'RECHAZADO') =>
+  apiRequest(`/citas/${id}/decision-renta`, {
+    method: 'PUT',
+    body: JSON.stringify({ estado_renta }),
+  });
+
+export const obtenerHistorialPagos = () => apiRequest('/payments/history');

@@ -20,6 +20,9 @@ export default function PaymentScreen({ navigation, route }: any) {
     
     // Obtener info del usuario logueado o datos necesarios del route param
     const token = route.params?.token; // Token JWT del backend
+    const id_inmueble = route.params?.id_inmueble;
+    const precio_mensual = route.params?.precio_mensual || 0;
+    const titulo_inmueble = route.params?.titulo || 'Inmueble';
     
     const [cardNumber, setCardNumber] = useState('');
     const [expiration, setExpiration] = useState(''); // Formato MM/YY
@@ -129,7 +132,7 @@ export default function PaymentScreen({ navigation, route }: any) {
                 body: JSON.stringify({
                     token: cardToken,
                     payment_method_id: getPaymentMethodId(cardNumber), // Detectado dinámicamente
-                    transaction_amount: 50, // Costo de la tarifa
+                    id_inmueble: id_inmueble,
                     installments: 1,
                     saveCard: saveCard,
                     issuer_id: tokenData.issuer_id || undefined
@@ -143,7 +146,7 @@ export default function PaymentScreen({ navigation, route }: any) {
             }
 
             // Éxito
-            setSuccessMessage("La tarifa se ha cubierto. Ahora puedes contactar al arrendador.");
+            setSuccessMessage(`Has pagado la renta de ${titulo_inmueble} exitosamente.`);
             
             // Regresa a InmuebleScreen después de 2 segundos
             setTimeout(() => {
@@ -168,8 +171,8 @@ export default function PaymentScreen({ navigation, route }: any) {
                     <MaterialCommunityIcons name="chevron-left" size={28} color="#0F2C4F"/>
                 </TouchableOpacity>
 
-                <Text style={styles.title}>Tarifa de Servicio</Text>
-                <Text style={styles.subtitle}>Completa el pago seguro para acceder a la información de contacto.</Text>
+                <Text style={styles.title}>Pago de Renta</Text>
+                <Text style={styles.subtitle}>Completa el pago seguro para rentar: {titulo_inmueble}.</Text>
 
                 {errorMessage ? (
                     <View style={styles.errorContainer}>
@@ -190,7 +193,7 @@ export default function PaymentScreen({ navigation, route }: any) {
 
                 <View style={styles.amountContainer}>
                     <Text style={styles.amountLabel}>Total a pagar</Text>
-                    <Text style={styles.amountValue}>$50.00 MXN</Text>
+                    <Text style={styles.amountValue}>${precio_mensual.toLocaleString('es-MX')} MXN</Text>
                 </View>
 
                 {/* Tarjeta Virtual Visual */}

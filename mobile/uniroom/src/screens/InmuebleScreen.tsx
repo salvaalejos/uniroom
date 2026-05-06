@@ -1,5 +1,5 @@
 // ─ Importes ─
-import { View, Text, TextInput, Image, StyleSheet, ScrollView, TouchableOpacity, Modal, Dimensions } from "react-native"
+import { View, Text, TextInput, Image, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState, useRef, useEffect } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
@@ -71,7 +71,6 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
     const [favorito, setFavorito] = useState(false)
     const [imagenActual, setImagenActual] = useState(0)
     const [verComentarios, setVerComentarios] = useState(false)
-    const [modalTarifaVisible, setModalTarifaVisible] = useState(false) // FIX 4: estaba sin declarar
 
     // ── FIX 1: esVideo y videoSource ahora usan imagenActual ya declarado arriba ──
     const esVideo = inmueble?.media?.[imagenActual]?.tipo === "video"
@@ -351,56 +350,52 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     <Text style={styles.footerMes}>/ mes</Text>
                 </View>
 
-                <TouchableOpacity
-                    style={styles.btnContacto}
-                    onPress={() => {
-                        onClose()
-                        navigation.navigate("Navigator", {
-                            screen: "Inmuebles",
-                            params: {
-                                screen: "AgendarCita",
-                                params: { inmueble, token }
-                            }
-                        })
-                    }}
-                >
-                    <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>
-                    <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
-                </TouchableOpacity>
+                {inmueble.puede_rentar ? (
+                    <TouchableOpacity
+                        style={[styles.btnContacto, { backgroundColor: '#27AE60' }]}
+                        onPress={() => {
+                            onClose()
+                            navigation.navigate("PaymentScreen", { 
+                                token: token,
+                                id_inmueble: inmueble.id_inmueble,
+                                precio_mensual: Number(inmueble.precio_mensual),
+                                titulo: inmueble.titulo
+                            })
+                        }}
+                    >
+                        <MaterialCommunityIcons name="check-circle" size={18} color="#fff"/>
+                        <Text style={styles.btnContactoTexto}>Rentar</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity
+                        style={styles.btnContacto}
+                        onPress={() => {
+                            onClose()
+                            navigation.navigate("Navigator", {
+                                screen: "Inmuebles",
+                                params: {
+                                    screen: "AgendarCita",
+                                    params: { inmueble, token }
+                                }
+                            })
+                        }}
+                    >
+                        <MaterialCommunityIcons name="calendar" size={18} color="#fff"/>
+                        <Text style={styles.btnContactoTexto}>Agendar</Text>
+                    </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                     style={styles.btnContacto}
-                    onPress={() => setModalTarifaVisible(true)}
+                    onPress={() => {
+                        const contacto = inmueble.arrendador?.numero_contacto || "No disponible";
+                        Alert.alert("Contacto del Arrendador", `Teléfono: ${contacto}`);
+                    }}
                 >
                     <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
                     <Text style={styles.btnContactoTexto}>Contactar</Text>
                 </TouchableOpacity>
             </View>
-
-            {/* Modal de Tarifa de Servicio */}
-            <Modal visible={modalTarifaVisible} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
-                        <MaterialCommunityIcons name="shield-check" size={48} color="#205EA6" style={{ marginBottom: 16 }} />
-                        <Text style={styles.modalTitle}>Tarifa de Contacto</Text>
-                        <Text style={styles.modalText}>
-                            Para proteger a nuestra comunidad y garantizar un servicio de calidad, cobramos una pequeña tarifa de $50 MXN para contactar a este arrendador.
-                        </Text>
-                        <TouchableOpacity
-                            style={styles.btnPagar}
-                            onPress={() => {
-                                setModalTarifaVisible(false)
-                                navigation.navigate("PaymentScreen", { token: token })
-                            }}
-                        >
-                            <Text style={styles.btnPagarTexto}>Entendido, proceder al pago</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalTarifaVisible(false)}>
-                            <Text style={styles.btnCancelarTexto}>Cancelar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
         </View>
     )
 }
@@ -645,59 +640,6 @@ const styles = StyleSheet.create({
     btnContactoTexto: {
         color: "#fff",
         fontWeight: "700",
-        fontSize: 15,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 24,
-    },
-    modalCard: {
-        backgroundColor: "#fff",
-        borderRadius: 24,
-        padding: 32,
-        alignItems: "center",
-        width: "100%",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 20,
-        elevation: 10,
-    },
-    modalTitle: {
-        fontSize: 22,
-        fontWeight: "bold",
-        color: "#0F2C4F",
-        marginBottom: 12,
-    },
-    modalText: {
-        fontSize: 15,
-        color: "#666",
-        textAlign: "center",
-        lineHeight: 22,
-        marginBottom: 24,
-    },
-    btnPagar: {
-        backgroundColor: "#205EA6",
-        width: "100%",
-        padding: 16,
-        borderRadius: 12,
-        alignItems: "center",
-        marginBottom: 12,
-    },
-    btnPagarTexto: {
-        color: "#fff",
-        fontWeight: "bold",
-        fontSize: 16,
-    },
-    btnCancelar: {
-        padding: 12,
-    },
-    btnCancelarTexto: {
-        color: "#888",
-        fontWeight: "600",
         fontSize: 15,
     }
 })

@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
     StyleSheet, Text, View, TextInput, TouchableOpacity,
     KeyboardAvoidingView, Platform, ScrollView, Image, Pressable,
-    ActivityIndicator, Alert, Modal
+    ActivityIndicator, Alert, Modal, Linking
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -32,6 +32,27 @@ export default function EditProfileScreen({ navigation, route }: any) {
     const [modalVisible, setModalVisible] = useState(false);
     const [modalConfig, setModalConfig] = useState({ title: '', message: '', isEmailChange: false });
     const { colors, isDark } = useTheme();
+    const [mpLinked, setMpLinked] = useState(!!userToEdit?.mp_vendedor_id);
+    const [linkingMP, setLinkingMP] = useState(false);
+
+    const handleLinkMercadoPago = async () => {
+        setLinkingMP(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/oauth/url`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (data.url) {
+                await Linking.openURL(data.url);
+            } else {
+                Alert.alert('Error', 'No se pudo obtener la URL de vinculación.');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'No se pudo conectar con el servidor.');
+        } finally {
+            setLinkingMP(false);
+        }
+    };
 
     const selectPic = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -248,6 +269,43 @@ export default function EditProfileScreen({ navigation, route }: any) {
                         </TouchableOpacity>
                     </View>
 
+                    {/* Sección de Mercado Pago (solo arrendadores) */}
+                    {userToEdit?.rol === 'ARRENDADOR' && (
+                        <View style={[styles.mpSection, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                            <View style={styles.mpHeader}>
+                                <MaterialCommunityIcons name="credit-card-check-outline" size={24} color={mpLinked ? '#27AE60' : colors.textSecondary} />
+                                <Text style={[styles.mpTitle, { color: colors.textPrimary }]}>Mercado Pago</Text>
+                            </View>
+                            {mpLinked ? (
+                                <View style={styles.mpLinkedContainer}>
+                                    <View style={[styles.mpStatusBadge, { backgroundColor: '#E8F5E9' }]}>
+                                        <MaterialCommunityIcons name="check-circle" size={16} color="#27AE60" />
+                                        <Text style={styles.mpStatusText}>Cuenta vinculada</Text>
+                                    </View>
+                                    <Text style={[styles.mpDescription, { color: colors.textSecondary }]}>Tu cuenta de Mercado Pago está conectada. Los pagos de renta llegarán directamente a tu saldo.</Text>
+                                </View>
+                            ) : (
+                                <View>
+                                    <Text style={[styles.mpDescription, { color: colors.textSecondary }]}>Vincula tu cuenta de Mercado Pago para recibir los pagos de tus inquilinos automáticamente.</Text>
+                                    <TouchableOpacity
+                                        style={[styles.mpLinkButton, linkingMP && { opacity: 0.7 }]}
+                                        onPress={handleLinkMercadoPago}
+                                        disabled={linkingMP}
+                                    >
+                                        {linkingMP ? (
+                                            <ActivityIndicator color="#fff" />
+                                        ) : (
+                                            <>
+                                                <MaterialCommunityIcons name="link-variant" size={20} color="#fff" />
+                                                <Text style={styles.mpLinkButtonText}>Vincular Mercado Pago</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
+                    )}
+
                     <TouchableOpacity 
                         style={[styles.registerButton, { backgroundColor: colors.buttonMain }, isLoading && styles.registerButtonDisabled]} 
                         onPress={handleUpdate}
@@ -338,5 +396,33 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
     modalMessage: { fontSize: 15, textAlign: 'center', marginBottom: 25, lineHeight: 22 },
     modalButton: { width: '100%', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-    modalButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }
+    modalButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+    mpSection: {
+        borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 24,
+    },
+    mpHeader: {
+        flexDirection: 'row', alignItems: 'center', marginBottom: 12,
+    },
+    mpTitle: {
+        fontSize: 18, fontWeight: 'bold', marginLeft: 8,
+    },
+    mpLinkedContainer: {
+    },
+    mpStatusBadge: {
+        flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
+        paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 8,
+    },
+    mpStatusText: {
+        fontSize: 13, fontWeight: '600', color: '#27AE60', marginLeft: 6,
+    },
+    mpDescription: {
+        fontSize: 14, lineHeight: 20, marginBottom: 12,
+    },
+    mpLinkButton: {
+        backgroundColor: '#009EE3', flexDirection: 'row', alignItems: 'center',
+        justifyContent: 'center', padding: 14, borderRadius: 12,
+    },
+    mpLinkButtonText: {
+        color: '#fff', fontWeight: 'bold', fontSize: 16, marginLeft: 8,
+    },
 });

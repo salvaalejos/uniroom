@@ -177,4 +177,52 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         nueva_fecha_hora: t.Optional(t.String()),
       }),
     }
+  )
+  // 4. Decisión de renta (solo anfitrión aprueba/rechaza después de la visita)
+  .put(
+    "/:id/decision-renta",
+    async ({ params: { id }, body, user, set }) => {
+      const cita = await db.cita.findUnique({
+        where: { id_cita: id },
+        include: { inmueble: true, estudiante: true },
+      });
+      if (!cita) {
+        set.status = 404;
+        return { error: "Cita no encontrada" };
+      }
+      if (cita.id_anfitrion !== user.id_usuario) {
+        set.status = 403;
+        return { error: "No eres el anfitrión de esta propiedad" };
+      }
+      const { estado_renta } = body;
+      
+      const citaActualizada = await db.cita.update({
+        where: { id_cita: id },
+        data: { estado_renta },
+        include: { estudiante: true, inmueble: true },
+      });
+
+      // Notificar al estudiante
+      if (estado_renta === "APROBADO") {
+        await db.notificacion.create({
+          data: {
+            titulo: "¡Aprobado para rentar!",
+            mensaje: `El arrendador ${user.nombre} ha aceptado tu solicitud. Ahora puedes rentar ${citaActualizada.inmueble.titulo}.`,
+            tipo: "RENTA_APROBADA",
+            remitente_nombre: `${user.nombre} ${user.apellidos}`,
+            usuario_id: citaActualizada.id_estudiante
+          }
+        });
+      }
+
+      return citaActualizada;
+    },
+    {
+      body: t.Object({
+        estado_renta: t.Union([
+          t.Literal("APROBADO"),
+          t.Literal("RECHAZADO"),
+        ])
+      }),
+    }
   );

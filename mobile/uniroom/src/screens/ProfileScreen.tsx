@@ -197,12 +197,23 @@ export default function ProfileScreen({ navigation, route }: any) {
                         {isDark ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
                     </Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                    style={[styles.editButton, { backgroundColor: colors.buttonMain }]}
-                    onPress={fetchTransactions}>
-                    <MaterialCommunityIcons name="text-box-check-outline" size={24} color={colors.buttonText} />
-                    <Text style={[styles.editButtonText, { color: colors.buttonText }]}>Historial de Pagos</Text>
-                </TouchableOpacity>
+                {userData.rol === 'ARRENDADOR' ? (
+                    <TouchableOpacity 
+                        style={[styles.editButton, { backgroundColor: colors.buttonMain }]}
+                        onPress={() => navigation.navigate('HistorialPagosArrendador')}
+                    >
+                        <MaterialCommunityIcons name="cash-multiple" size={24} color={colors.buttonText} />
+                        <Text style={[styles.editButtonText, { color: colors.buttonText }]}>Historial de Ingresos</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity 
+                        style={[styles.editButton, { backgroundColor: colors.buttonMain }]}
+                        onPress={fetchTransactions}>
+                        <MaterialCommunityIcons name="text-box-check-outline" size={24} color={colors.buttonText} />
+                        <Text style={[styles.editButtonText, { color: colors.buttonText }]}>Historial de Pagos</Text>
+                    </TouchableOpacity>
+                )}
+                
                 <TouchableOpacity 
                     style={[styles.final_button, { backgroundColor: colors.buttonMain }]}
                     onPress={() => setShowLogoutModal(true)}>

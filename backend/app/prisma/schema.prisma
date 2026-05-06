@@ -66,6 +66,13 @@ model Usuario {
   visibilidad     Boolean       @default(false)
   email_verificado Boolean     @default(false)
   mp_customer_id  String?       @db.VarChar(100)
+  
+  // Mercado Pago OAuth (Marketplace Split Payments)
+  mp_access_token  String?      @db.Text
+  mp_refresh_token String?      @db.Text
+  mp_public_key    String?      @db.Text
+  mp_vendedor_id   String?      @db.VarChar(100)
+
   fecha_creacion  DateTime      @default(now())
 
   inmuebles_propiedad Inmueble[]     @relation("InmueblesArrendador")
@@ -101,6 +108,7 @@ model Inmueble {
   imagenes        Imagenes[]
   citas           Cita[]
   disponibilidad  Disponibilidad[]
+  transacciones   Transaccion[]
 
   fecha_creacion  DateTime        @default(now())
 }
@@ -173,8 +181,14 @@ model Transaccion {
   id_usuario      String
   usuario         Usuario  @relation(fields: [id_usuario], references: [id_usuario])
 
-  fecha_creacion  DateTime @default(now())
+  // Datos para pagos al arrendador
+  id_inmueble     Int?
+  inmueble        Inmueble? @relation(fields: [id_inmueble], references: [id_inmueble])
+  id_receptor     String?
+  comision_plataforma Decimal? @db.Decimal(10, 2)
+  estado_pago_arrendador String? @default("PENDIENTE") // PENDIENTE, TRANSFERIDO, ERROR
 
+  fecha_creacion  DateTime @default(now())
 }
 
 // --- NUEVO MODELO: Cita (visita programada entre estudiante y anfitrión) ---
@@ -182,6 +196,7 @@ model Cita {
   id_cita         String      @id @default(uuid())
   fecha_hora      DateTime                                    // Fecha y hora acordadas
   estado          EstadoCita  @default(PENDIENTE)
+  estado_renta    String?                                     // APROBADO, RECHAZADO (decisión del arrendador tras la cita)
   motivo_rechazo  String?                                     // Si es rechazada, opcionalmente un motivo
 
   // Relaciones

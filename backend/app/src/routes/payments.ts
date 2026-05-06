@@ -16,11 +16,11 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
       console.log("Webhook recibido:", body);
       const action = (body as any)?.action || (body as any)?.type;
       const dataId = (body as any)?.data?.id;
-      
+
       if ((action === "payment.created" || action === "payment.updated") && dataId) {
         // Consultar el estado del pago a Mercado Pago
         const paymentInfo = await paymentClient.get({ id: dataId });
-        
+
         if (paymentInfo && paymentInfo.status) {
           // Actualizar la transacción en nuestra BD
           await db.transaccion.updateMany({
@@ -100,17 +100,54 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
           }
         }
 
-        // Procesar el pago
+        const idInmueble = body.id_inmueble;
+        if (!idInmueble) {
+          set.status = 400;
+          return { error: "Falta id_inmueble" };
+        }
+
+        const inmueble = await db.inmueble.findUnique({
+          where: { id_inmueble: idInmueble },
+          include: { arrendador: true }
+        });
+
+        if (!inmueble) {
+          set.status = 404;
+          return { error: "Inmueble no encontrado" };
+        }
+
+        const montoRenta = Number(inmueble.precio_mensual);
+        if (isNaN(montoRenta) || montoRenta <= 0) {
+          set.status = 400;
+          return { error: "Precio del inmueble inválido" };
+        }
+
+        const comision = Math.round(montoRenta * 0.02 * 100) / 100; // 2% redondeado a centavos
+        const montoArrendador = montoRenta - comision;
+
+        // Verificar que el arrendador tenga su cuenta de MP vinculada
+        if (!inmueble.arrendador.mp_access_token) {
+          set.status = 400;
+          return { error: "El arrendador no ha vinculado su cuenta de Mercado Pago. No se puede procesar el pago." };
+        }
+
+        // Crear cliente de MP con el token del ARRENDADOR (Marketplace Split)
+        const landlordMPConfig = new MercadoPagoConfig({ accessToken: inmueble.arrendador.mp_access_token });
+        const landlordPayment = new Payment(landlordMPConfig);
+
+        // Procesar el pago: el dinero va a la cuenta del arrendador,
+        // y application_fee se retiene automáticamente en la cuenta de UniRoom
         const paymentData: any = {
           body: {
-            transaction_amount: body.transaction_amount || 50, // Tarifa por defecto de 50 MXN
-            description: "Tarifa de servicio de contacto UniR00M",
+            transaction_amount: montoRenta,
+            description: `Pago de Renta: ${inmueble.titulo}`,
             payment_method_id: body.payment_method_id,
             payer: {
               email: user.email,
             },
             installments: body.installments || 1,
-            token: body.token, // Puede ser el token recién generado o el token de una tarjeta guardada
+            token: body.token,
+            application_fee: comision,
           }
         };
 
@@ -118,31 +155,52 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
           paymentData.body.issuer_id = body.issuer_id;
         }
 
-        const result = await paymentClient.create(paymentData);
-
-        // Log para ver en la consola de Bun que el pago fue exitoso
-        console.log(`✅ [MercadoPago] Pago procesado: ID=${result.id} | Estado=${result.status} | Detalle=${result.status_detail}`);
-
-        // Guardar transacción en la base de datos
-        await db.transaccion.create({
-          data: {
-            monto: body.transaction_amount || 50,
-            estado: result.status || "pending",
-            payment_id: result.id?.toString(),
-            descripcion: "Tarifa de servicio de contacto",
-            id_usuario: user.id_usuario,
-          }
-        });
+        const result = await landlordPayment.create(paymentData);
+        console.log(`✅ [MercadoPago Split] Pago procesado: ID=${result.id} | Estado=${result.status} | Comisión=$${comision}`);
 
         if (result.status === "rejected") {
           set.status = 400;
           return { error: "El pago fue rechazado", detail: result.status_detail };
         }
 
+        // Crear la transacción en la base de datos
+        const transaccion = await db.transaccion.create({
+          data: {
+            monto: montoRenta,
+            estado: result.status || "pending",
+            payment_id: result.id?.toString(),
+            descripcion: `Pago de Renta: ${inmueble.titulo}`,
+            id_usuario: user.id_usuario,
+            id_inmueble: inmueble.id_inmueble,
+            id_receptor: inmueble.id_arrendador,
+            comision_plataforma: comision,
+            // Con Split Payments el dinero ya llegó a la cuenta MP del arrendador
+            estado_pago_arrendador: result.status === "approved" ? "TRANSFERIDO" : "PENDIENTE"
+          }
+        });
+
+        // Notificar al arrendador si el pago fue exitoso
+        if (result.status === "approved") {
+          try {
+            await db.notificacion.create({
+              data: {
+                titulo: "¡Renta Pagada!",
+                mensaje: `El estudiante ha pagado la renta de ${inmueble.titulo}. Ya tienes $${montoArrendador.toFixed(2)} MXN en tu cuenta de Mercado Pago.`,
+                tipo: "PAGO_RECIBIDO",
+                remitente_nombre: "Sistema UniRoom",
+                usuario_id: inmueble.id_arrendador
+              }
+            });
+          } catch (err) {
+            console.error("Error al notificar al arrendador:", err);
+          }
+        }
+
         return {
           status: result.status,
           id: result.id,
-          message: "Pago procesado exitosamente"
+          message: "Pago de renta procesado exitosamente",
+          payout_status: result.status === "approved" ? "TRANSFERIDO" : "PENDIENTE"
         };
       } catch (error: any) {
         console.error("Error procesando pago:", error);
@@ -155,7 +213,7 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
         token: t.String(),
         payment_method_id: t.String(),
         issuer_id: t.Optional(t.String()),
-        transaction_amount: t.Optional(t.Number()),
+        id_inmueble: t.Number(),
         installments: t.Optional(t.Number()),
         saveCard: t.Optional(t.Boolean()),
       })
@@ -174,6 +232,30 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
         console.error("Error obteniendo tarjetas:", error);
         set.status = 500;
         return { error: "No se pudieron obtener las tarjetas guardadas" };
+      }
+    }
+  )
+  .get(
+    "/history",
+    async ({ user, set }) => {
+      try {
+        if (user.rol !== "ARRENDADOR") {
+          set.status = 403;
+          return { error: "Solo los arrendadores tienen historial de ingresos" };
+        }
+        const transacciones = await db.transaccion.findMany({
+          where: { id_receptor: user.id_usuario },
+          orderBy: { fecha_creacion: 'desc' },
+          include: {
+            inmueble: { select: { titulo: true } },
+            usuario: { select: { nombre: true, apellidos: true } }
+          }
+        });
+        return { transacciones };
+      } catch (error) {
+        console.error("Error obteniendo historial de pagos:", error);
+        set.status = 500;
+        return { error: "No se pudo obtener el historial" };
       }
     }
   );
