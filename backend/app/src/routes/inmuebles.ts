@@ -215,6 +215,20 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         return { error: "No autorizado para ver este inmueble oculto" };
       }
     }
+    // Verificar si el usuario autenticado (estudiante) tiene una cita aprobada para rentar
+    let puede_rentar = false;
+    if (authenticatedUser && authenticatedUser.rol === "ESTUDIANTE") {
+      const citaAprobada = await db.cita.findFirst({
+        where: {
+          id_inmueble: parseInt(id),
+          id_estudiante: authenticatedUser.id_usuario,
+          estado_renta: "APROBADO"
+        }
+      });
+      if (citaAprobada) {
+        puede_rentar = true;
+      }
+    }
     
     // Verificar si el usuario autenticado está rentando actualmente
     let usuarioActualmenteRentando = false;
@@ -244,7 +258,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
     delete result.estudianteAutorizado;
     
     // Si no está oculto, cualquier usuario autenticado (estudiante o arrendador) lo puede ver
-    return result;
+    return { ...result, puede_rentar };
   })
 
   // 3. Crear un nuevo inmueble (solo arrendadores)
@@ -257,6 +271,11 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
           console.error("[Inmuebles] Error: No hay usuario en el token");
           set.status = 401;
           return { error: "No autenticado" };
+        }
+
+        if (authenticatedUser.rol === "ARRENDADOR" && !authenticatedUser.mp_access_token) {
+          set.status = 400;
+          return { error: "Necesitas vincular tu cuenta de Mercado Pago en tu perfil antes de publicar un inmueble." };
         }
 
         const { titulo, precio_mensual, descripcion, direccion_latitud, direccion_longitud, tipo_inmueble, servicios, restricciones, imagenes, horariosVisita } = body as any;

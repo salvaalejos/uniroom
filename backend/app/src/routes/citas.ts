@@ -256,8 +256,8 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       return citaActualizada;
     }
   )
-  // 5. Decisión de renta (solo anfitrión)
-  .patch(
+  // 5. Decisión de renta (solo anfitrión aprueba/rechaza después de la visita)
+  .put(
     "/:id/decision-renta",
     async ({ params: { id }, body, user, set }) => {
       const cita = await db.cita.findUnique({
@@ -272,63 +272,35 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         set.status = 403;
         return { error: "No eres el anfitrión de esta propiedad" };
       }
-      if (cita.estado !== "REALIZADA") {
-        set.status = 400;
-        return { error: "Solo se puede decidir sobre citas realizadas" };
-      }
-      const { decision } = body;
-      if (decision !== "APROBAR" && decision !== "RECHAZAR") {
-        set.status = 400;
-        return { error: "Decisión debe ser APROBAR o RECHAZAR" };
-      }
-      const nuevoEstado = decision === "APROBAR" ? "RENTA_APROBADA" : "RENTA_RECHAZADA";
-      // Si aprueba, actualizar el inmueble con el estudiante autorizado
-      if (decision === "APROBAR") {
-        await db.inmueble.update({
-          where: { id_inmueble: cita.id_inmueble },
-          data: { id_estudiante_autorizado: cita.id_estudiante },
-        });
-      }
+      const { estado_renta } = body;
+      
       const citaActualizada = await db.cita.update({
         where: { id_cita: id },
-        data: { estado: nuevoEstado },
+        data: { estado_renta },
         include: { estudiante: true, inmueble: true },
       });
-      // Crear notificación en BD para el estudiante
-      await db.notificacion.create({
-        data: {
-          usuario_id: citaActualizada.id_estudiante,
-          titulo: decision === "APROBAR" ? "¡Renta aprobada!" : "Renta rechazada",
-          mensaje:
-            decision === "APROBAR"
-              ? `El arrendador ${user.nombre} ${user.apellidos} te ha autorizado para rentar ${citaActualizada.inmueble.titulo}. ¡Procede al pago para confirmar tu renta!`
-              : `El arrendador ${user.nombre} ${user.apellidos} ha decidido no autorizarte para rentar ${citaActualizada.inmueble.titulo}.`,
-          tipo: "decision_renta",
-          remitente_nombre: `${user.nombre} ${user.apellidos}`,
-          remitente_id: user.id_usuario,
-          visto: false,
-          relacionado_a: citaActualizada.id_cita,
-        },
-      });
-      // Notificar al estudiante vía WebSocket
-      emitToUser(citaActualizada.id_estudiante, "decision_renta", {
-        id: citaActualizada.id_cita,
-        aceptada: decision === "APROBAR",
-        propiedadId: citaActualizada.id_inmueble,
-        propiedadTitulo: citaActualizada.inmueble.titulo,
-        anfitrionNombre: `${user.nombre} ${user.apellidos}`,
-        remitenteFoto: user.foto,
-        fecha: citaActualizada.fecha_hora.toISOString(),
-        mensaje:
-          decision === "APROBAR"
-            ? `Has sido autorizado para rentar ${citaActualizada.inmueble.titulo}`
-            : `No fuiste seleccionado para rentar ${citaActualizada.inmueble.titulo}`,
-      });
+
+      // Notificar al estudiante
+      if (estado_renta === "APROBADO") {
+        await db.notificacion.create({
+          data: {
+            titulo: "¡Aprobado para rentar!",
+            mensaje: `El arrendador ${user.nombre} ha aceptado tu solicitud. Ahora puedes rentar ${citaActualizada.inmueble.titulo}.`,
+            tipo: "RENTA_APROBADA",
+            remitente_nombre: `${user.nombre} ${user.apellidos}`,
+            usuario_id: citaActualizada.id_estudiante
+          }
+        });
+      }
+
       return citaActualizada;
     },
     {
       body: t.Object({
-        decision: t.Union([t.Literal("APROBAR"), t.Literal("RECHAZAR")]),
+        estado_renta: t.Union([
+          t.Literal("APROBADO"),
+          t.Literal("RECHAZADO"),
+        ])
       }),
     }
   )
