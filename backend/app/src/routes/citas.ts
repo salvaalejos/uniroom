@@ -287,8 +287,8 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       }
     }
   )
-  // 5. Decisión de renta (solo anfitrión)
-  .patch(
+  // 5. Decisión de renta (solo anfitrión aprueba/rechaza después de la visita)
+  .put(
     "/:id/decision-renta",
     async ({ params: { id }, body, user, set }) => {
       const citaPrevia = await db.cita.findUnique({ where: { id_cita: id } });
@@ -300,7 +300,6 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         set.status = 403;
         return { error: "No eres el anfitrión de esta propiedad" };
       }
-
       const { decision } = body;
       const nuevoEstado = decision === "APROBAR" ? "RENTA_APROBADA" : "RENTA_RECHAZADA";
 
@@ -358,7 +357,10 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
     },
     {
       body: t.Object({
-        decision: t.Union([t.Literal("APROBAR"), t.Literal("RECHAZAR")]),
+        decision: t.Union([
+          t.Literal("APROBAR"),
+          t.Literal("RECHAZAR"),
+        ]),
       }),
     }
   )

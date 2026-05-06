@@ -29,6 +29,7 @@ import AgendarCita from "./AgendarCita";
 import MisInmuebles from "./MisInmuebles"
 import Upload_Renta from "./Upload_Renta"
 import HousingMapScreen from "./HousingMapScreen";
+import HistorialPagosArrendador from "./HistorialPagosArrendador";
 import Constants from 'expo-constants';
 const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
 
@@ -97,6 +98,11 @@ const Profile_Menu = ({ route }: any) => {
                 name="EditProfile"
                 component={EditProfileScreen}
                 options={{presentation: "modal", title: "Editar Perfil", headerShown: true}}>
+                </Stack.Screen>
+                <Stack.Screen
+                name="HistorialPagosArrendador"
+                component={HistorialPagosArrendador}
+                options={{presentation: "modal", title: "Historial de Ingresos", headerShown: false}}>
                 </Stack.Screen>
             </Stack.Navigator>
         )
