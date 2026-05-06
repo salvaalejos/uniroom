@@ -1,12 +1,12 @@
 # REVISIONES DE PRUEBAS RECIENTES CON MERGE DE TODOS LOS PUNTOS TRATADOS EN WHATSAPP 
 ## FALLOS INMEDIATOS A RESOLVER (ahorita los resuelv0, que la noche aún es joven como yo 💃): 
 
-- Checar apartado de cuartos al seleccionar una casa. 
-- Al agregar casa, los cuartos no se ven reflejados, eliminar por ahora el apartado de casa.
 - Si el arrendador ha confirmado la cita en la notificación, si la confirma dos veces, se envía correo nuevamente (cambiar para que si selecciona dos veces, mostrar mensaje "has respondido ya a este mensaje" and no mandar nada). 
 - Al recién pagar la renta, el apartado de notificaciones no te deja mandar notificaciones a menos que cierres sesión. 
 
 ## Completados:
+- ~~Checar apartado de cuartos al seleccionar una casa.~~ 
+- ~~Al agregar casa, los cuartos no se ven reflejados, eliminar por ahora el apartado de casa.~~
 - ~~La fotografía y nombre de usuario en la reseña son simulados (mostrar reales).~~
 - ~~Apartado de Guardar Tarjeta no guarda tarjeta.~~ 
 - ~~Botón de "Rechazar" visita no funciona correctamente.~~ 

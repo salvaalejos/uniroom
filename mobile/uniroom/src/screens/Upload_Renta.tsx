@@ -22,7 +22,7 @@ const API_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 const SERVICIOS_OPCIONES = ["WiFi", "Agua", "Luz", "Gas", "Lavadora", "Estacionamiento", "Amueblado"]
 const REGLAS_OPCIONES = ["No mascotas", "No fumar", "No fiestas", "Solo estudiantes", "No visitas"]
-const TIPOS_INMUEBLE = ["Cuarto", "Departamento", "Casa", "Estudio", "Loft"]
+const TIPOS_INMUEBLE = ["Cuarto", "Departamento", /*"Casa",*/ "Estudio", "Loft"]
 
 type Media = {
     uri: string
@@ -669,8 +669,8 @@ const Lessor_Renthouse = () => {
                     </View>
                 </View>
 
-                {/* Cuartos adicionales */}
-                {form.tipoInmueble === "Casa" && (
+                {/* Cuartos adicionales (DESACTIVADO TEMPORALMENTE) */}
+                {/* {form.tipoInmueble === "Casa" && (
                     <View style={styles.seccion}>
                         <Text style={[styles.label, { color: colors.textPrimary }]}>Cuartos adicionales</Text>
                         {form.cuartosAdicionales.map((cuarto, idx) => (
@@ -691,7 +691,7 @@ const Lessor_Renthouse = () => {
                             <Text style={[styles.btnAgregarCuartoTexto, { color: colors.buttonMain }]}>Agregar otro cuarto</Text>
                         </TouchableOpacity>
                     </View>
-                )}
+                )} */}
 
                 {/* Horarios de visita */}
                 <View style={styles.seccion}>
