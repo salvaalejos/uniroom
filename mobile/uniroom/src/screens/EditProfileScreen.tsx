@@ -19,7 +19,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
     const [fullName, setFullName] = useState(userToEdit ? `${userToEdit.nombre} ${userToEdit.apellidos}` : '');
     const [phone, setPhone] = useState(userToEdit?.numero_contacto || '');
-    const [email, setEmail] = useState(userToEdit?.email || '');
+    const email = userToEdit?.email || ''; // Email is now a constant, not editable
     const [password, setPassword] = useState('');
     const [gender, setGender] = useState<string | null>(
         userToEdit?.genero === 'MASCULINO' ? 'man' : 
@@ -74,16 +74,44 @@ export default function EditProfileScreen({ navigation, route }: any) {
     const handleUpdate = async () => {
         setErrorMessage('');
         
-        if (!fullName) {
+        // 1. Sanitización de entradas
+        const cleanFullName = fullName.trim();
+        const cleanPhone = phone.trim();
+        const cleanPassword = password.trim();
+
+        // 2. Validaciones de robustez
+        if (!cleanFullName) {
             setErrorMessage('Por favor ingresa tu nombre completo');
+            return;
+        }
+
+        const fullNameParts = cleanFullName.split(/\s+/).filter(Boolean);
+        if (fullNameParts.length < 2) {
+            setErrorMessage('Por favor ingresa al menos un nombre y un apellido');
+            return;
+        }
+
+        if (!cleanPhone) {
+            setErrorMessage('El número de teléfono es obligatorio');
+            return;
+        }
+
+        // Validación de formato de teléfono (ejemplo: 10 dígitos)
+        const phoneRegex = /^\d{10}$/;
+        if (!phoneRegex.test(cleanPhone)) {
+            setErrorMessage('El número de teléfono debe tener 10 dígitos numéricos');
+            return;
+        }
+
+        if (cleanPassword && cleanPassword.length < 6) {
+            setErrorMessage('La nueva contraseña debe tener al menos 6 caracteres');
             return;
         }
 
         setIsLoading(true);
 
-        const fullNameParts = fullName.trim().split(/\s+/).filter(Boolean);
-        const nombre = fullNameParts[0] || '';
-        const apellidos = fullNameParts.slice(1).join(' ') || '';
+        const nombre = fullNameParts[0];
+        const apellidos = fullNameParts.slice(1).join(' ');
 
         let backendGender = 'OTRO';
         if (gender === 'man') backendGender = 'MASCULINO';
@@ -92,13 +120,13 @@ export default function EditProfileScreen({ navigation, route }: any) {
         const formData = new FormData();
         formData.append('nombre', nombre);
         formData.append('apellidos', apellidos);
-        formData.append('numero_contacto', phone);
+        formData.append('numero_contacto', cleanPhone);
         formData.append('genero', backendGender);
-        if (email !== userToEdit?.email && email.trim() !== '') {
-            formData.append('email', email.trim());
-        }
-        if (password.trim() !== '') {
-            formData.append('password', password.trim());
+        
+        // El email ya no se envía ya que es de solo lectura y no debe cambiar
+        
+        if (cleanPassword !== '') {
+            formData.append('password', cleanPassword);
         }
 
         // Si picture no incluye API_BASE_URL, es una imagen local nueva
@@ -226,13 +254,13 @@ export default function EditProfileScreen({ navigation, route }: any) {
                     />
 
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        style={[styles.input, { backgroundColor: isDark ? colors.backgroundSecondary : '#F2F2F2', borderColor: colors.border, color: colors.textSecondary }]}
                         placeholder="Correo electrónico"
                         placeholderTextColor={colors.textSecondary}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         value={email}
-                        onChangeText={setEmail}
+                        editable={false}
                     />
 
                     <TextInput

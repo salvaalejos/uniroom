@@ -43,6 +43,9 @@ enum EstadoCita {
   ACEPTADA
   RECHAZADA
   REAGENDADA
+  REALIZADA
+  RENTA_APROBADA
+  RENTA_RECHAZADA
 }
 
 // --- MODELOS ---
@@ -56,6 +59,7 @@ model Usuario {
   estado          EstadoUsuario @default(ACTIVO)
 
   notificaciones Notificacion[]
+  notificaciones_enviadas Notificacion[] @relation("RemitenteNotificacion")
   
   nombre          String        @db.VarChar(100)
   apellidos       String        @db.VarChar(100)
@@ -77,9 +81,12 @@ model Usuario {
 
   inmuebles_propiedad Inmueble[]     @relation("InmueblesArrendador")
   inmuebles_rentados  Inmueble[]     @relation("InmuebleEstudiante")
-  calificaciones      Calificacion[]
-  transacciones       Transaccion[]
-  
+  inmuebles_autorizados Inmueble[]   @relation("InmuebleEstudianteAutorizado")
+  calificaciones          Calificacion[]
+  calificaciones_recibidas  CalificacionEstudiante[] @relation("EstudianteCalificado")
+  calificaciones_otorgadas  CalificacionEstudiante[] @relation("ArrendadorCalificante")
+  transacciones         Transaccion[]
+   
   // Citas como estudiante
   citas_estudiante    Cita[]          @relation("CitasEstudiante")
   // Citas como anfitrión (dueño de la propiedad)
@@ -101,6 +108,12 @@ model Inmueble {
 
   id_estudiante   String?
   estudiante      Usuario?        @relation("InmuebleEstudiante", fields: [id_estudiante], references: [id_usuario])
+
+  id_estudiante_autorizado String?  @db.VarChar(36)
+  estudianteAutorizado     Usuario? @relation("InmuebleEstudianteAutorizado", fields: [id_estudiante_autorizado], references: [id_usuario])
+
+  fecha_inicio_renta DateTime?
+  fecha_fin_renta    DateTime?
 
   servicios       Servicios[]
   restricciones   Restricciones[]
@@ -158,6 +171,20 @@ model Imagenes {
   inmueble    Inmueble @relation(fields: [id_inmueble], references: [id_inmueble])
 }
 
+// [NUEVO] Entidad: Calificación de Estudiante (por arrendadores)
+model CalificacionEstudiante {
+  id_calificacion   Int      @id @default(autoincrement())
+  calificacion      Int
+  descripcion       String?  @db.Text
+  fecha_creacion    DateTime  @default(now())
+
+  id_estudiante     String
+  estudiante        Usuario   @relation("EstudianteCalificado", fields: [id_estudiante], references: [id_usuario])
+
+  id_arrendador     String
+  arrendador       Usuario   @relation("ArrendadorCalificante", fields: [id_arrendador], references: [id_usuario])
+}
+
 model Notificacion {
   id          Int      @id @default(autoincrement())
   titulo      String
@@ -165,9 +192,14 @@ model Notificacion {
   visto       Boolean  @default(false)
   tipo        String
   fecha_creacion DateTime @default(now())
-  remitente_nombre String // Quien lo manda
+  remitente_nombre String // Quien lo manda (Caché por si el usuario se borra)
+  
+  remitente_id String?   // ID real para buscar foto y nombre actual
+  remitente    Usuario?  @relation("RemitenteNotificacion", fields: [remitente_id], references: [id_usuario])
+
   usuario_id  String
   usuario     Usuario  @relation(fields: [usuario_id], references: [id_usuario])
+  relacionado_a String?  // ID de cita, inmueble, etc. asociado
 }
 
 // [NUEVO] Entidad: Transacción (Mercado Pago)
@@ -212,6 +244,10 @@ model Cita {
   // Auditoría
   creado_en       DateTime    @default(now())
   actualizado_en  DateTime    @updatedAt
+
+  // Persistencia de notificaciones vistas/ocultas
+  visto_estudiante Boolean    @default(false)
+  visto_anfitrion  Boolean    @default(false)
 }
 
 model VerificacionEmail {

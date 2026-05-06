@@ -1,18 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import jwt from "@elysiajs/jwt";
-import { io as socketClient } from "socket.io-client";
-
-const WS_URL = process.env.WS_URL || "http://localhost:3001";
-let wsClient: any = null;
-
-function getWsClient() {
-  if (!wsClient) {
-    wsClient = socketClient(WS_URL, { transports: ["websocket"] });
-    wsClient.on("connect", () => console.log("API conectada al WS server"));
-  }
-  return wsClient;
-}
+import { emitToUser } from "../ws-server";
 
 export const citasRoutes = new Elysia({ prefix: "/citas" })
   .use(
@@ -78,16 +67,29 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         },
       });
       // Notificar al anfitrión vía WebSocket
-      const ws = getWsClient();
-      ws.emit("solicitud_cita", {
+      emitToUser(nuevaCita.id_anfitrion, "solicitud_cita", {
         id: nuevaCita.id_cita,
         propiedadId: nuevaCita.id_inmueble,
         propiedadTitulo: nuevaCita.inmueble.titulo,
         estudianteId: nuevaCita.id_estudiante,
         estudianteNombre: `${nuevaCita.estudiante.nombre} ${nuevaCita.estudiante.apellidos}`,
+        remitenteFoto: user.foto,
         anfitrionId: nuevaCita.id_anfitrion,
         fecha: nuevaCita.fecha_hora.toISOString(),
         mensaje: `Solicitud de visita para ${nuevaCita.inmueble.titulo} el ${nuevaCita.fecha_hora.toLocaleString()}`,
+      });
+      // Crear notificación en BD para el anfitrión
+      await db.notificacion.create({
+        data: {
+          usuario_id: nuevaCita.id_anfitrion,
+          titulo: "Nueva solicitud de visita",
+          mensaje: `${nuevaCita.estudiante.nombre} ${nuevaCita.estudiante.apellidos} quiere visitar tu propiedad ${nuevaCita.inmueble.titulo} el ${nuevaCita.fecha_hora.toLocaleString()}`,
+          tipo: "solicitud_cita",
+          remitente_nombre: `${nuevaCita.estudiante.nombre} ${nuevaCita.estudiante.apellidos}`,
+          remitente_id: user.id_usuario,
+          visto: false,
+          relacionado_a: nuevaCita.id_cita,
+        },
       });
       set.status = 201;
       return nuevaCita;
@@ -99,11 +101,14 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       }),
     }
   )
-  // 2. Obtener mis citas
+  // 2. Obtener mis citas (Filtrando las ocultas)
   .get("/mis-citas", async ({ user }) => {
     if (user.rol === "ESTUDIANTE") {
       return await db.cita.findMany({
-        where: { id_estudiante: user.id_usuario },
+        where: { 
+          id_estudiante: user.id_usuario,
+          visto_estudiante: false 
+        },
         include: {
           inmueble: true,
           anfitrion: { select: { nombre: true, apellidos: true, numero_contacto: true } },
@@ -112,7 +117,10 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       });
     } else {
       return await db.cita.findMany({
-        where: { id_anfitrion: user.id_usuario },
+        where: { 
+          id_anfitrion: user.id_usuario,
+          visto_anfitrion: false 
+        },
         include: {
           inmueble: true,
           estudiante: { select: { nombre: true, apellidos: true, numero_contacto: true } },
@@ -153,8 +161,7 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         data: updateData,
         include: { estudiante: true, inmueble: true },
       });
-      const ws = getWsClient();
-      ws.emit("respuesta_cita", {
+      emitToUser(citaActualizada.id_estudiante, "respuesta_cita", {
         id: citaActualizada.id_cita,
         aceptada: estado === "ACEPTADA",
         motivo: motivo_rechazo,
@@ -162,7 +169,26 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         propiedadId: citaActualizada.id_inmueble,
         propiedadTitulo: citaActualizada.inmueble.titulo,
         anfitrionNombre: `${user.nombre} ${user.apellidos}`,
+        remitenteFoto: user.foto,
         fecha: citaActualizada.fecha_hora.toISOString(),
+      });
+      // Crear notificación en BD para el estudiante
+      await db.notificacion.create({
+        data: {
+          usuario_id: citaActualizada.id_estudiante,
+          titulo: estado === "ACEPTADA" ? "Cita aceptada" : estado === "RECHAZADA" ? "Cita rechazada" : "Cita reagendada",
+          mensaje:
+            estado === "ACEPTADA"
+              ? `Tu solicitud para visitar ${citaActualizada.inmueble.titulo} ha sido ACEPTADA. Fecha: ${citaActualizada.fecha_hora.toLocaleString()}`
+              : estado === "RECHAZADA"
+              ? `Tu solicitud para visitar ${citaActualizada.inmueble.titulo} fue RECHAZADA. Motivo: ${motivo_rechazo || "No especificado"}.`
+              : `Tu cita para ${citaActualizada.inmueble.titulo} ha sido reagendada. Nueva fecha: ${citaActualizada.fecha_hora.toLocaleString()}`,
+          tipo: "respuesta_cita",
+          remitente_nombre: `${user.nombre} ${user.apellidos}`,
+          remitente_id: user.id_usuario,
+          visto: false,
+          relacionado_a: citaActualizada.id_cita,
+        },
       });
       return citaActualizada;
     },
@@ -178,7 +204,59 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       }),
     }
   )
-  // 4. Decisión de renta (solo anfitrión aprueba/rechaza después de la visita)
+  // 4. Marcar cita como realizada (solo anfitrión)
+  .patch(
+    "/:id/realizada",
+    async ({ params: { id }, user, set }) => {
+      const cita = await db.cita.findUnique({
+        where: { id_cita: id },
+        include: { inmueble: true, estudiante: true },
+      });
+      if (!cita) {
+        set.status = 404;
+        return { error: "Cita no encontrada" };
+      }
+      if (cita.id_anfitrion !== user.id_usuario) {
+        set.status = 403;
+        return { error: "No eres el anfitrión de esta propiedad" };
+      }
+      if (cita.estado !== "ACEPTADA") {
+        set.status = 400;
+        return { error: "Solo se pueden marcar como realizadas las citas aceptadas" };
+      }
+      const citaActualizada = await db.cita.update({
+        where: { id_cita: id },
+        data: { estado: "REALIZADA" },
+        include: { estudiante: true, inmueble: true },
+      });
+      // Crear notificación en BD para el anfitrión: preguntar si autoriza la renta
+      await db.notificacion.create({
+        data: {
+          usuario_id: citaActualizada.id_anfitrion,
+          titulo: "Decisión de renta requerida",
+          mensaje: `La visita de ${citaActualizada.estudiante.nombre} ${citaActualizada.estudiante.apellidos} a ${citaActualizada.inmueble.titulo} se realizó. ¿Deseas autorizarlo para rentar?`,
+          tipo: "decision_renta",
+          remitente_nombre: "Sistema UniRoom",
+          visto: false,
+          relacionado_a: citaActualizada.id_cita,
+        },
+      });
+      // Notificar al anfitrión vía WebSocket
+      emitToUser(citaActualizada.id_anfitrion, "decision_renta_pendiente", {
+        id: citaActualizada.id_cita,
+        propiedadId: citaActualizada.id_inmueble,
+        propiedadTitulo: citaActualizada.inmueble.titulo,
+        estudianteId: citaActualizada.id_estudiante,
+        estudianteNombre: `${citaActualizada.estudiante.nombre} ${citaActualizada.estudiante.apellidos}`,
+        remitenteFoto: citaActualizada.estudiante.foto,
+        anfitrionId: citaActualizada.id_anfitrion,
+        fecha: citaActualizada.fecha_hora.toISOString(),
+        mensaje: `La visita de ${citaActualizada.estudiante.nombre} ${citaActualizada.estudiante.apellidos} a ${citaActualizada.inmueble.titulo} se realizó. ¿Deseas autorizarlo para rentar?`,
+      });
+      return citaActualizada;
+    }
+  )
+  // 5. Decisión de renta (solo anfitrión aprueba/rechaza después de la visita)
   .put(
     "/:id/decision-renta",
     async ({ params: { id }, body, user, set }) => {
@@ -224,5 +302,65 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
           t.Literal("RECHAZADO"),
         ])
       }),
+    }
+  )
+  // 6. Ocultar cita para un usuario
+  .patch(
+    "/:id/ocultar",
+    async ({ params: { id }, user, set }) => {
+      const cita = await db.cita.findUnique({
+        where: { id_cita: id },
+      });
+
+      if (!cita) {
+        set.status = 404;
+        return { error: "Cita no encontrada" };
+      }
+
+      const esEstudiante = cita.id_estudiante === user.id_usuario;
+      const esAnfitrion = cita.id_anfitrion === user.id_usuario;
+
+      if (!esEstudiante && !esAnfitrion) {
+        set.status = 403;
+        return { error: "No autorizado" };
+      }
+
+      const updateData: any = {};
+      if (esEstudiante) updateData.visto_estudiante = true;
+      if (esAnfitrion) updateData.visto_anfitrion = true;
+
+      await db.cita.update({
+        where: { id_cita: id },
+        data: updateData,
+      });
+
+      return { success: true };
+    }
+  )
+  // 7. Ocultar todas las citas finalizadas de un usuario
+  .patch(
+    "/ocultar-todas",
+    async ({ user }) => {
+      const estadosFinales = ['RENTA_APROBADA', 'RECHAZADA', 'RENTA_RECHAZADA'];
+      
+      // Ocultar como estudiante
+      await db.cita.updateMany({
+        where: {
+          id_estudiante: user.id_usuario,
+          estado: { in: estadosFinales as any },
+        },
+        data: { visto_estudiante: true },
+      });
+
+      // Ocultar como anfitrión
+      await db.cita.updateMany({
+        where: {
+          id_anfitrion: user.id_usuario,
+          estado: { in: estadosFinales as any },
+        },
+        data: { visto_anfitrion: true },
+      });
+
+      return { success: true };
     }
   );
