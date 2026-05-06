@@ -248,6 +248,20 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         delete updateData.password;
       }
 
+      // Seguridad adicional: No permitir cambios de email ni de ID desde este endpoint
+      delete updateData.email;
+      delete updateData.id_usuario;
+
+      // Validación de número de contacto
+      if (updateData.numero_contacto) {
+          const cleanPhone = updateData.numero_contacto.trim();
+          if (cleanPhone.length === 0) {
+              setStatus = 400;
+              return { error: "El número de contacto es obligatorio" };
+          }
+          updateData.numero_contacto = cleanPhone;
+      }
+
       if (body.foto) {
         updateData.foto = fotoPath;
       } else {
