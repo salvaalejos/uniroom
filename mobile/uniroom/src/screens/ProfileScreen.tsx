@@ -13,14 +13,11 @@ import {
     FlatList
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggleButton from '../components/ThemeToggleButton';
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
+import { API_BASE_URL } from '../config';
 
 export default function ProfileScreen({ navigation, route }: any) {
     const [userData, setUserData] = useState<any>(null);

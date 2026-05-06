@@ -12,11 +12,8 @@ import {
     Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { useTheme } from '../context/ThemeContext';
-
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
+import { API_BASE_URL } from '../config';
 
 const OTP_LENGTH = 6;
 

@@ -1,4 +1,5 @@
 import io, { Socket } from 'socket.io-client';
+import { WS_URL } from '../config';
 
 let socket: Socket | null = null;
 
@@ -8,7 +9,7 @@ export const connectSocket = (userId: string): Promise<Socket> => {
       resolve(socket);
       return;
     }
-    socket = io('http://localhost:3001', {   // <-- puerto 3001
+    socket = io(WS_URL, {
       transports: ['websocket'],
     });
     socket.on('connect', () => {

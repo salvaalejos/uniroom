@@ -7,17 +7,14 @@ import { useVideoPlayer, VideoView } from "expo-video"
 import { useNavigation } from "@react-navigation/native"
 import { useTheme } from "../context/ThemeContext"
 import AgendarCita from "./AgendarCita"
-import Constants from "expo-constants"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import { API_BASE_URL } from "../config"
 
 // ─ Constantes ─
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 
 // Foto del anfitrion provisional
 const ANFITRION = require("../default_images/anfi.jpg")
-
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 const getMediaUri = (src: string): { uri: string } | number => {
     if (!src) return 0;
@@ -52,10 +49,8 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
     useEffect(() => {
         const checkRentaPermission = async () => {
             if (!inmueble?.id_inmueble || !token) return
-            const hostUri = Constants.expoConfig?.hostUri?.split(":").shift()
-            const API_URL = hostUri ? `http://${hostUri}:3000` : "http://localhost:3000"
             try {
-                const resp = await fetch(`${API_URL}/inmuebles/${inmueble.id_inmueble}`, {
+                const resp = await fetch(`${API_BASE_URL}/inmuebles/${inmueble.id_inmueble}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 })
                 if (resp.ok) {

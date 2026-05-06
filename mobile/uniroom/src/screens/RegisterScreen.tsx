@@ -20,13 +20,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
-
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
+import { API_BASE_URL } from '../config';
 
 export default function RegisterScreen({ navigation, route }: any) {
     // Estados para los campos de texto

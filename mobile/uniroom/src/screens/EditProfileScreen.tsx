@@ -6,12 +6,9 @@ import {
     ActivityIndicator, Alert, Modal, Linking
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
-
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
+import { API_BASE_URL } from '../config';
 
 export default function EditProfileScreen({ navigation, route }: any) {
     const userToEdit = route.params?.userData; // Data passed from ProfileScreen

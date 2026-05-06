@@ -1,9 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
-
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const BACKEND_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
+import { API_BASE_URL as BACKEND_URL } from '../config';
 
 interface NotificationContextType {
   unreadCount: number;

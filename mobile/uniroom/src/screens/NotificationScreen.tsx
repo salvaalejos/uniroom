@@ -12,10 +12,7 @@ import { obtenerMisCitas, actualizarEstadoCita, marcarCitaRealizada, decisionRen
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
-import Constants from 'expo-constants';
-
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const BACKEND_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
+import { API_BASE_URL as BACKEND_URL } from '../config';
 
 // --- TIPOS UNIFICADOS ---
 type Notificacion = {

@@ -5,8 +5,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import Constants from 'expo-constants'
 import { useTheme } from '../context/ThemeContext'
+import { API_BASE_URL as API_URL } from '../config'
 
 
 // ---- Tipo del Inmueble ----
@@ -19,9 +19,6 @@ type Inmueble = {
     estado: string
     foto: string | any
 }
-
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const API_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 const DEFAULT_IMAGE = require("../default_images/fachada.jpg");
 

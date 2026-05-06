@@ -6,11 +6,7 @@ import {
 import { MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import Constants from 'expo-constants';
-
-// URLs y Credenciales
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
+import { API_BASE_URL } from '../config';
 
 const MP_PUBLIC_KEY = process.env.EXPO_PUBLIC_MP_PUBLIC_KEY || "TEST-PUBLIC-KEY-REEMPLAZAR";
 

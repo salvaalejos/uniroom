@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+import { API_BASE_URL } from '../config';
 
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const API_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
+const API_URL = API_BASE_URL;
 
 async function getToken() {
   return await AsyncStorage.getItem('token');

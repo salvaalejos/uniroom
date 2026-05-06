@@ -4,7 +4,7 @@ import { Calendar } from "react-native-calendars"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useTheme } from "../context/ThemeContext"
-import Constants from "expo-constants"
+import { API_BASE_URL as API_URL } from "../config"
 
 // ─ Utilidades de formato ─
 const formatFechaLarga = (f: string) =>
@@ -39,8 +39,7 @@ const AgendarCita = ({ navigation, route }: any): React.ReactElement => {
     const [showExito, setShowExito] = useState(false)
     const [modalVisible, setModalVisible] = useState(false)
 
-    const hostUri = Constants.expoConfig?.hostUri?.split(":").shift();
-    const API_URL = hostUri ? `http://${hostUri}:3000` : "http://localhost:3000";
+
 
     // Cargar disponibilidad real del inmueble
     useEffect(() => {

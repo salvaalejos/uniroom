@@ -30,10 +30,7 @@ import MisInmuebles from "./MisInmuebles"
 import Upload_Renta from "./Upload_Renta"
 import HousingMapScreen from "./HousingMapScreen";
 import HistorialPagosArrendador from "./HistorialPagosArrendador";
-import Constants from 'expo-constants';
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';;
+import { API_BASE_URL } from '../config';
 
 const InmuebleStack = createStackNavigator()
 

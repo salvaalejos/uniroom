@@ -4,16 +4,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
 import { useTheme } from "../context/ThemeContext"
-import Constants from "expo-constants"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { obtenerRentaActual, cancelarRenta, crearCalificacion } from "../services/api"
 import { socketService } from "../services/websocketService"
+import { API_BASE_URL } from "../config"
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window")
 const ANFITRION = require("../default_images/anfi.jpg")
-
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const API_BASE_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 const getMediaUri = (src: string): { uri: string } | number => {
     if (!src) return 0;

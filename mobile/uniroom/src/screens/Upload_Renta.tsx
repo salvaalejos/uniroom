@@ -10,15 +10,12 @@ import Mapbox from '@rnmapbox/maps'
 import * as Location from 'expo-location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTheme } from '../context/ThemeContext'
-import Constants from 'expo-constants'
+import { API_BASE_URL as API_URL } from '../config'
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
 Mapbox.setAccessToken(MAPBOX_TOKEN!)
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
-
-const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-const API_URL = hostUri ? `http://${hostUri}:3000` : 'http://localhost:3000';
 
 const SERVICIOS_OPCIONES = ["WiFi", "Agua", "Luz", "Gas", "Lavadora", "Estacionamiento", "Amueblado"]
 const REGLAS_OPCIONES = ["No mascotas", "No fumar", "No fiestas", "Solo estudiantes", "No visitas"]
