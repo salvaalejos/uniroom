@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Animated, 
 import { Calendar } from "react-native-calendars"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import Constants from 'expo-constants';
 import { useTheme } from "../context/ThemeContext"
 import { API_BASE_URL as API_URL } from "../config"
 

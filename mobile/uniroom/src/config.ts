@@ -12,8 +12,8 @@ const PROD_WS_URL  = 'https://uniroomie.tech';
 
 function buildDevUrl(port: number): string {
   const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-  return hostUri ? `http://${hostUri}:${port}` : `http://localhost:${port}`;
+  return `http://${hostUri}:${port}`
 }
 
-export const API_BASE_URL: string = __DEV__ ? buildDevUrl(3000) : PROD_API_URL;
-export const WS_URL: string       = __DEV__ ? buildDevUrl(3001) : PROD_WS_URL;
+export const API_BASE_URL: string = __DEV__ ? PROD_API_URL : PROD_API_URL;
+export const WS_URL: string       = __DEV__ ? PROD_WS_URL : PROD_WS_URL;
