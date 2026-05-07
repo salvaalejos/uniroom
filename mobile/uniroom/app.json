@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -18,13 +17,14 @@
     "android": {
       "package": "com.anonymous.uniroom",
       "permissions": [
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -47,8 +47,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "a5c800be-3e9d-4084-b253-bdea671fa95a"
+        "projectId": "46749591-274c-4783-bcc2-b233847583a2"
       }
-    }
+    },
+    "owner": "jeand_arc44"
   }
 }
