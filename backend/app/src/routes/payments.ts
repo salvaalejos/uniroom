@@ -5,7 +5,7 @@ import { MercadoPagoConfig, Payment, Customer, CustomerCard } from "mercadopago"
 import { emitToUser } from "../ws-server";
 
 // Inicializar cliente de MP (se usa una variable de entorno para el token)
-const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN || "TEST-0000000000000000-000000-00000000000000000000000000000000-000000000" });
+const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN! });
 const paymentClient = new Payment(client);
 const customerClient = new Customer(client);
 const customerCardClient = new CustomerCard(client);

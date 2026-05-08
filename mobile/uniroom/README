@@ -40,14 +40,26 @@ Cuando pregunte:
 👉 Generate a new Android Keystore?
 ✔️ Respuesta: yes
 
-🔑 10. Agregar token a EAS (MUY IMPORTANTE)
+🔑 10. Agregar tokens a EAS (MUY IMPORTANTE)
 eas env:create
 
-Configura:
+Configura las siguientes variables:
 
-Name: EXPO_PUBLIC_MAPBOX_TOKEN
-Value: tu token
-Environment: production
+1. Mapbox:
+   Name: EXPO_PUBLIC_MAPBOX_TOKEN
+   Value: tu token
+   Environment: production
+
+2. Mercado Pago:
+   Name: EXPO_PUBLIC_MP_PUBLIC_KEY
+   Value: tu llave pública (empieza con APP_USR- o TEST-)
+   Environment: production
+
+3. API URL:
+   Name: EXPO_PUBLIC_API_URL
+   Value: https://tu-servidor.com (NO localhost)
+   Environment: production
+
 🏗️ 11. Hacer build de Android
 eas build -p android --clear-cache
 📲 12. Instalar APK en celular
@@ -69,6 +81,8 @@ mapboxgl.accessToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN as string
 import Mapbox from '@rnmapbox/maps'
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN!)
+✅ Mercado Pago (PaymentScreen.tsx)
+const MP_PUBLIC_KEY = process.env.EXPO_PUBLIC_MP_PUBLIC_KEY;
 🚨 ERRORES COMUNES Y SOLUCIÓN
 ❌ Error:
 @rnmapbox/maps native code not available
