@@ -1,5 +1,5 @@
 // ─ Importes ─
-import { View, Text, TextInput, Image, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert } from "react-native"
+import { View, Text, TextInput, Image, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, Modal } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState, useRef, useEffect } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
