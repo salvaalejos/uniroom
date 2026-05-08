@@ -1,28 +1,9 @@
-# CREAR APK PARA DEVELOP 
-En la parte de app.json viene esta parte de código 
-```json
-"extra": {
-      "eas": {
-        "projectId": "46749591-274c-4783-bcc2-b233847583a2"
-      }
-    },
-    "owner": "jeand_arc44"
-```
-Me tiene como propietario del proyecto para ejecutarlo con EAS-CLI. Para que puedan crear el APK necesitan cambiar de propietario (si quieren mañana en la tarde creamos una organización del proyecto, que sea para administrarlo y que se quede como propietario sin tener que cambiarlo, pero por ahora, se tiene que cambiar). 
-Para eso, tienen que instalar en mobile/uniroom: 
-```bash
-npm install -g eas-cli 
-```
-Y luego ejecutar
-```bash
-eas login
-```
-Les pedirá correo y contraseña, despues tendrás que ejecutar estos dos comandos (el último es para ya crear el APK, todo esto en mobile/uniroom): 
+# CREAR APK PARA DEVELOP Y RELEASE (ya con actualización de organización UNIROOMIE)
+Ejecuten estos comandos en mobile/uniroom/
 ```bash
 eas project:init
 eas build --profile preview --platform android
 ```
-
 
 # REVISIONES DE PRUEBAS RECIENTES CON MERGE DE TODOS LOS PUNTOS TRATADOS EN WHATSAPP 
 ## FALLOS INMEDIATOS A RESOLVER (ahorita los resuelv0, que la noche aún es joven como yo 💃): 
