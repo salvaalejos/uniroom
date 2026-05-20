@@ -15,5 +15,6 @@ function buildDevUrl(port: number): string {
   return hostUri ? `http://${hostUri}:${port}` : `http://localhost:${port}`;
 }
 
-export const API_BASE_URL: string = __DEV__ ? buildDevUrl(3000) : PROD_API_URL;
-export const WS_URL: string       = __DEV__ ? buildDevUrl(3001) : PROD_WS_URL;
+// Forzado a producción para APK
+export const API_BASE_URL: string = PROD_API_URL;
+export const WS_URL: string       = PROD_WS_URL;
