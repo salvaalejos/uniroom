@@ -31,26 +31,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         count += notifs.filter((n: any) => !n.visto).length;
       }
 
-      // 2. Cargar citas pendientes (lógica similar a NotificationScreen)
-      const respCitas = await fetch(`${BACKEND_URL}/citas/mis-citas`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (respCitas.ok) {
-        const citas = await respCitas.json();
-        const roleLower = role?.toLowerCase() || '';
-        
-        const unreadCitas = citas.filter((cita: any) => {
-          if (roleLower === 'arrendador') {
-            // Un arrendador tiene citas "no vistas" si están PENDIENTES o si acaba de hacerse REALIZADA (esperando decisión)
-            return cita.estado === 'PENDIENTE' || cita.estado === 'REALIZADA';
-          } else {
-            // Un estudiante tiene citas "no vistas" si están ACEPTADAS, RECHAZADAS o RENTA_APROBADA/RECHAZADA
-            // (Esta es una simplificación, en un sistema real tendríamos un campo 'visto' en la tabla Cita)
-            return cita.estado !== 'PENDIENTE'; 
-          }
-        });
-        count += unreadCitas.length;
-      }
+
 
       setUnreadCount(count);
     } catch (error) {

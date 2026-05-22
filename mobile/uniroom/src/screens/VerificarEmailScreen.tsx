@@ -234,6 +234,11 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                             maxLength={2}
                             value={otp[index] || ''}
                             onChangeText={(text) => handleChangeText(text, index)}
+                            onKeyPress={({ nativeEvent }) => {
+                                if (nativeEvent.key === 'Backspace' && !otp[index]) {
+                                    handleBackspace(index);
+                                }
+                            }}
                             onFocus={() => {
                                 if (otp.length < index) {
                                     const fillCount = index - otp.length;

@@ -5,6 +5,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useTheme } from "../context/ThemeContext"
 import { API_BASE_URL as API_URL } from "../config"
+import Constants from 'expo-constants'
 
 // ─ Utilidades de formato ─
 const formatFechaLarga = (f: string) =>

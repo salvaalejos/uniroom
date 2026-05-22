@@ -8,7 +8,8 @@ import {
     TextInput,
     TouchableOpacity,
     View,
-    Image
+    Image,
+    ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -145,65 +146,67 @@ export default function LoginScreen({ navigation }: any) {
 
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'android' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={[styles.container, { backgroundColor: colors.background }]}
         >
-            <View style={styles.formContainer}>
-                <View style={styles.headerContainer}>
-                    <Image 
-                        source={isDark ? require('../../assets/dark-theme-logo.png') : require('../../assets/light-theme-logo.png')}
-                        style={styles.logo}
-                        resizeMode="contain"
-                    />
-                    <Text style={[styles.title, { color: colors.textPrimary }]}>UniRoomie</Text>
-                    <Text style={[styles.slogan, { color: colors.textSecondary }]}>Sin preocuparse de donde vivir</Text>
-                </View>
-                <TextInput
-                    style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                    placeholder="Correo electrónico"
-                    placeholderTextColor={colors.textSecondary}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={email}
-                    onChangeText={setEmail}
-                    editable={!isLoading}
-                />
-
-                <TextInput
-                    style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                    placeholderTextColor={colors.textSecondary}
-                    placeholder="Contraseña"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                    editable={!isLoading}
-                />
-
-                <TouchableOpacity style={[styles.loginButton, { backgroundColor: colors.buttonMain }]} onPress={handleLogin} disabled={isLoading}>
-                    {isLoading ? (
-                        <ActivityIndicator color={colors.buttonText} />
-                    ) : (
-                        <Text style={[styles.loginButtonText, { color: colors.buttonText }]}>Iniciar sesión</Text>
-                    )}
-                </TouchableOpacity>
-
-                {errorMessage ? (
-                    <View style={[styles.errorContainer, { backgroundColor: colors.errorBackground, borderColor: colors.error }]}>
-                        <Ionicons name="alert-circle" size={20} color={colors.error} />
-                        <Text style={[styles.errorTextUI, { color: colors.error }]}>{errorMessage}</Text>
+            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <View style={styles.formContainer}>
+                    <View style={styles.headerContainer}>
+                        <Image 
+                            source={isDark ? require('../../assets/dark-theme-logo.png') : require('../../assets/light-theme-logo.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                        <Text style={[styles.title, { color: colors.textPrimary }]}>UniRoomie</Text>
+                        <Text style={[styles.slogan, { color: colors.textSecondary }]}>Sin preocuparse de donde vivir</Text>
                     </View>
-                ) : null}
+                    <TextInput
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        placeholder="Correo electrónico"
+                        placeholderTextColor={colors.textSecondary}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        value={email}
+                        onChangeText={setEmail}
+                        editable={!isLoading}
+                    />
 
-                <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-                    <Text style={[styles.forgotPasswordText, { color: colors.buttonMain }]}>¿Olvidaste tu contraseña?</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.footerContainer}>
-                <Text style={[styles.footerText, { color: colors.textSecondary }]}>¿Eres nuevo aquí? </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                    <Text style={[styles.registerText, { color: colors.buttonMain }]}>Regístrate</Text>
-                </TouchableOpacity>
-            </View>
+                    <TextInput
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        placeholderTextColor={colors.textSecondary}
+                        placeholder="Contraseña"
+                        secureTextEntry
+                        value={password}
+                        onChangeText={setPassword}
+                        editable={!isLoading}
+                    />
+
+                    <TouchableOpacity style={[styles.loginButton, { backgroundColor: colors.buttonMain }]} onPress={handleLogin} disabled={isLoading}>
+                        {isLoading ? (
+                            <ActivityIndicator color={colors.buttonText} />
+                        ) : (
+                            <Text style={[styles.loginButtonText, { color: colors.buttonText }]}>Iniciar sesión</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    {errorMessage ? (
+                        <View style={[styles.errorContainer, { backgroundColor: colors.errorBackground, borderColor: colors.error }]}>
+                            <Ionicons name="alert-circle" size={20} color={colors.error} />
+                            <Text style={[styles.errorTextUI, { color: colors.error }]}>{errorMessage}</Text>
+                        </View>
+                    ) : null}
+
+                    <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+                        <Text style={[styles.forgotPasswordText, { color: colors.buttonMain }]}>¿Olvidaste tu contraseña?</Text>
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.footerContainer}>
+                    <Text style={[styles.footerText, { color: colors.textSecondary }]}>¿Eres nuevo aquí? </Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                        <Text style={[styles.registerText, { color: colors.buttonMain }]}>Regístrate</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
             <View style={styles.bottomRightButtonContainer}>
                 <ThemeToggleButton />
             </View>

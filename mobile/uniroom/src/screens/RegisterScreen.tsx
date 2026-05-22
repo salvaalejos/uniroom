@@ -53,17 +53,54 @@ export default function RegisterScreen({ navigation, route }: any) {
     };
 
     const selectPic = async () => {
-        const revision_formal = await ImagePicker.requestMediaLibraryPermissionsAsync()
-        let fotito = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [4,4],
-            quality: 1
-        })
-        if (!fotito.canceled){
-            setPicture(fotito.assets[0].uri)
-            console.log(picture)
-        }
+        Alert.alert(
+            "Foto de perfil",
+            "¿De dónde quieres obtener la foto?",
+            [
+                {
+                    text: "Cámara",
+                    onPress: async () => {
+                        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                        if (status !== 'granted') {
+                            Alert.alert("Permiso denegado", "Se necesita acceso a la cámara");
+                            return;
+                        }
+                        let fotito = await ImagePicker.launchCameraAsync({
+                            mediaTypes: ['images'],
+                            allowsEditing: true,
+                            aspect: [4, 4],
+                            quality: 1
+                        });
+                        if (!fotito.canceled) {
+                            setPicture(fotito.assets[0].uri);
+                        }
+                    }
+                },
+                {
+                    text: "Galería",
+                    onPress: async () => {
+                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                        if (status !== 'granted') {
+                            Alert.alert("Permiso denegado", "Se necesita acceso a la galería");
+                            return;
+                        }
+                        let fotito = await ImagePicker.launchImageLibraryAsync({
+                            mediaTypes: ['images'],
+                            allowsEditing: true,
+                            aspect: [4, 4],
+                            quality: 1
+                        });
+                        if (!fotito.canceled) {
+                            setPicture(fotito.assets[0].uri);
+                        }
+                    }
+                },
+                {
+                    text: "Cancelar",
+                    style: "cancel"
+                }
+            ]
+        );
     }
 
     const loginEndpoint = `${API_BASE_URL}/auth/login`
@@ -192,9 +229,10 @@ export default function RegisterScreen({ navigation, route }: any) {
     }
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'android' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
             style={[styles.container, { backgroundColor: colors.background }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.background }]}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.background }]}>
                 {/* Encabezado */}
                 <View style={styles.title_container}>
                     <Text style={[styles.title, { color: colors.textPrimary }]}>Crea tu cuenta</Text>

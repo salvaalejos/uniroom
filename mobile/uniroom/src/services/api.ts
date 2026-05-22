@@ -38,10 +38,10 @@ export const actualizarEstadoCita = (id: string, estado: string, motivo_rechazo?
     body: JSON.stringify({ estado, motivo_rechazo, nueva_fecha_hora }),
   });
 
-export const decidirRenta = (id: string, estado_renta: 'APROBADO' | 'RECHAZADO') =>
+export const decisionRenta = (id: string, decision: 'APROBAR' | 'RECHAZAR') =>
   apiRequest(`/citas/${id}/decision-renta`, {
     method: 'PUT',
-    body: JSON.stringify({ estado_renta }),
+    body: JSON.stringify({ decision }),
   });
 
 export const marcarCitaRealizada = (id: string) =>

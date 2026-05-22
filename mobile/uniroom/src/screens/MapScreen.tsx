@@ -45,6 +45,7 @@ export default function MapScreen({ route, navigation }: any) {
   const [cargando, setCargando] = useState(true);
   const [mapaListo, setMapaListo] = useState(false);
   const [modalFiltros, setModalFiltros] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<any>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
   const { colors, isDark } = useTheme();
 
@@ -147,6 +148,7 @@ export default function MapScreen({ route, navigation }: any) {
   };
 
   const filtrarInmuebles = (datos: any) => {
+    setActiveFilters(datos);
     setModalFiltros(false);
     fetchInmuebles(datos);
   };
@@ -207,7 +209,7 @@ export default function MapScreen({ route, navigation }: any) {
         ))}
       </Mapbox.MapView>
 
-      <FiltrosModal visible={modalFiltros} onClose={() => setModalFiltros(false)} onApply={filtrarInmuebles} />
+      <FiltrosModal visible={modalFiltros} onClose={() => setModalFiltros(false)} onApply={filtrarInmuebles} initialFilters={activeFilters} />
     </SafeAreaView>
   );
 }

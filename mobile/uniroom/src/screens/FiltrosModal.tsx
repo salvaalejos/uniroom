@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal 
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useTheme } from '../context/ThemeContext';
 
-const SERVICIOS_DISPONIBLES = ['WiFi', 'Luz incluida', 'Agua incluida', 'Baño propio'];
-const RESTRICCIONES_LISTA = ['No mascotas', 'No fumar', 'Solo estudiantes', 'No fiestas'];
+const SERVICIOS_DISPONIBLES = ["WiFi", "Agua", "Luz", "Gas", "Lavadora", "Estacionamiento", "Amueblado"];
+const RESTRICCIONES_LISTA = ["No mascotas", "No fumar", "No fiestas", "Solo estudiantes", "No visitas"];
 
-export default function FiltrosModal({ visible, onApply, onClose }: any) {
+export default function FiltrosModal({ visible, onApply, onClose, initialFilters }: any) {
     const [precioMax, setPrecioMax] = useState('');
     const [distanciaChip, setDistanciaChip] = useState(5);
     const [distanciaManual, setDistanciaManual] = useState('');
@@ -14,6 +14,23 @@ export default function FiltrosModal({ visible, onApply, onClose }: any) {
     const [restricciones, setRestricciones] = useState<string[]>([]);
     const [estrellasMin, setEstrellasMin] = useState(0);
     const { colors, isDark } = useTheme();
+
+    React.useEffect(() => {
+        if (visible && initialFilters) {
+            setPrecioMax(initialFilters.precioMax === 99999 ? '' : initialFilters.precioMax?.toString() || '');
+            setDistanciaChip(initialFilters.distanciaMax || 5);
+            setServicios(initialFilters.servicios || []);
+            setRestricciones(initialFilters.restricciones || []);
+            setEstrellasMin(initialFilters.calificacionMin || 0);
+        } else if (visible && !initialFilters) {
+            setPrecioMax('');
+            setDistanciaChip(5);
+            setDistanciaManual('');
+            setServicios([]);
+            setRestricciones([]);
+            setEstrellasMin(0);
+        }
+    }, [visible, initialFilters]);
 
     const handleApply = () => {
         const distFinal = distanciaManual !== '' ? parseFloat(distanciaManual) : distanciaChip;

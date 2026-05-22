@@ -420,7 +420,8 @@ const Lessor_Renthouse = () => {
 
     return (
         <KeyboardAvoidingView 
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
             style={{ flex: 1 }}
         >
             {/* Botón de volver fijo */}

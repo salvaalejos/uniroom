@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getRouteWithTraffic } from "../services/MapboxService";
 import {
   TRANSPORT_ROUTES,
@@ -255,7 +256,7 @@ export default function MapScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
       
       <Mapbox.MapView
@@ -412,7 +413,7 @@ export default function MapScreen() {
           />
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
