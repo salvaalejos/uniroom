@@ -5,7 +5,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { useVideoPlayer, VideoView } from 'expo-video'
-import { Calendar } from 'react-native-calendars'
+import DateTimePickerModal from 'react-native-modal-datetime-picker'
 import Mapbox from '@rnmapbox/maps'
 import * as Location from 'expo-location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -20,6 +20,27 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const SERVICIOS_OPCIONES = ["WiFi", "Agua", "Luz", "Gas", "Lavadora", "Estacionamiento", "Amueblado"]
 const REGLAS_OPCIONES = ["No mascotas", "No fumar", "No fiestas", "Solo estudiantes", "No visitas"]
 const TIPOS_INMUEBLE = ["Cuarto", "Departamento", /*"Casa",*/ "Estudio", "Loft"]
+
+const SERVICIOS_ICONS: Record<string, any> = {
+    "WiFi": "wifi",
+    "Agua": "water",
+    "Luz": "lightning-bolt",
+    "Gas": "fire",
+    "Lavadora": "washing-machine",
+    "Estacionamiento": "car",
+    "Amueblado": "bed"
+};
+
+const REGLAS_ICONS: Record<string, any> = {
+    "No mascotas": "paw-off",
+    "No fumar": "smoking-off",
+    "No fiestas": "glass-wine",
+    "Solo estudiantes": "school",
+    "No visitas": "account-cancel"
+};
+
+const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const HORAS_PREDEFINIDAS = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
 
 type Media = {
     uri: string
@@ -171,9 +192,8 @@ const Lessor_Renthouse = () => {
     }, [route.params?.inmueble]);
 
     const [previsualizando, setPrevisualizando] = useState(false)
-    const [modalFechas, setModalFechas] = useState(false)
     const [fechaActivaVisita, setFechaActivaVisita] = useState<string | null>(null)
-    const [nuevaHora, setNuevaHora] = useState("")
+    const [modalHora, setModalHora] = useState(false)
     const [cargando, setCargando] = useState(false)
     const [mapaListo, setMapaListo] = useState(false)
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -249,21 +269,37 @@ const Lessor_Renthouse = () => {
     }
 
     const agregarHoraAFecha = (fecha: string, hora: string) => {
-        if (!hora.match(/^\d{2}:\d{2}$/)) return
-        
-        const [hh, mm] = hora.split(':').map(Number);
-        if (hh > 23 || mm > 59) {
-            Alert.alert("Hora inválida", "La hora debe estar entre 00:00 y 23:59.");
-            return;
-        }
-
         setForm(f => ({
             ...f,
             horariosVisita: f.horariosVisita.map(h =>
                 h.fecha === fecha && !h.horas.includes(hora) ? { ...h, horas: [...h.horas, hora].sort() } : h
             )
         }))
-        setNuevaHora("")
+    }
+
+    const toggleHoraPredefinida = (fecha: string, hora: string) => {
+        setForm(f => {
+            const hObj = f.horariosVisita.find(h => h.fecha === fecha);
+            if (!hObj) return f;
+            const tieneHora = hObj.horas.includes(hora);
+            return {
+                ...f,
+                horariosVisita: f.horariosVisita.map(h =>
+                    h.fecha === fecha
+                        ? { ...h, horas: tieneHora ? h.horas.filter(hr => hr !== hora) : [...h.horas, hora].sort() }
+                        : h
+                )
+            };
+        });
+    }
+
+    const onTimeConfirm = (date: Date) => {
+        setModalHora(false);
+        if (fechaActivaVisita) {
+            const hh = date.getHours().toString().padStart(2, '0');
+            const mm = date.getMinutes().toString().padStart(2, '0');
+            agregarHoraAFecha(fechaActivaVisita, `${hh}:${mm}`);
+        }
     }
 
     const eliminarHora = (fecha: string, hora: string) => {
@@ -623,20 +659,21 @@ const Lessor_Renthouse = () => {
                 {/* Servicios */}
                 <View style={styles.seccion}>
                     <Text style={[styles.label, { color: colors.textPrimary }]}>Servicios incluidos</Text>
-                    <View style={styles.chips}>
+                    <View style={styles.cardsGrid}>
                         {SERVICIOS_OPCIONES.map(s => {
                             const activo = form.servicios.includes(s)
                             return (
                                 <TouchableOpacity 
                                   key={s} 
                                   style={[
-                                    styles.chip, 
-                                    { backgroundColor: isDark ? colors.backgroundSecondary : "#EEF4FF" },
-                                    activo && [styles.chipActivo, { backgroundColor: colors.buttonMain }]
+                                    styles.cardUI, 
+                                    { backgroundColor: isDark ? colors.backgroundSecondary : "#FFF", borderColor: colors.border },
+                                    activo && [styles.cardUIActivo, { borderColor: colors.buttonMain, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
                                   ]} 
                                   onPress={() => toggleItem("servicios", s)}
                                 >
-                                    <Text style={[styles.chipTextoServicio, { color: colors.buttonMain }, activo && styles.chipTextoActivo]}>{s}</Text>
+                                    <MaterialCommunityIcons name={SERVICIOS_ICONS[s] || "check-circle"} size={32} color={activo ? colors.buttonMain : colors.textSecondary} />
+                                    <Text style={[styles.cardUITexto, { color: colors.textSecondary }, activo && { color: colors.buttonMain }]}>{s}</Text>
                                 </TouchableOpacity>
                             )
                         })}
@@ -646,21 +683,21 @@ const Lessor_Renthouse = () => {
                 {/* Reglas */}
                 <View style={styles.seccion}>
                     <Text style={[styles.label, { color: colors.textPrimary }]}>Reglas de la casa</Text>
-                    <View style={styles.chips}>
+                    <View style={styles.cardsGrid}>
                         {REGLAS_OPCIONES.map(r => {
                             const activo = form.reglas.includes(r)
                             return (
                                 <TouchableOpacity 
                                   key={r} 
                                   style={[
-                                    styles.chip, 
-                                    styles.chipRegla, 
-                                    { backgroundColor: isDark ? '#3a1a1a' : "#FFF0F0" },
-                                    activo && [styles.chipReglaActivo, { backgroundColor: '#b83e31' }]
+                                    styles.cardUI, 
+                                    { backgroundColor: isDark ? '#2A1F1F' : "#FFF", borderColor: colors.border },
+                                    activo && [styles.cardUIActivo, { borderColor: '#E74C3C', backgroundColor: isDark ? '#3A1F1F' : '#FDEAEA' }]
                                   ]} 
                                   onPress={() => toggleItem("reglas", r)}
                                 >
-                                    <Text style={[styles.chipTextoRegla, { color: '#b83e31' }, activo && styles.chipTextoReglaActivo]}>{r}</Text>
+                                    <MaterialCommunityIcons name={REGLAS_ICONS[r] || "cancel"} size={32} color={activo ? '#E74C3C' : colors.textSecondary} />
+                                    <Text style={[styles.cardUITexto, { color: colors.textSecondary }, activo && { color: '#E74C3C' }]}>{r}</Text>
                                 </TouchableOpacity>
                             )
                         })}
@@ -693,53 +730,92 @@ const Lessor_Renthouse = () => {
 
                 {/* Horarios de visita */}
                 <View style={styles.seccion}>
-                    <Text style={[styles.label, { color: colors.textPrimary }]}>Fechas disponibles para visita <Text style={styles.requerido}>*</Text></Text>
-                    <Text style={styles.hint}>Selecciona los días en el calendario y agrega sus horarios abajo.</Text>
-                    <TouchableOpacity style={[styles.btnAbrirCalendario, { borderColor: colors.buttonMain }]} onPress={() => setModalFechas(true)}>
-                        <MaterialCommunityIcons name="calendar-plus" size={18} color={colors.buttonMain} />
-                        <Text style={[styles.btnAbrirCalendarioTexto, { color: colors.buttonMain }]}>Seleccionar días en calendario</Text>
-                    </TouchableOpacity>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Días disponibles para visita <Text style={styles.requerido}>*</Text></Text>
+                    <Text style={styles.hint}>Selecciona qué días de la semana estás disponible para mostrar la propiedad.</Text>
+                    
+                    <View style={styles.diasSemanaGrid}>
+                        {DIAS_SEMANA.map(dia => {
+                            const seleccionado = !!form.horariosVisita.find(h => h.fecha === dia);
+                            return (
+                                <TouchableOpacity 
+                                    key={dia} 
+                                    style={[
+                                        styles.diaChip, 
+                                        { backgroundColor: isDark ? colors.backgroundSecondary : "#F0F4F8" },
+                                        seleccionado && [styles.diaChipActivo, { backgroundColor: colors.buttonMain }]
+                                    ]}
+                                    onPress={() => agregarFechaVisita(dia)}
+                                >
+                                    <Text style={[
+                                        styles.diaChipTexto, 
+                                        { color: isDark ? colors.textPrimary : "#555" }, 
+                                        seleccionado && { color: "#FFF" }
+                                    ]}>{dia.substring(0, 3)}</Text>
+                                </TouchableOpacity>
+                            )
+                        })}
+                    </View>
 
+                    {form.horariosVisita.length > 0 && <Text style={[styles.label, { color: colors.textPrimary, marginTop: 20 }]}>Horarios por día</Text>}
                     <View style={styles.fechasLista}>
                         {form.horariosVisita.map(horario => (
                             <View key={horario.fecha} style={[styles.fechaCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, fechaActivaVisita === horario.fecha && [styles.fechaCardActiva, { borderColor: colors.buttonMain }]]}>
                                 <TouchableOpacity style={styles.fechaCardHeader} onPress={() => setFechaActivaVisita(fechaActivaVisita === horario.fecha ? null : horario.fecha)}>
                                     <View style={styles.fechaCardHeaderIzq}>
-                                        <MaterialCommunityIcons name="calendar" size={16} color={colors.buttonMain} />
-                                        <Text style={[styles.fechaCardTexto, { color: colors.textPrimary }]}>{new Date(horario.fecha + "T12:00:00").toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" })}</Text>
+                                        <MaterialCommunityIcons name="calendar-week" size={18} color={colors.buttonMain} />
+                                        <Text style={[styles.fechaCardTexto, { color: colors.textPrimary }]}>{horario.fecha}</Text>
                                         <View style={[styles.fechaCardBadge, { backgroundColor: isDark ? colors.backgroundSecondary : "#EEF4FF" }]}><Text style={[styles.fechaCardBadgeTexto, { color: colors.buttonMain }]}>{horario.horas.length} h</Text></View>
                                     </View>
-                                    <TouchableOpacity onPress={() => eliminarFechaVisita(horario.fecha)}>
-                                        <MaterialCommunityIcons name="close-circle-outline" size={20} color="#e74c3c" />
-                                    </TouchableOpacity>
+                                    <MaterialCommunityIcons name={fechaActivaVisita === horario.fecha ? "chevron-up" : "chevron-down"} size={22} color={colors.textSecondary} />
                                 </TouchableOpacity>
+                                
                                 {fechaActivaVisita === horario.fecha && (
                                     <View style={[styles.fechaCardBody, { borderTopColor: colors.border }]}>
-                                        <View style={styles.horasChips}>
-                                            {horario.horas.map(hora => (
-                                                <View key={hora} style={[styles.horaChipArrendador, { backgroundColor: isDark ? colors.backgroundSecondary : "#EEF4FF" }]}>
-                                                    <Text style={[styles.horaChipTexto, { color: colors.buttonMain }]}>{hora}</Text>
-                                                    <TouchableOpacity onPress={() => eliminarHora(horario.fecha, hora)}><MaterialCommunityIcons name="close" size={14} color={colors.buttonMain} /></TouchableOpacity>
+                                        <Text style={[styles.hint, { marginBottom: 12 }]}>Selecciona las horas disponibles:</Text>
+                                        <View style={styles.horasPredefinidasGrid}>
+                                            {HORAS_PREDEFINIDAS.map(hora => {
+                                                const activo = horario.horas.includes(hora);
+                                                return (
+                                                    <TouchableOpacity 
+                                                        key={hora}
+                                                        style={[
+                                                            styles.horaPredefinidaChip,
+                                                            { borderColor: colors.border },
+                                                            activo && { backgroundColor: colors.buttonMain, borderColor: colors.buttonMain }
+                                                        ]}
+                                                        onPress={() => toggleHoraPredefinida(horario.fecha, hora)}
+                                                    >
+                                                        <Text style={[
+                                                            styles.horaPredefinidaTexto,
+                                                            { color: colors.textPrimary },
+                                                            activo && { color: "#FFF" }
+                                                        ]}>{hora}</Text>
+                                                    </TouchableOpacity>
+                                                )
+                                            })}
+                                        </View>
+                                        
+                                        <TouchableOpacity 
+                                            style={[styles.btnHoraPersonalizada, { borderColor: colors.buttonMain }]} 
+                                            onPress={() => setModalHora(true)}
+                                        >
+                                            <MaterialCommunityIcons name="clock-plus-outline" size={18} color={colors.buttonMain} />
+                                            <Text style={[styles.btnHoraPersonalizadaTexto, { color: colors.buttonMain }]}>Agregar hora personalizada</Text>
+                                        </TouchableOpacity>
+
+                                        {horario.horas.filter(h => !HORAS_PREDEFINIDAS.includes(h)).length > 0 && (
+                                            <View style={styles.horasExtrasContainer}>
+                                                <Text style={[styles.hint, { marginBottom: 8 }]}>Horas personalizadas:</Text>
+                                                <View style={styles.horasChips}>
+                                                    {horario.horas.filter(h => !HORAS_PREDEFINIDAS.includes(h)).map(hora => (
+                                                        <View key={hora} style={[styles.horaChipArrendador, { backgroundColor: isDark ? colors.backgroundSecondary : "#EEF4FF" }]}>
+                                                            <Text style={[styles.horaChipTexto, { color: colors.buttonMain }]}>{hora}</Text>
+                                                            <TouchableOpacity onPress={() => eliminarHora(horario.fecha, hora)}><MaterialCommunityIcons name="close" size={14} color={colors.buttonMain} /></TouchableOpacity>
+                                                        </View>
+                                                    ))}
                                                 </View>
-                                            ))}
-                                        </View>
-                                        <View style={styles.horaInputRow}>
-                                            <TextInput 
-                                                style={[styles.horaInput, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border, color: colors.textPrimary }]} 
-                                                placeholder="HH:MM" 
-                                                placeholderTextColor={colors.textSecondary}
-                                                value={nuevaHora} 
-                                                onChangeText={v => {
-                                                    let n = v.replace(/[^0-9]/g, '').slice(0, 4);
-                                                    setNuevaHora(n.length > 2 ? `${n.slice(0, 2)}:${n.slice(2)}` : n);
-                                                }} 
-                                                keyboardType="phone-pad" 
-                                                maxLength={5} 
-                                            />
-                                            <TouchableOpacity style={[styles.horaInputBtn, { backgroundColor: colors.buttonMain }]} onPress={() => agregarHoraAFecha(horario.fecha, nuevaHora)}>
-                                                <MaterialCommunityIcons name="plus" size={20} color="#fff" />
-                                            </TouchableOpacity>
-                                        </View>
+                                            </View>
+                                        )}
                                     </View>
                                 )}
                             </View>
@@ -756,44 +832,16 @@ const Lessor_Renthouse = () => {
                 {cargando && <ActivityIndicator style={{ margin: 20 }} color={colors.buttonMain} />}
             </ScrollView>
 
-            {/* Modal Calendario */}
-            <Modal visible={modalFechas} transparent animationType="fade" onRequestClose={() => setModalFechas(false)}>
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalFechasContainer, { backgroundColor: colors.cardBackground }]}>
-                        <View style={styles.modalFechasHeader}>
-                            <Text style={[styles.modalFechasTitulo, { color: colors.textPrimary }]}>Días de visita</Text>
-                            <TouchableOpacity style={[styles.modalFechasBtnListo, { backgroundColor: colors.buttonMain }]} onPress={() => setModalFechas(false)}>
-                                <Text style={styles.modalFechasBtnListoTexto}>Listo</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <Calendar
-                            onDayPress={(day) => agregarFechaVisita(day.dateString)}
-                            markingType="multi-dot"
-                            markedDates={Object.fromEntries(form.horariosVisita.map(h => [h.fecha, { selected: true, selectedColor: colors.buttonMain }]))}
-                            minDate={new Date().toISOString().split("T")[0]}
-                            theme={{
-                                backgroundColor: colors.cardBackground,
-                                calendarBackground: colors.cardBackground,
-                                textSectionTitleColor: colors.textSecondary,
-                                selectedDayBackgroundColor: colors.buttonMain,
-                                selectedDayTextColor: '#ffffff',
-                                todayTextColor: colors.buttonMain,
-                                dayTextColor: colors.textPrimary,
-                                textDisabledColor: isDark ? '#444' : '#d9e1e8',
-                                dotColor: colors.buttonMain,
-                                arrowColor: colors.buttonMain,
-                                monthTextColor: colors.textPrimary,
-                                textDayFontWeight: '600',
-                                textMonthFontWeight: 'bold',
-                                textDayHeaderFontWeight: '400',
-                                textDayFontSize: 14,
-                                textMonthFontSize: 16,
-                                textDayHeaderFontSize: 12
-                            }}
-                        />
-                    </View>
-                </View>
-            </Modal>
+            {/* Modal TimePicker */}
+            <DateTimePickerModal
+                isVisible={modalHora}
+                mode="time"
+                onConfirm={onTimeConfirm}
+                onCancel={() => setModalHora(false)}
+                confirmTextIOS="Confirmar"
+                cancelTextIOS="Cancelar"
+                is24Hour={true}
+            />
 
             {/* Modal Vista Previa */}
             <Modal visible={previsualizando} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setPrevisualizando(false)}>
@@ -870,36 +918,68 @@ const styles = StyleSheet.create({
     previaDescripcion: { fontSize: 14, lineHeight: 20 },
     btnPublicar: { flexDirection: "row", backgroundColor: "#5db682", borderRadius: 10, paddingVertical: 14, alignItems: "center", justifyContent: "center", gap: 8, marginTop: 20 },
     btnPublicarTexto: { color: "#fff", fontWeight: "700", fontSize: 16 },
-    btnVolver: { position: "absolute", left: 16, borderRadius: 20, padding: 6, elevation: 5, zIndex: 10, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4 },
-    mapaContainerReal: { height: 240, borderRadius: 16, overflow: "hidden", position: "relative", borderWidth: 1 },
+    mapaContainerReal: { height: 200, marginHorizontal: 0, borderRadius: 12, overflow: "hidden", borderWidth: 1, position: "relative" },
     mapaReal: { flex: 1 },
-    marcadorCentroOverlay: { position: 'absolute', top: '50%', left: '50%', marginLeft: -21, marginTop: -42, alignItems: 'center' },
-    puntoReferencia: { width: 4, height: 4, backgroundColor: '#e74c3c', borderRadius: 2, marginTop: -2 },
-    botonCentrar: { position: "absolute", bottom: 12, right: 12, borderRadius: 30, padding: 10, elevation: 4 },
+    marcadorCentroOverlay: { position: "absolute", top: "50%", left: "50%", marginTop: -42, marginLeft: -21, alignItems: "center" },
+    puntoReferencia: { width: 6, height: 6, backgroundColor: "#000", borderRadius: 3, marginTop: -6 },
+    botonCentrar: { position: "absolute", bottom: 10, right: 10, width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center", elevation: 2, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4 },
     mapaCoordsRow: { flexDirection: "row", alignItems: "center", gap: 6, padding: 10, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderWidth: 1, borderTopWidth: 0 },
-    mapaCoordsTexto: { fontSize: 12, fontWeight: "600", flex: 1 },
-    btnAbrirCalendario: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.5, borderStyle: "dashed", borderRadius: 12, padding: 14, justifyContent: "center" },
-    btnAbrirCalendarioTexto: { fontWeight: "700", fontSize: 14 },
-    fechasLista: { marginTop: 16, gap: 10 },
-    fechaCard: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
-    fechaCardActiva: { borderWidth: 1.5 },
-    fechaCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 12 },
-    fechaCardHeaderIzq: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+    mapaCoordsTexto: { fontSize: 12, fontWeight: "500" },
+    btnAbrirCalendario: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", justifyContent: "center" },
+    btnAbrirCalendarioTexto: { fontSize: 14, fontWeight: "600" },
+    fechasLista: { marginTop: 12, gap: 10 },
+    fechaCard: { borderRadius: 12, borderWidth: 1, overflow: "hidden" },
+    fechaCardActiva: { borderWidth: 2 },
+    fechaCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14 },
+    fechaCardHeaderIzq: { flexDirection: "row", alignItems: "center", gap: 8 },
     fechaCardTexto: { fontSize: 14, fontWeight: "700" },
-    fechaCardBadge: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-    fechaCardBadgeTexto: { fontSize: 11, fontWeight: "600" },
-    fechaCardBody: { borderTopWidth: 1, padding: 12, gap: 12 },
-    horasChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-    horaChipArrendador: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-    horaChipTexto: { fontSize: 12, fontWeight: "700" },
-    horaInputRow: { flexDirection: "row", gap: 8 },
-    horaInput: { flex: 1, borderRadius: 10, padding: 10, fontSize: 14, borderWidth: 1 },
-    horaInputBtn: { width: 44, height: 44, borderRadius: 10, justifyContent: "center", alignItems: "center" },
-    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
-    modalFechasContainer: { borderRadius: 20, padding: 20, width: "100%", gap: 12 },
-    modalFechasHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-    modalFechasTitulo: { fontSize: 18, fontWeight: "800" },
-    modalFechasBtnListo: { borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
+    fechaCardBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    fechaCardBadgeTexto: { fontSize: 11, fontWeight: "800" },
+    fechaCardBody: { padding: 14, borderTopWidth: 1 },
+    horasChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    horaChipArrendador: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+    horaChipTexto: { fontSize: 13, fontWeight: "700" },
+    horaInputRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 },
+    horaInput: { flex: 1, borderRadius: 8, padding: 10, borderWidth: 1, fontSize: 14 },
+    horaInputBtn: { padding: 10, borderRadius: 8 },
+    btnPrevia: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 20, marginVertical: 30, padding: 16, borderRadius: 14 },
+    btnPreviaTexto: { color: "#fff", fontSize: 16, fontWeight: "700" },
+    btnDesactivado: { opacity: 0.5 },
+    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 },
+    modalFechasContainer: { borderRadius: 16, padding: 20 },
+    modalFechasHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+    modalFechasTitulo: { fontSize: 18, fontWeight: "700" },
+    modalFechasBtnListo: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
     modalFechasBtnListoTexto: { color: "#fff", fontWeight: "700" },
+    modalContainer: { flex: 1 },
+    modalHeader: { flexDirection: "row", alignItems: "center", padding: 20, gap: 12 },
+    modalTitulo: { fontSize: 20, fontWeight: "700" },
+    previaImagen: { width: SCREEN_WIDTH, height: SCREEN_WIDTH * 0.75 },
+    previaInfo: { padding: 20 },
+    previaTitulo: { fontSize: 24, fontWeight: "800", marginBottom: 8 },
+    previaPrecio: { fontSize: 20, fontWeight: "700", marginBottom: 16 },
+    previaDescripcion: { fontSize: 15, lineHeight: 22, marginBottom: 24 },
+    btnPublicar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#27AE60", padding: 16, borderRadius: 14 },
+    btnPublicarTexto: { color: "#fff", fontSize: 16, fontWeight: "700" },
+    btnVolver: { position: "absolute", left: 16, width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", zIndex: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4 },
+    cuartoCard: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 12 },
+    cuartoHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+    cuartoTitulo: { fontSize: 15, fontWeight: "700" },
+    btnAgregarCuarto: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", marginTop: 4 },
+    btnAgregarCuartoTexto: { fontSize: 14, fontWeight: "600" },
+    cardsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+    cardUI: { width: (SCREEN_WIDTH - 60) / 2, padding: 16, borderRadius: 12, borderWidth: 2, alignItems: "center", justifyContent: "center", gap: 8 },
+    cardUIActivo: { },
+    cardUITexto: { fontSize: 13, fontWeight: "700", textAlign: "center" },
+    diasSemanaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between" },
+    diaChip: { flex: 1, minWidth: 40, height: 44, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+    diaChipActivo: { },
+    diaChipTexto: { fontSize: 13, fontWeight: "700" },
+    horasPredefinidasGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+    horaPredefinidaChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
+    horaPredefinidaTexto: { fontSize: 13, fontWeight: "600" },
+    btnHoraPersonalizada: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderStyle: "dashed", marginBottom: 12 },
+    btnHoraPersonalizadaTexto: { fontSize: 13, fontWeight: "700" },
+    horasExtrasContainer: { marginTop: 4 },
     modalFechasHint: { fontSize: 13, color: "#666" },
 })
