@@ -37,8 +37,11 @@ export default function RegisterScreen({ navigation, route }: any) {
     const [role, setRole] = useState<string | null>(userToEdit?.role || null);
     const [gender, setGenger] = useState<string | null>(userToEdit?.gender || null);
     const [selectedPic, setselectedPic] = useState(false)
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [picture, setPicture] = useState(userToEdit?.picture || "");
+    const [focusedField, setFocusedField] = useState<string | null>(null);
 
     // Estado de carga
     const [isLoading, setIsLoading] = useState(false);
@@ -281,50 +284,108 @@ export default function RegisterScreen({ navigation, route }: any) {
                 {!successMessage && (
                     <View style={styles.formContainer}>
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        style={[
+                            styles.input, 
+                            { 
+                                backgroundColor: colors.cardBackground, 
+                                borderColor: focusedField === 'name' ? colors.buttonMain : colors.border, 
+                                color: colors.textPrimary,
+                                borderWidth: focusedField === 'name' ? 1.5 : 1
+                            }
+                        ]}
                         placeholder="Nombre completo"
                         placeholderTextColor={colors.textSecondary}
                         autoCapitalize="words"
                         value={fullName}
                         onChangeText={setFullName}
+                        onFocus={() => setFocusedField('name')}
+                        onBlur={() => setFocusedField(null)}
                     />
 
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        style={[
+                            styles.input, 
+                            { 
+                                backgroundColor: colors.cardBackground, 
+                                borderColor: focusedField === 'email' ? colors.buttonMain : colors.border, 
+                                color: colors.textPrimary,
+                                borderWidth: focusedField === 'email' ? 1.5 : 1
+                            }
+                        ]}
                         placeholder="Correo electrónico"
                         placeholderTextColor={colors.textSecondary}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         value={email}
                         onChangeText={setEmail}
+                        onFocus={() => setFocusedField('email')}
+                        onBlur={() => setFocusedField(null)}
                     />
 
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        style={[
+                            styles.input, 
+                            { 
+                                backgroundColor: colors.cardBackground, 
+                                borderColor: focusedField === 'phone' ? colors.buttonMain : colors.border, 
+                                color: colors.textPrimary,
+                                borderWidth: focusedField === 'phone' ? 1.5 : 1
+                            }
+                        ]}
                         placeholder="Número de teléfono"
                         placeholderTextColor={colors.textSecondary}
                         keyboardType="phone-pad"
                         value={phone}
                         onChangeText={setPhone}
+                        onFocus={() => setFocusedField('phone')}
+                        onBlur={() => setFocusedField(null)}
                     />
 
-                    <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                        placeholder="Contraseña"
-                        placeholderTextColor={colors.textSecondary}
-                        secureTextEntry
-                        value={password}
-                        onChangeText={setPassword}
-                    />
+                    <View style={[
+                        styles.inputContainer, 
+                        { 
+                            backgroundColor: colors.cardBackground, 
+                            borderColor: focusedField === 'password' ? colors.buttonMain : colors.border,
+                            borderWidth: focusedField === 'password' ? 1.5 : 1
+                        }
+                    ]}>
+                        <TextInput
+                            style={[styles.inputField, { color: colors.textPrimary }]}
+                            placeholder="Contraseña"
+                            placeholderTextColor={colors.textSecondary}
+                            secureTextEntry={!showPassword}
+                            value={password}
+                            onChangeText={setPassword}
+                            onFocus={() => setFocusedField('password')}
+                            onBlur={() => setFocusedField(null)}
+                        />
+                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIconContainer}>
+                            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
 
-                    <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                        placeholder="Confirmar contraseña"
-                        placeholderTextColor={colors.textSecondary}
-                        secureTextEntry
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                    />
+                    <View style={[
+                        styles.inputContainer, 
+                        { 
+                            backgroundColor: colors.cardBackground, 
+                            borderColor: focusedField === 'confirmPassword' ? colors.buttonMain : colors.border,
+                            borderWidth: focusedField === 'confirmPassword' ? 1.5 : 1
+                        }
+                    ]}>
+                        <TextInput
+                            style={[styles.inputField, { color: colors.textPrimary }]}
+                            placeholder="Confirmar contraseña"
+                            placeholderTextColor={colors.textSecondary}
+                            secureTextEntry={!showConfirmPassword}
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            onFocus={() => setFocusedField('confirmPassword')}
+                            onBlur={() => setFocusedField(null)}
+                        />
+                        <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIconContainer}>
+                            <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
 
                     {/* Selección de Rol ---------------------------------------------------------------------------------*/}
                     <Text style={[styles.roleLabel, { color: colors.textPrimary }]}>¿Cómo usarás la app?</Text>
@@ -382,11 +443,15 @@ export default function RegisterScreen({ navigation, route }: any) {
                             name='human-male'
                             size={32}
                             color={gender === 'man' ? colors.accent : colors.textSecondary} />
-                            <Text style={[
-                                styles.roleText,
-                                { color: colors.textSecondary },
-                                gender === 'man' && [styles.roleTextActive, { color: colors.accent }]
-                            ]}>Hombre</Text>
+                            <Text 
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                style={[
+                                    styles.genderText,
+                                    { color: colors.textSecondary },
+                                    gender === 'man' && [styles.genderTextActive, { color: colors.accent }]
+                                ]}
+                            >Hombre</Text>
                         </TouchableOpacity>
                         <TouchableOpacity id='woman_button'
                         style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'woman' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
@@ -395,11 +460,15 @@ export default function RegisterScreen({ navigation, route }: any) {
                             name='human-female'
                             size={32}
                             color={gender === 'woman' ? colors.accent : colors.textSecondary} />
-                            <Text style={[
-                                styles.roleText,
-                                { color: colors.textSecondary },
-                                gender === 'woman' && [styles.roleTextActive, { color: colors.accent }]
-                            ]}>Mujer</Text>
+                            <Text 
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                style={[
+                                    styles.genderText,
+                                    { color: colors.textSecondary },
+                                    gender === 'woman' && [styles.genderTextActive, { color: colors.accent }]
+                                ]}
+                            >Mujer</Text>
                         </TouchableOpacity>
                         <TouchableOpacity id='helicopter_button'
                         style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'non-binary' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
@@ -408,11 +477,15 @@ export default function RegisterScreen({ navigation, route }: any) {
                             name='human-non-binary'
                             size={32}
                             color={gender === 'non-binary' ? colors.accent : colors.textSecondary} />
-                            <Text style={[
-                                styles.roleText,
-                                { color: colors.textSecondary },
-                                gender === 'non-binary' && [styles.roleTextActive, { color: colors.accent }]
-                            ]}>No Binario</Text>
+                            <Text 
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                style={[
+                                    styles.genderText,
+                                    { color: colors.textSecondary },
+                                    gender === 'non-binary' && [styles.genderTextActive, { color: colors.accent }]
+                                ]}
+                            >No Binario</Text>
                         </TouchableOpacity>
                     </View>
                     {/* Botón Continuar */}
@@ -573,6 +646,26 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: "#0F2C4F"
     },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#DBDBDB',
+    },
+    inputField: {
+        flex: 1,
+        padding: 16,
+        fontSize: 16,
+        color: "#0F2C4F"
+    },
+    eyeIconContainer: {
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        justifyContent: 'center',
+    },
     roleLabel: {
         fontSize: 16,
         fontWeight: 'bold',
@@ -642,16 +735,28 @@ const styles = StyleSheet.create({
     genderCard: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        padding: 20,
+        paddingVertical: 14,
+        paddingHorizontal: 8,
         borderRadius: 12,
         borderWidth: 2,
         borderColor: '#DBDBDB',
         alignItems: 'center',
         marginHorizontal: 5,
+        justifyContent: 'center',
     },
     genderCardActive: {
         borderColor: '#3498DB',
         backgroundColor: '#EBF5FB', // Un azul muy clarito de fondo
+    },
+    genderText: {
+        marginTop: 8,
+        fontSize: 13,
+        color: '#7F8C8D',
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    genderTextActive: {
+        color: '#3498DB',
     },
     title_container: {
         marginTop: 20,

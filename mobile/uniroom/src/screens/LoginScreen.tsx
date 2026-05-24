@@ -46,9 +46,12 @@ const getUserRole = (payload: any) => {
 export default function LoginScreen({ navigation }: any) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [authenticatedUser, setAuthenticatedUser] = useState<AuthenticatedUser | null>(null);
+    const [isEmailFocused, setIsEmailFocused] = useState(false);
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
     const { colors, isDark } = useTheme();
 
@@ -161,7 +164,15 @@ export default function LoginScreen({ navigation }: any) {
                         <Text style={[styles.slogan, { color: colors.textSecondary }]}>Sin preocuparse de donde vivir</Text>
                     </View>
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        style={[
+                            styles.input, 
+                            { 
+                                backgroundColor: colors.cardBackground, 
+                                borderColor: isEmailFocused ? colors.buttonMain : colors.border, 
+                                color: colors.textPrimary,
+                                borderWidth: isEmailFocused ? 1.5 : 1
+                            }
+                        ]}
                         placeholder="Correo electrónico"
                         placeholderTextColor={colors.textSecondary}
                         keyboardType="email-address"
@@ -169,17 +180,33 @@ export default function LoginScreen({ navigation }: any) {
                         value={email}
                         onChangeText={setEmail}
                         editable={!isLoading}
+                        onFocus={() => setIsEmailFocused(true)}
+                        onBlur={() => setIsEmailFocused(false)}
                     />
 
-                    <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                        placeholderTextColor={colors.textSecondary}
-                        placeholder="Contraseña"
-                        secureTextEntry
-                        value={password}
-                        onChangeText={setPassword}
-                        editable={!isLoading}
-                    />
+                    <View style={[
+                        styles.inputContainer, 
+                        { 
+                            backgroundColor: colors.cardBackground, 
+                            borderColor: isPasswordFocused ? colors.buttonMain : colors.border,
+                            borderWidth: isPasswordFocused ? 1.5 : 1
+                        }
+                    ]}>
+                        <TextInput
+                            style={[styles.inputField, { color: colors.textPrimary }]}
+                            placeholderTextColor={colors.textSecondary}
+                            placeholder="Contraseña"
+                            secureTextEntry={!showPassword}
+                            value={password}
+                            onChangeText={setPassword}
+                            editable={!isLoading}
+                            onFocus={() => setIsPasswordFocused(true)}
+                            onBlur={() => setIsPasswordFocused(false)}
+                        />
+                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIconContainer}>
+                            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
 
                     <TouchableOpacity style={[styles.loginButton, { backgroundColor: colors.buttonMain }]} onPress={handleLogin} disabled={isLoading}>
                         {isLoading ? (
@@ -260,6 +287,26 @@ const styles = StyleSheet.create({
         borderColor: '#DBDBDB',
         fontSize: 16,
         color: "#000000"
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#DBDBDB',
+    },
+    inputField: {
+        flex: 1,
+        padding: 16,
+        fontSize: 16,
+        color: "#000000"
+    },
+    eyeIconContainer: {
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        justifyContent: 'center',
     },
     loginButton: {
         backgroundColor: '#205EA6',

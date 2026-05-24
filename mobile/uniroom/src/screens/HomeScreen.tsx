@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useVideoPlayer, VideoView } from "expo-video"
 import { useTheme } from "../context/ThemeContext"
+import { useCustomAlert } from "../context/AlertContext"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { obtenerRentaActual, cancelarRenta, crearCalificacion } from "../services/api"
 import { socketService } from "../services/websocketService"
@@ -34,6 +35,7 @@ type Props = { navigation?: any; route?: any }
 const HomeScreen = ({ navigation, route }: Props) => {
     const insets = useSafeAreaInsets()
     const { colors, isDark } = useTheme()
+    const { showAlert } = useCustomAlert()
     
     const userId = route?.params?.userId
     const token = route?.params?.token
@@ -121,7 +123,7 @@ const HomeScreen = ({ navigation, route }: Props) => {
             setComentario("")
             setModalCalificacionVisible(true)
         } catch (error: any) {
-            Alert.alert("Error", error.message)
+            showAlert({ title: "Error", message: error.message, type: "error" })
         } finally {
             setCancelando(false)
         }
@@ -517,10 +519,10 @@ const styles = StyleSheet.create({
     sinRentaSub: { fontSize: 15, marginTop: 8, textAlign: "center", marginBottom: 24 },
     btnExplorar: { flexDirection: "row", borderRadius: 24, paddingVertical: 14, paddingHorizontal: 28, alignItems: "center", gap: 10 },
     btnExplorarTexto: { color: "#fff", fontWeight: "700", fontSize: 16 },
-    headerAzul: { height: SCREEN_HEIGHT * 0.32, backgroundColor: "#1477e9", overflow: "hidden" },
+    headerAzul: { height: SCREEN_HEIGHT * 0.35, backgroundColor: "#1A62C6", overflow: "hidden", borderBottomLeftRadius: 28, borderBottomRightRadius: 28, elevation: 5, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 12 },
     headerImagen: { position: "absolute", width: "100%", height: "100%", resizeMode: "cover" },
-    headerOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#2a558891", opacity: 0.55 },
-    headerContenido: { position: "absolute", bottom: 20, left: 16, right: 16 },
+    headerOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#0A1E3F", opacity: 0.5 },
+    headerContenido: { position: "absolute", bottom: 28, left: 20, right: 20 },
     headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
     headerLbl: { fontSize: 16, color: "rgba(255,255,255,0.80)", fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" },
     badge: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 20, paddingVertical: 3, paddingHorizontal: 9 },
@@ -530,15 +532,15 @@ const styles = StyleSheet.create({
     headerSub: { fontSize: 15, color: "rgba(255,255,255,0.85)" },
     menuDesplegable: { position: "absolute", top: 44, right: 16, borderRadius: 10, paddingVertical: 6, borderWidth: 0.5, zIndex: 100, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 8, elevation: 6 },
     menuItem: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10, paddingHorizontal: 14 },
-    menuItemTxt: { fontSize: 13, color: "#A32D2D", fontWeight: "600" },
-    body: { borderRadius: 20, marginTop: -12, padding: 14, gap: 10 },
-    galeriaRow: { flexDirection: "row", gap: 6 },
-    imgMiniatura: { height: 150, width: "100%", borderRadius: 10, resizeMode: "cover" },
-    imgSmVideo: { backgroundColor: "#1a1a2e", justifyContent: "center", alignItems: "center" },
-    cardVacio: { padding: 14, gap: 8 },
-    card: { borderRadius: 14, padding: 14, gap: 8, borderWidth: 0.5 },
-    cardDouble: { borderRadius: 14, padding: 14, borderWidth: 0.5, flexDirection: "row", alignItems: "flex-start", gap: 12 },
-    cardLbl: { fontSize: 15, fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 },
+    menuItemTxt: { fontSize: 14, color: "#E63946", fontWeight: "600" },
+    body: { marginTop: -15, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 16, gap: 14 },
+    galeriaRow: { flexDirection: "row", gap: 8 },
+    imgMiniatura: { height: 160, width: "100%", borderRadius: 14, resizeMode: "cover" },
+    imgSmVideo: { backgroundColor: "#0B1221", justifyContent: "center", alignItems: "center" },
+    cardVacio: { paddingHorizontal: 4, paddingVertical: 8, gap: 10 },
+    card: { borderRadius: 24, padding: 20, gap: 10, borderWidth: 1, borderColor: "rgba(0,0,0,0.03)", shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
+    cardDouble: { borderRadius: 24, padding: 20, borderWidth: 1, borderColor: "rgba(0,0,0,0.03)", flexDirection: "row", alignItems: "flex-start", gap: 14, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
+    cardLbl: { fontSize: 13, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 },
     timeline: { gap: 0 },
     tlItem: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
     tlLeft: { alignItems: "center", width: 16, flexShrink: 0, marginTop: 2 },
@@ -562,8 +564,8 @@ const styles = StyleSheet.create({
     chipRegla: { },
     chipTxtRegla: { },
     modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
-    modalCard: { borderRadius: 20, padding: 24, width: "80%", alignItems: "center", gap: 10 },
-    modalIcono: { width: 64, height: 64, borderRadius: 32, justifyContent: "center", alignItems: "center", marginBottom: 4 },
+    modalCard: { borderRadius: 28, padding: 28, width: "85%", alignItems: "center", gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+    modalIcono: { width: 68, height: 68, borderRadius: 34, justifyContent: "center", alignItems: "center", marginBottom: 4 },
     modalTitulo: { fontSize: 18, fontWeight: "800" },
     modalSubtitulo: { fontSize: 13, textAlign: "center", lineHeight: 20 },
     modalBtnPeligro: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 24, width: "80%", alignItems: "center", marginTop: 6 },

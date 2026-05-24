@@ -257,7 +257,13 @@ export default function MapScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.cardBackground} />
+      
+      {/* Nuevo Header de Rutas Cercanas */}
+      <View style={[styles.header, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitulo, { color: colors.textPrimary }]}>Rutas de Transporte</Text>
+        <Text style={[styles.headerSubtitulo, { color: colors.textSecondary }]}>Cercanas a tu escuela</Text>
+      </View>
       
       <Mapbox.MapView
         style={styles.map}
@@ -419,6 +425,14 @@ export default function MapScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  header: { 
+    paddingHorizontal: 20, 
+    paddingVertical: 14, 
+    borderBottomWidth: 1,
+    zIndex: 10 
+  },
+  headerTitulo: { fontSize: 20, fontWeight: '800' },
+  headerSubtitulo: { fontSize: 12, marginTop: 2, fontWeight: '600', opacity: 0.8 },
   map: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { marginTop: 16, fontSize: 18, fontWeight: "600" },

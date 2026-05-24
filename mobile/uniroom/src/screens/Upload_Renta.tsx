@@ -10,6 +10,7 @@ import Mapbox from '@rnmapbox/maps'
 import * as Location from 'expo-location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTheme } from '../context/ThemeContext'
+import { useCustomAlert } from '../context/AlertContext'
 import { API_BASE_URL as API_URL } from '../config'
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
@@ -95,6 +96,7 @@ const Lessor_Renthouse = () => {
     const navigation = useNavigation<any>()
     const route = useRoute<any>()
     const { colors, isDark } = useTheme()
+    const { showAlert } = useCustomAlert()
 
     const inmuebleExistente = route.params?.inmueble ?? null
     const esEdicion = inmuebleExistente !== null
@@ -422,11 +424,11 @@ const Lessor_Renthouse = () => {
 
             if (!resp.ok) throw new Error(data.error || data.details || "Error desconocido");
 
-            Alert.alert('Éxito', esEdicionReal ? 'Actualizado correctamente' : 'Registrado correctamente');
+            showAlert({ title: 'Éxito', message: esEdicionReal ? 'Actualizado correctamente' : 'Registrado correctamente', type: 'success' });
             navigation.goBack();
 
         } catch (error: any) {
-            Alert.alert('Error', error.message);
+            showAlert({ title: 'Error', message: error.message, type: 'error' });
         } finally {
             setCargando(false)
         }
@@ -448,7 +450,7 @@ const Lessor_Renthouse = () => {
 
     const publicar = () => {
         if (!formularioValido()) {
-            Alert.alert('Campos incompletos', 'Asegúrate de llenar todos los campos obligatorios y de asignar al menos un horario a cada día de visita seleccionado.')
+            showAlert({ title: 'Campos incompletos', message: 'Asegúrate de llenar todos los campos obligatorios y de asignar al menos un horario a cada día de visita seleccionado.', type: 'warning' })
             return
         }
         guardarInmuebles()

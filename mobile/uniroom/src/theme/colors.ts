@@ -1,35 +1,35 @@
 export const lightColors = {
-    background: '#DCEEFF',
-    backgroundSecondary: '#F5F7FA',
-    cardBackground: '#FFFFFF',
-    textPrimary: '#0F2C4F',
-    textSecondary: '#7F8C8D',
-    buttonMain: '#205EA6',
+    background: '#F0F6FC', // Cleaner, more neutral light blue
+    backgroundSecondary: '#E1ECF4', // Slightly deeper for contrast
+    cardBackground: '#FFFFFF', // Clean white for cards
+    textPrimary: '#0A1E3F', // Deep navy for high contrast readability
+    textSecondary: '#5C6D82', // Modern slate gray
+    buttonMain: '#1A62C6', // Slightly more vibrant primary blue
     buttonText: '#FFFFFF',
-    accent: '#3498DB',
-    border: '#DBDBDB',
-    error: '#E74C3C',
+    accent: '#007AFF', // Modern iOS-like blue accent
+    border: '#D0D9E4', // Soft blue-gray border
+    error: '#E63946', // Vibrant modern red
     errorBackground: '#FDEDEC',
-    success: '#27AE60',
-    successBackground: '#EAFAF1',
-    headerBackground: '#DCEEFF', // Same as background often
+    success: '#10B981', // Emerald green
+    successBackground: '#ECFDF5',
+    headerBackground: '#F0F6FC', 
 };
 
 export const darkColors = {
-    background: '#0A192F',
-    backgroundSecondary: '#020C1B',
-    cardBackground: '#112240',
-    textPrimary: '#E6F1FF',
-    textSecondary: '#8892B0',
-    buttonMain: '#3498DB',
+    background: '#0B1221', // Deep sleek dark blue
+    backgroundSecondary: '#111D35',
+    cardBackground: '#111D35',
+    textPrimary: '#E2E8F0', // Soft white for less eye strain
+    textSecondary: '#94A3B8', // Slate gray
+    buttonMain: '#3B82F6', // Brighter blue for dark mode
     buttonText: '#FFFFFF',
-    accent: '#64FFDA',
-    border: '#233554',
-    error: '#FF6B6B',
-    errorBackground: '#4A1515',
-    success: '#00C853',
-    successBackground: '#003314',
-    headerBackground: '#0A192F',
+    accent: '#38BDF8', // Sky blue accent
+    border: '#1E293B',
+    error: '#EF4444',
+    errorBackground: '#450A0A',
+    success: '#10B981',
+    successBackground: '#022C22',
+    headerBackground: '#0B1221',
 };
 
 export type ThemeColors = typeof lightColors;
