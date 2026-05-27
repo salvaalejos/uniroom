@@ -1,0 +1,5 @@
+1. Hacer que los componentes contenidos en los componentes de la pestaña mobile/uniroom/src/screens/ sean componentes tipo .tsx por separado, en lugar de estar contenidos en otros. 
+2. Realizar un UseQuery con Tanstack. 
+3. Agregar un contenedor para el backend en el docker-compose.yml. 
+4. Hacer tests unitarios [3 tests], tests de integración [3 tests], tests E2E [3 tests], además correr esos tests en los GitHub Actions. 
+ 

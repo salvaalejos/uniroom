@@ -16,6 +16,9 @@ import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { NotificationProvider } from './src/context/NotificationContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 // Crea el Stack
 const Stack = createNativeStackNavigator();
@@ -130,8 +133,10 @@ function MainApp() {
 
 export default function App() {
     return (
-        <ThemeProvider>
-            <MainApp />
-        </ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+                <MainApp />
+            </ThemeProvider>
+        </QueryClientProvider>
     );
 }

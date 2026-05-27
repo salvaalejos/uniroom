@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     StyleSheet,
     View,
@@ -13,75 +13,92 @@ import {
     FlatList
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
-import { CommonActions, useFocusEffect } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggleButton from '../components/ThemeToggleButton';
 import { API_BASE_URL } from '../config';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function ProfileScreen({ navigation, route }: any) {
-    const [userData, setUserData] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [showTransactions, setShowTransactions] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [loadingTransactions, setLoadingTransactions] = useState(false);
-    const [savedCards, setSavedCards] = useState<any[]>([]);
-    const [loadingCards, setLoadingCards] = useState(false);
 
     const { colors, isDark, toggleTheme } = useTheme();
+    const queryClient = useQueryClient();
 
     const userId = route.params?.userId;
     const token = route.params?.token;
     console.log(userId)
+
     useEffect(() => {
         const parent = navigation.getParent()
         if (parent) parent.setOptions({ headerShown: false });
-        getUserData();
-        
-        const unsubscribe = navigation.addListener('focus', () => {
-            getUserData();
-        });
-        
         return () => {
             if (parent) parent.setOptions({ headerShown: true });
-            unsubscribe();
         }
-    }, [navigation, userId])
+    }, [navigation])
 
-    // Cargar tarjetas guardadas
-    const fetchSavedCards = async () => {
-        try {
-            setLoadingCards(true);
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            queryClient.invalidateQueries({ queryKey: ['profile', userId] });
+            queryClient.invalidateQueries({ queryKey: ['savedCards', userId] });
+        });
+        return unsubscribe;
+    }, [navigation, userId, queryClient])
+
+    const { data: userData, isLoading } = useQuery({
+        queryKey: ['profile', userId],
+        queryFn: async () => {
+            const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const contentType = response.headers.get('content-type') || '';
+            const data = contentType.includes('application/json')
+                ? await response.json()
+                : { error: await response.text() };
+            if (!response.ok) {
+                Alert.alert("Error", data.error || "No se pudo cargar la información del perfil.");
+                throw new Error(data.error);
+            }
+            return data;
+        },
+        enabled: !!userId,
+    });
+
+    const { data: savedCards = [] } = useQuery({
+        queryKey: ['savedCards', userId],
+        queryFn: async () => {
             const response = await fetch(`${API_BASE_URL}/payments/cards`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
-            setSavedCards(data.cards || []);
-        } catch (error) {
-            console.log("Error cargando tarjetas:", error);
-        } finally {
-            setLoadingCards(false);
-        }
-    };
+            return data.cards || [];
+        },
+        enabled: !!userId,
+    });
 
-    const deleteCard = async (cardId: string) => {
+    const deleteCardMutation = useMutation({
+        mutationFn: async (cardId: string) => {
+            await fetch(`${API_BASE_URL}/payments/cards/${cardId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['savedCards', userId] });
+        },
+        onError: () => {
+            Alert.alert("Error", "No se pudo eliminar la tarjeta");
+        }
+    });
+
+    const deleteCard = (cardId: string) => {
         Alert.alert("Eliminar tarjeta", "¿Deseas eliminar esta tarjeta guardada?", [
             { text: "Cancelar", style: "cancel" },
-            {
-                text: "Eliminar", style: "destructive",
-                onPress: async () => {
-                    try {
-                        await fetch(`${API_BASE_URL}/payments/cards/${cardId}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        setSavedCards(prev => prev.filter(c => c.id !== cardId));
-                    } catch (error) {
-                        Alert.alert("Error", "No se pudo eliminar la tarjeta");
-                    }
-                }
-            }
+            { text: "Eliminar", style: "destructive", onPress: () => deleteCardMutation.mutate(cardId) }
         ]);
     };
 
@@ -91,13 +108,6 @@ export default function ProfileScreen({ navigation, route }: any) {
         if (pmId === 'amex') return 'cc-amex';
         return 'credit-card';
     };
-
-    useFocusEffect(
-        useCallback(() => {
-            getUserData();
-            fetchSavedCards();
-        }, [userId, token])
-    );
 
     const handleLogout = async () => {
         try {

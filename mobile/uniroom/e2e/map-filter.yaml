@@ -1,0 +1,10 @@
+appId: com.uniroom.app
+---
+- launchApp
+- tapOn: "Inmuebles"
+- waitForVisible: "UniRoomie Morelia"
+- tapOn:
+    id: "filterButton"
+- waitForVisible: "Filtros"
+- tapOn: "Aplicar Filtros"
+- assertVisible: "UniRoomie Morelia"

@@ -7,18 +7,7 @@ import { useNavigation } from '@react-navigation/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTheme } from '../context/ThemeContext'
 import { API_BASE_URL as API_URL } from '../config'
-
-
-// ---- Tipo del Inmueble ----
-type Inmueble = {
-    id_inmueble: number
-    titulo: string
-    ubicacion: string
-    descripcion: string
-    precio: number
-    estado: string
-    foto: string | any
-}
+import { Inmueble } from '../types/properties'
 
 const DEFAULT_IMAGE = require("../default_images/fachada.jpg");
 
