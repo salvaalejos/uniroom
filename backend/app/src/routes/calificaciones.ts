@@ -9,7 +9,10 @@ export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
   .post(
     "/",
     async ({ body, authenticatedUser, set }) => {
-      if ("error" in (authenticatedUser as any)) return authenticatedUser;
+      if (!authenticatedUser || "error" in (authenticatedUser as any)) {
+        set.status = 401;
+        return { error: (authenticatedUser as any)?.error || "No autorizado" };
+      }
 
       const { id_inmueble, calificacion, comentario } = body;
 
@@ -48,7 +51,10 @@ export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
   .post(
     "/estudiantes",
     async ({ body, authenticatedUser, set }) => {
-      if ("error" in (authenticatedUser as any)) return authenticatedUser;
+      if (!authenticatedUser || "error" in (authenticatedUser as any)) {
+        set.status = 401;
+        return { error: (authenticatedUser as any)?.error || "No autorizado" };
+      }
 
       // Solo arrendadores pueden calificar estudiantes
       if (authenticatedUser.rol !== "ARRENDADOR") {
