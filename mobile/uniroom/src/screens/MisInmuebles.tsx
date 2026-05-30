@@ -8,6 +8,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTheme } from '../context/ThemeContext'
 import { API_BASE_URL as API_URL } from '../config'
 import { Inmueble } from '../types/properties'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { obtenerMisInmuebles, eliminarInmuebleApi } from '../services/api'
+import { InmuebleCard } from '../components/InmuebleCard'
+import { ConfirmModal } from '../components/ConfirmModal'
 
 const DEFAULT_IMAGE = require("../default_images/fachada.jpg");
 
@@ -17,98 +21,60 @@ const MisInmuebles = () => {
     const insets = useSafeAreaInsets()
     const navegacion = useNavigation<any>()
 
-    const [inmuebles, setInmuebles] = useState<Inmueble[]>([])
-    const [cargando, setCargando] = useState(true)
-    const [confirmarId, setConfirmarId] = useState<number | null>(null)
-    const [menuAbierto, setMenuAbierto] = useState<number | null>(null)
+    const queryClient = useQueryClient();
     const { colors, isDark } = useTheme()
 
-    const fetchInmuebles = async () => {
-        try {
+    const { data: inmuebles = [], isLoading: cargando } = useQuery({
+        queryKey: ['misInmuebles'],
+        queryFn: async () => {
             const userId = await AsyncStorage.getItem('userId');
-            const token = await AsyncStorage.getItem('token');
-            console.log("[MisInmuebles] Recuperando inmuebles para userId:", userId);
+            if (!userId) throw new Error("No hay userId en storage");
             
-            if (!userId || !token) {
-                console.warn("[MisInmuebles] No hay userId o token en storage");
-                setCargando(false);
-                return;
-            }
-
-            const url = `${API_URL}/inmuebles?arrendadorId=${userId}`;
-            console.log("[MisInmuebles] Fetching:", url);
-
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Error ${response.status}: ${errorText}`);
-            }
-
-            const data = await response.json();
-            console.log("[MisInmuebles] Datos recibidos:", data.length);
+            const data = await obtenerMisInmuebles(userId);
             
-            // Mapear los datos del backend al formato del componente
-            const mappedData: Inmueble[] = data.map((item: any) => ({
+            return data.map((item: any) => ({
                 id_inmueble: item.id_inmueble,
                 titulo: item.titulo,
-                ubicacion: "Morelia, Michoacán", // Texto genérico ya que no hay dirección textual en la DB
+                ubicacion: "Morelia, Michoacán",
                 descripcion: item.descripcion || "Sin descripción",
                 precio: parseFloat(item.precio_mensual),
                 estado: item.estado === "DISPONIBLE" ? "publicado" : "pendiente",
                 foto: item.imagenes && item.imagenes.length > 0 
                     ? { uri: `${API_URL}${item.imagenes[0].imagen}` } 
                     : DEFAULT_IMAGE,
-                rawData: item // Guardamos todo el objeto para cuando se quiera editar
+                rawData: item
             }));
-
-            setInmuebles(mappedData);
-        } catch (error: any) {
-            console.error("[MisInmuebles] Error fatal:", error.message);
-            Alert.alert("Error", "No se pudieron cargar tus inmuebles.");
-        } finally {
-            setCargando(false);
         }
-    };
+    });
+
+    const mutationEliminar = useMutation({
+        mutationFn: (id: number) => eliminarInmuebleApi(id),
+        onSuccess: () => {
+            setConfirmarId(null);
+            queryClient.invalidateQueries({ queryKey: ['misInmuebles'] });
+            Alert.alert("Éxito", "Inmueble eliminado correctamente.");
+        },
+        onError: (error) => {
+            console.error("[MisInmuebles] Error al eliminar:", error);
+            Alert.alert("Error", "No se pudo eliminar el inmueble.");
+        }
+    });
 
     useEffect(() => {
-        fetchInmuebles();
-        
-        // Agregar un listener para recargar cuando se regrese a esta pantalla
         const unsubscribe = navegacion.addListener('focus', () => {
-            fetchInmuebles();
+            queryClient.invalidateQueries({ queryKey: ['misInmuebles'] });
         });
-
         return unsubscribe;
-    }, [navegacion]);
+    }, [navegacion, queryClient]);
 
     const eliminarInmueble = (id: number) => {
         setMenuAbierto(null)
         setConfirmarId(id)
     }
 
-    const confirmarEliminar = async () => {
-        try {
-            const token = await AsyncStorage.getItem('token');
-            const response = await fetch(`${API_URL}/inmuebles/${confirmarId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) throw new Error("No se pudo eliminar el inmueble");
-
-            setInmuebles(prev => prev.filter(i => i.id_inmueble !== confirmarId))
-            setConfirmarId(null)
-            Alert.alert("Éxito", "Inmueble eliminado correctamente.");
-        } catch (error) {
-            console.error("[MisInmuebles] Error al eliminar:", error);
-            Alert.alert("Error", "No se pudo eliminar el inmueble.");
+    const confirmarEliminar = () => {
+        if (confirmarId !== null) {
+            mutationEliminar.mutate(confirmarId);
         }
     }
 
@@ -173,52 +139,14 @@ const MisInmuebles = () => {
 
                     <View key={inmueble.id_inmueble}>
 
-                        <View style={[styles.card, { backgroundColor: colors.cardBackground, shadowColor: isDark ? 'transparent' : '#000' }]}>
-
-                            <Image source={typeof inmueble.foto === 'object' ? inmueble.foto : { uri: inmueble.foto }} style={styles.cardFoto}/>
-
-                            <View style={styles.cardInfo}>
-
-                                <View style={styles.cardInfoTop}>
-
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[styles.cardTitulo, { color: colors.textPrimary }]} numberOfLines={1}>
-                                            {inmueble.titulo}
-                                        </Text>
-                                        <View style={styles.cardUbicacionRow}>
-                                            <MaterialCommunityIcons name="map-marker" size={13} color={colors.accent}/>
-                                            <Text style={[styles.cardUbicacion, { color: colors.textSecondary }]} numberOfLines={1}>
-                                                {inmueble.ubicacion}
-                                            </Text>
-                                        </View>
-                                        <Text style={[styles.cardDescripcion, { color: colors.textSecondary }]} numberOfLines={2}>
-                                            {inmueble.descripcion}
-                                        </Text>
-                                    </View>
-
-                                    <TouchableOpacity style={styles.btnMenu} onPress={() => setMenuAbierto(menuAbierto === inmueble.id_inmueble ? null : inmueble.id_inmueble)}>
-                                        <MaterialCommunityIcons name="dots-vertical" size={22} color={colors.textSecondary}/>
-                                    </TouchableOpacity>
-
-                                </View>
-
-                                <View style={styles.cardFooter}>
-
-                                    <Text style={[styles.cardPrecio, { color: colors.buttonMain }]}>
-                                        ${inmueble.precio.toLocaleString('es-MX')}
-                                        <Text style={[styles.cardMes, { color: colors.textSecondary }]}> / mes</Text>
-                                    </Text>
-                                    <View style={[styles.badge, inmueble.estado === "publicado" ? [styles.badgePublicado, { backgroundColor: colors.accent, borderColor: colors.accent }] : [styles.badgePendiente, { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF', borderColor: colors.buttonMain }]]}>
-                                        <Text style={[styles.badgeTexto, inmueble.estado === "publicado" ? styles.badgeTextoPublicado : [styles.badgeTextoPendiente, { color: colors.buttonMain }]]}>
-                                            {inmueble.estado === "publicado" ? "Publicado" : "Pendiente"}
-                                        </Text>
-                                    </View>
-
-                                </View>
-
-                            </View>
-
-                        </View>
+                        <InmuebleCard 
+                            inmueble={inmueble}
+                            rightAction={
+                                <TouchableOpacity style={styles.btnMenu} onPress={() => setMenuAbierto(menuAbierto === inmueble.id_inmueble ? null : inmueble.id_inmueble)}>
+                                    <MaterialCommunityIcons name="dots-vertical" size={22} color={colors.textSecondary}/>
+                                </TouchableOpacity>
+                            }
+                        />
 
                         {/* Menu desplegable */}
                         {menuAbierto === inmueble.id_inmueble && (
@@ -253,23 +181,17 @@ const MisInmuebles = () => {
                 </TouchableOpacity>
             )}
 
-            {/* Modal de confirmacion */}
-            {confirmarId !== null && (
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalCaja, { backgroundColor: colors.cardBackground }]}>
-                        <Text style={[styles.modalTitulo, { color: colors.textPrimary }]}>Eliminar inmueble</Text>
-                        <Text style={[styles.modalTexto, { color: colors.textSecondary }]}>¿Estás seguro? Esta acción no se puede deshacer.</Text>
-                        <View style={styles.modalBotones}>
-                            <TouchableOpacity style={[styles.modalBtnCancelar, { borderColor: colors.border }]} onPress={() => setConfirmarId(null)}>
-                                <Text style={[styles.modalBtnCancelarTexto, { color: colors.textSecondary }]}>Cancelar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.modalBtnEliminar, { backgroundColor: colors.error }]} onPress={confirmarEliminar}>
-                                <Text style={[styles.modalBtnEliminarTexto, { color: colors.buttonText }]}>Eliminar</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            )}
+            <ConfirmModal 
+                visible={confirmarId !== null}
+                title="Eliminar inmueble"
+                description="¿Estás seguro? Esta acción no se puede deshacer."
+                primaryButtonText="Eliminar"
+                primaryButtonColor={colors.error}
+                onPrimaryPress={confirmarEliminar}
+                secondaryButtonText="Cancelar"
+                onSecondaryPress={() => setConfirmarId(null)}
+                buttonsLayout="row"
+            />
 
         </View>
     )
@@ -469,59 +391,4 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
 
-    // ------------
 
-    modalOverlay: {
-        position: "absolute",
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 100,
-    },
-    modalCaja: {
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        padding: 24,
-        width: "80%",
-        gap: 12,
-    },
-    modalTitulo: {
-        fontSize: 17,
-        fontWeight: "800",
-        color: "#1a1a2e",
-    },
-    modalTexto: {
-        fontSize: 14,
-        color: "#666",
-    },
-    modalBotones: {
-        flexDirection: "row",
-        gap: 10,
-        marginTop: 8,
-    },
-    modalBtnCancelar: {
-        flex: 1,
-        paddingVertical: 10,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: "#ddd",
-        alignItems: "center",
-    },
-    modalBtnCancelarTexto: {
-        fontWeight: "600",
-        color: "#666",
-    },
-    modalBtnEliminar: {
-        flex: 1,
-        paddingVertical: 10,
-        borderRadius: 10,
-        backgroundColor: "#e74c3c",
-        alignItems: "center",
-    },
-    modalBtnEliminarTexto: {
-        fontWeight: "700",
-        color: "#fff",
-    },
-
-})

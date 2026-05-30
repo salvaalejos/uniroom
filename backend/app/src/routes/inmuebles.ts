@@ -2,29 +2,20 @@ import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
 import { existsSync, mkdirSync } from "node:fs";
+import { esPrecioValido } from "../utils/validation";
 
 console.log("[Inmuebles] Cargando rutas de inmuebles...");
 
+import { authPlugin } from "../middlewares/auth";
+
 export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
-    })
-  )
-  .derive(async ({ jwt, headers: { authorization } }) => {
-    if (!authorization?.startsWith("Bearer ")) {
+  .use(authPlugin)
+  .derive(({ authenticatedUser, set }) => {
+    if (authenticatedUser && "error" in (authenticatedUser as any)) {
+      if (set.status === 401) set.status = 200;
       return { authenticatedUser: null };
     }
-    const token = authorization.slice(7);
-    const payload = await jwt.verify(token);
-    if (!payload || !payload.sub) {
-      return { authenticatedUser: null };
-    }
-    const user = await db.usuario.findUnique({
-      where: { id_usuario: payload.sub as string },
-    });
-    return { authenticatedUser: user };
+    return { authenticatedUser };
   })
   // 1. Listar todos los inmuebles (público, pero se puede filtrar)
   .get("/", async ({ authenticatedUser, query }) => {
@@ -286,7 +277,7 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         const lat = parseFloat(direccion_latitud);
         const lng = parseFloat(direccion_longitud);
 
-        if (isNaN(precio)) {
+        if (!esPrecioValido(precio_mensual)) {
           set.status = 400;
           return { error: "El precio debe ser un número válido" };
         }

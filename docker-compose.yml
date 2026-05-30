@@ -7,9 +7,9 @@ services:
     ports:
       - "5435:5432"
     environment:
-      POSTGRES_USER: uniroom_user
-      POSTGRES_PASSWORD: '12345'
-      POSTGRES_DB: uniroom
+      POSTGRES_USER: ${POSTGRES_USER:-uniroom_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345}
+      POSTGRES_DB: ${POSTGRES_DB:-uniroom}
     volumes:
       - ./postgres-data:/var/lib/postgresql/data_db
 
@@ -23,8 +23,8 @@ services:
       - "3000:3000"
       - "3001:3001"
     environment:
-      DATABASE_URL: "postgresql://uniroom_user:12345@db:5432/uniroom?schema=public&connect_timeout=30&sslmode=disable"
-      JWT_SECRET: "your_secret"
+      DATABASE_URL: "${DATABASE_URL:-postgresql://${POSTGRES_USER:-uniroom_user}:${POSTGRES_PASSWORD:-12345}@db:5432/${POSTGRES_DB:-uniroom}?schema=public&connect_timeout=30&sslmode=disable}"
+      JWT_SECRET: "${JWT_SECRET:-your_secret}"
       RESEND_API_KEY: "${RESEND_API_KEY}"
     volumes:
       - ./backend/app:/app

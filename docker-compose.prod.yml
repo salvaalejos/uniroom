@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  backend:
+    build:
+      context: ./backend/app
+      dockerfile: Dockerfile
+    container_name: uniroom_backend_prod
+    restart: always
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      # En producción, estas variables SE DEBEN inyectar a través del archivo .env del servidor
+      DATABASE_URL: "${DATABASE_URL}"
+      JWT_SECRET: "${JWT_SECRET}"
+      RESEND_API_KEY: "${RESEND_API_KEY}"
+    volumes:
+      - ./uploads:/app/uploads

@@ -9,6 +9,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function EditProfileScreen({ navigation, route }: any) {
     const userToEdit = route.params?.userData; // Data passed from ProfileScreen
@@ -24,13 +25,13 @@ export default function EditProfileScreen({ navigation, route }: any) {
         userToEdit?.genero ? 'non-binary' : null
     );
     const [picture, setPicture] = useState(userToEdit?.foto ? `${API_BASE_URL}${userToEdit.foto}` : "");
-    const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
     const [modalConfig, setModalConfig] = useState({ title: '', message: '', isEmailChange: false });
     const { colors, isDark } = useTheme();
     const [mpLinked, setMpLinked] = useState(!!userToEdit?.mp_vendedor_id);
     const [linkingMP, setLinkingMP] = useState(false);
+    const queryClient = useQueryClient();
 
     const handleLinkMercadoPago = async () => {
         setLinkingMP(true);
@@ -154,13 +155,10 @@ export default function EditProfileScreen({ navigation, route }: any) {
         formData.append('numero_contacto', cleanPhone);
         formData.append('genero', backendGender);
         
-        // El email ya no se envía ya que es de solo lectura y no debe cambiar
-        
         if (cleanPassword !== '') {
             formData.append('password', cleanPassword);
         }
 
-        // Si picture no incluye API_BASE_URL, es una imagen local nueva
         if (picture && !picture.startsWith(API_BASE_URL)) {
             if (Platform.OS === 'web') {
                 const response = await fetch(picture);
@@ -178,7 +176,11 @@ export default function EditProfileScreen({ navigation, route }: any) {
             }
         }
 
-        try {
+        updateProfileMutation.mutate(formData);
+    };
+
+    const updateProfileMutation = useMutation({
+        mutationFn: async (formData: FormData) => {
             const response = await fetch(`${API_BASE_URL}/users/${userToEdit.id_usuario}`, {
                 method: 'PUT',
                 headers: {
@@ -194,7 +196,11 @@ export default function EditProfileScreen({ navigation, route }: any) {
                 if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
                 throw new Error(errorMsg ?? 'No se pudo actualizar el perfil');
             }
-
+            return data;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['profile', userToEdit.id_usuario] });
+            
             if (data.emailChanged) {
                 setModalConfig({
                     title: "¡Correo Actualizado!",
@@ -210,13 +216,11 @@ export default function EditProfileScreen({ navigation, route }: any) {
                 });
                 setModalVisible(true);
             }
-
-        } catch (error: any) {
+        },
+        onError: (error: any) => {
             setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
-        } finally {
-            setIsLoading(false);
         }
-    };
+    });
 
     const handleModalClose = async () => {
         setModalVisible(false);
@@ -366,11 +370,11 @@ export default function EditProfileScreen({ navigation, route }: any) {
                     )}
 
                     <TouchableOpacity 
-                        style={[styles.registerButton, { backgroundColor: colors.buttonMain }, isLoading && styles.registerButtonDisabled]} 
+                        style={[styles.registerButton, { backgroundColor: colors.buttonMain }, updateProfileMutation.isPending && styles.registerButtonDisabled]} 
                         onPress={handleUpdate}
-                        disabled={isLoading}
+                        disabled={updateProfileMutation.isPending}
                     >
-                        {isLoading ? (
+                        {updateProfileMutation.isPending ? (
                             <ActivityIndicator color={colors.buttonText} />
                         ) : (
                             <Text style={[styles.registerButtonText, { color: colors.buttonText }]}>Guardar Cambios</Text>

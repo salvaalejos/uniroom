@@ -21,10 +21,8 @@ import { API_BASE_URL } from '../config';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function ProfileScreen({ navigation, route }: any) {
-    const [transactions, setTransactions] = useState<any[]>([]);
     const [showTransactions, setShowTransactions] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
-    const [loadingTransactions, setLoadingTransactions] = useState(false);
 
     const { colors, isDark, toggleTheme } = useTheme();
     const queryClient = useQueryClient();
@@ -128,50 +126,18 @@ export default function ProfileScreen({ navigation, route }: any) {
         }
     }
 
-    const fetchTransactions = async () => {
-        try {
-            setLoadingTransactions(true);
-            setShowTransactions(true);
+    const { data: transactions = [], isFetching: loadingTransactions } = useQuery({
+        queryKey: ['transactions', userId],
+        queryFn: async () => {
             const response = await fetch(`${API_BASE_URL}/users/${userId}/transactions`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (response.ok) {
-                const data = await response.json();
-                setTransactions(data);
-            }
-        } catch (error) {
-            Alert.alert("Error", "No se pudo cargar el historial.");
-        } finally {
-            setLoadingTransactions(false);
-        }
-    };
-
-    const getUserData = async () => {
-        try {
-            setIsLoading(true);
-            const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const contentType = response.headers.get('content-type') || '';
-            const data = contentType.includes('application/json')
-                ? await response.json()
-                : { error: await response.text() };
-
-            if (response.ok) {
-                setUserData(data);
-            } else {
-                Alert.alert("Error", data.error || "No se pudo cargar la información del perfil.");
-            }
-        } catch (error) {
-            console.error("Error en fetch:", error);
-            Alert.alert("Error de conexión", "Revisa que tu backend esté encendido.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            if (!response.ok) throw new Error("No se pudo cargar el historial.");
+            return response.json();
+        },
+        enabled: !!userId && showTransactions,
+        staleTime: 0
+    });
 
     if (isLoading) {
         return (
@@ -265,7 +231,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                 ) : (
                     <TouchableOpacity 
                         style={[styles.editButton, { backgroundColor: colors.buttonMain }]}
-                        onPress={fetchTransactions}>
+                        onPress={() => setShowTransactions(true)}>
                         <MaterialCommunityIcons name="text-box-check-outline" size={24} color={colors.buttonText} />
                         <Text style={[styles.editButtonText, { color: colors.buttonText }]}>Historial de Pagos</Text>
                     </TouchableOpacity>

@@ -10,6 +10,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { API_BASE_URL } from "../config"
 import { getMediaUri } from "../utils/getMediaUri"
 import { useQuery } from "@tanstack/react-query"
+import { obtenerInmueble } from "../services/api"
+import { RatingStars } from "../components/RatingStars"
+import { SectionHeader } from "../components/SectionHeader"
+import { ConfirmModal } from "../components/ConfirmModal"
 
 // ─ Constantes ─
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -40,13 +44,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
     const { data: permisoData } = useQuery({
         queryKey: ['permisoRenta', inmueble?.id_inmueble],
-        queryFn: async () => {
-            const resp = await fetch(`${API_BASE_URL}/inmuebles/${inmueble!.id_inmueble}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-            if (!resp.ok) throw new Error("Error verificando permiso")
-            return resp.json()
-        },
+        queryFn: () => obtenerInmueble(inmueble!.id_inmueble),
         enabled: !!inmueble?.id_inmueble && !!token,
     })
 
@@ -176,26 +174,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         <View style={styles.calificacionContainer}>
                             <View style={styles.calificacionItem}>
                                 <Text style={[styles.calificacionNumero, { color: colors.textPrimary }]}>{ratingPromedio.toFixed(1)}</Text>
-                                <View style={styles.estrellas}>
-                                {(() => {
-                                    const rating = ratingPromedio
-                                    return [1, 2, 3, 4, 5].map((i) => {
-                                        const icon = i <= Math.floor(rating)
-                                            ? "star"
-                                            : i === Math.ceil(rating) && rating % 1 !== 0
-                                                ? "star-half"
-                                                : "star-outline"
-                                        return (
-                                            <MaterialCommunityIcons
-                                                key={i}
-                                                name={icon}
-                                                size={25}
-                                                color="#f39c12"
-                                            />
-                                        )
-                                    })
-                                })()}
-                            </View>
+                                    <RatingStars rating={ratingPromedio} />
                             </View>
 
                             <View style={styles.calificacionItem}>
@@ -237,7 +216,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     <View style={[styles.divider, { backgroundColor: colors.border }]}/>
 
                     {/* Servicios */}
-                    <Text style={[styles.subtitulo, { color: colors.textPrimary }]}>Servicios incluidos</Text>
+                    <SectionHeader title="Servicios incluidos" />
                     <View style={styles.tags}>
                         {inmueble.servicios?.map((s: any, i: number) => (
                             <View key={i} style={[styles.tag, { backgroundColor: isDark ? colors.backgroundSecondary : "#EEF4FF" }]}>
@@ -249,7 +228,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     <View style={[styles.divider, { backgroundColor: colors.border }]}/>
 
                     {/* Reglas */}
-                    <Text style={[styles.subtitulo, { color: colors.textPrimary }]}>Reglas de la casa</Text>
+                    <SectionHeader title="Reglas de la casa" />
                     <View style={styles.tags}>
                         {inmueble.restricciones?.map((r: any, i: number) => (
                             <View key={i} style={[styles.tag, styles.tagRegla, { backgroundColor: isDark ? '#3a1a1a' : "#FFF0F0" }]}>
@@ -382,61 +361,39 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                 */}
             </View>
 
-            {/* Modal de Confirmar Renta */}
-            <Modal visible={modalRentarVisible} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalCard, { backgroundColor: colors.cardBackground }]}>
-                        <MaterialCommunityIcons name="key-variant" size={48} color={colors.buttonMain} style={{ marginBottom: 16 }} />
-                        <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Confirmar Renta</Text>
-                        <Text style={[styles.modalText, { color: colors.textSecondary }]}>
-                            Estás a punto de rentar {inmueble?.titulo} por ${(Number(inmueble?.precio_mensual) || 0).toLocaleString('es-MX')} MXN al mes. ¿Deseas proceder al pago?
-                        </Text>
-                        <TouchableOpacity
-                            style={[styles.btnPagar, { backgroundColor: colors.buttonMain }]}
-                            onPress={() => {
-                                setModalRentarVisible(false)
-                                navigation.navigate("PaymentScreen", {
-                                    token: token,
-                                    monto: Number(inmueble?.precio_mensual) || 0,
-                                    tipo: "renta",
-                                    id_inmueble: inmueble?.id_inmueble,
-                                    titulo_inmueble: inmueble?.titulo,
-                                })
-                            }}
-                        >
-                            <Text style={styles.btnPagarTexto}>Proceder al Pago</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalRentarVisible(false)}>
-                            <Text style={[styles.btnCancelarTexto, { color: colors.textSecondary }]}>Cancelar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+            <ConfirmModal
+                visible={modalRentarVisible}
+                title="Confirmar Renta"
+                description={`Estás a punto de rentar ${inmueble?.titulo} por $${(Number(inmueble?.precio_mensual) || 0).toLocaleString('es-MX')} MXN al mes. ¿Deseas proceder al pago?`}
+                icon="key-variant"
+                primaryButtonText="Proceder al Pago"
+                onPrimaryPress={() => {
+                    setModalRentarVisible(false)
+                    navigation.navigate("PaymentScreen", {
+                        token: token,
+                        monto: Number(inmueble?.precio_mensual) || 0,
+                        tipo: "renta",
+                        id_inmueble: inmueble?.id_inmueble,
+                        titulo_inmueble: inmueble?.titulo,
+                    })
+                }}
+                secondaryButtonText="Cancelar"
+                onSecondaryPress={() => setModalRentarVisible(false)}
+            />
 
-            {/* Modal de Tarifa de Servicio */}
-            <Modal visible={modalTarifaVisible} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalCard, { backgroundColor: colors.cardBackground }]}>
-                        <MaterialCommunityIcons name="shield-check" size={48} color={colors.buttonMain} style={{ marginBottom: 16 }} />
-                        <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Tarifa de Contacto</Text>
-                        <Text style={[styles.modalText, { color: colors.textSecondary }]}>
-                            Para proteger a nuestra comunidad y garantizar un servicio de calidad, cobramos una pequeña tarifa de $50 MXN para contactar a este arrendador.
-                        </Text>
-                        <TouchableOpacity
-                            style={[styles.btnPagar, { backgroundColor: colors.buttonMain }]}
-                            onPress={() => {
-                                setModalTarifaVisible(false)
-                                navigation.navigate("PaymentScreen", { token: token })
-                            }}
-                        >
-                            <Text style={styles.btnPagarTexto}>Entendido, proceder al pago</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalTarifaVisible(false)}>
-                            <Text style={[styles.btnCancelarTexto, { color: colors.textSecondary }]}>Cancelar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+            <ConfirmModal
+                visible={modalTarifaVisible}
+                title="Tarifa de Contacto"
+                description="Para proteger a nuestra comunidad y garantizar un servicio de calidad, cobramos una pequeña tarifa de $50 MXN para contactar a este arrendador."
+                icon="shield-check"
+                primaryButtonText="Entendido, proceder al pago"
+                onPrimaryPress={() => {
+                    setModalTarifaVisible(false)
+                    navigation.navigate("PaymentScreen", { token: token })
+                }}
+                secondaryButtonText="Cancelar"
+                onSecondaryPress={() => setModalTarifaVisible(false)}
+            />
         </View>
     )
 }
@@ -488,12 +445,4 @@ const styles = StyleSheet.create({
     btnContactoTexto: { color: "#fff", fontWeight: "700", fontSize: 15 },
     btnRentarDisabled: { flexDirection: "row", borderRadius: 24, paddingVertical: 12, paddingHorizontal: 16, alignItems: "center", gap: 8 },
     btnRentarDisabledTexto: { fontWeight: "600", fontSize: 13 },
-    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 24 },
-    modalCard: { borderRadius: 24, padding: 32, alignItems: "center", width: "100%", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 },
-    modalTitle: { fontSize: 22, fontWeight: "bold", marginBottom: 12 },
-    modalText: { fontSize: 15, textAlign: "center", lineHeight: 22, marginBottom: 24 },
-    btnPagar: { width: "100%", padding: 16, borderRadius: 12, alignItems: "center", marginBottom: 12 },
-    btnPagarTexto: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-    btnCancelar: { padding: 12 },
-    btnCancelarTexto: { fontWeight: "600", fontSize: 15 }
 })

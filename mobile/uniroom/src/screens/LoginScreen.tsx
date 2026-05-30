@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggleButton from '../components/ThemeToggleButton';
 import { API_BASE_URL } from '../config';
+import { useMutation } from '@tanstack/react-query';
 
 type AuthenticatedUser = {
     name: string;
@@ -48,7 +49,6 @@ export default function LoginScreen({ navigation }: any) {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const [authenticatedUser, setAuthenticatedUser] = useState<AuthenticatedUser | null>(null);
     const [isEmailFocused, setIsEmailFocused] = useState(false);
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -69,16 +69,8 @@ export default function LoginScreen({ navigation }: any) {
         checkSession();
     }, []);
 
-    const handleLogin = async () => {
-        if (!email || !password) {
-            setErrorMessage('Ingresa tu correo y contraseña para continuar.');
-            return;
-        }
-
-        setIsLoading(true);
-        setErrorMessage('');
-
-        try {
+    const loginMutation = useMutation({
+        mutationFn: async () => {
             console.log("[Login] Intentando login en:", loginEndpoint);
             const response = await fetch(loginEndpoint, {
                 method: 'POST',
@@ -118,10 +110,13 @@ export default function LoginScreen({ navigation }: any) {
             await AsyncStorage.setItem('userRole', String(role));
             console.log("[Login] Guardado exitoso.");
 
-            navigation.replace("Navigator", { userId: userId, token: token })
-            setAuthenticatedUser({ name, role });
-
-        } catch (error: any) {
+            return { name, role, userId, token };
+        },
+        onSuccess: (data) => {
+            navigation.replace("Navigator", { userId: data.userId, token: data.token });
+            setAuthenticatedUser({ name: data.name, role: data.role });
+        },
+        onError: (error: any) => {
             console.error("[Login] Error capturado:", error);
             const errorData = error?.message || '';
             
@@ -135,10 +130,17 @@ export default function LoginScreen({ navigation }: any) {
             }
             
             setAuthenticatedUser(null);
-            setErrorMessage(error?.message ?? 'Ocurrió un error de conexión.');
-        } finally {
-            setIsLoading(false);
+            setErrorMessage(errorData ?? 'Ocurrió un error de conexión.');
         }
+    });
+
+    const handleLogin = () => {
+        if (!email || !password) {
+            setErrorMessage('Ingresa tu correo y contraseña para continuar.');
+            return;
+        }
+        setErrorMessage('');
+        loginMutation.mutate();
     };
 
     const handleLogout = () => {
@@ -179,7 +181,7 @@ export default function LoginScreen({ navigation }: any) {
                         autoCapitalize="none"
                         value={email}
                         onChangeText={setEmail}
-                        editable={!isLoading}
+                        editable={!loginMutation.isPending}
                         onFocus={() => setIsEmailFocused(true)}
                         onBlur={() => setIsEmailFocused(false)}
                     />
@@ -199,7 +201,7 @@ export default function LoginScreen({ navigation }: any) {
                             secureTextEntry={!showPassword}
                             value={password}
                             onChangeText={setPassword}
-                            editable={!isLoading}
+                            editable={!loginMutation.isPending}
                             onFocus={() => setIsPasswordFocused(true)}
                             onBlur={() => setIsPasswordFocused(false)}
                         />
@@ -208,8 +210,8 @@ export default function LoginScreen({ navigation }: any) {
                         </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity style={[styles.loginButton, { backgroundColor: colors.buttonMain }]} onPress={handleLogin} disabled={isLoading}>
-                        {isLoading ? (
+                    <TouchableOpacity style={[styles.loginButton, { backgroundColor: colors.buttonMain }]} onPress={handleLogin} disabled={loginMutation.isPending}>
+                        {loginMutation.isPending ? (
                             <ActivityIndicator color={colors.buttonText} />
                         ) : (
                             <Text style={[styles.loginButtonText, { color: colors.buttonText }]}>Iniciar sesión</Text>
