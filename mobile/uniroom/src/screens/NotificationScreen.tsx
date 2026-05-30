@@ -20,7 +20,6 @@ export default function NotificationScreen() {
   // --- ESTADOS ---
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<Notificacion | null>(null);
-  const [cargando, setCargando] = useState(false);
   const { refreshUnreadCount } = useNotifications();
   const { colors, isDark } = useTheme();
   const queryClient = useQueryClient();
@@ -271,9 +270,7 @@ export default function NotificationScreen() {
   };
 
   const cargarTodo = async () => {
-    setCargando(true);
     await notifsQuery.refetch();
-    setCargando(false);
   };
 
   const onRefresh = async () => {
@@ -720,7 +717,7 @@ export default function NotificationScreen() {
           keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
           renderItem={renderNotificacion}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={cargando} onRefresh={onRefresh} colors={[colors.buttonMain]} />}
+          refreshControl={<RefreshControl refreshing={notifsQuery.isFetching} onRefresh={onRefresh} colors={[colors.buttonMain]} />}
           ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 50, color: colors.textSecondary}}>No hay notificaciones aún.</Text>}
         />
 

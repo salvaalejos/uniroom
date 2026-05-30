@@ -2,33 +2,15 @@ import { Elysia, t } from 'elysia';
 import { db } from '../db'; 
 import { jwt } from "@elysiajs/jwt";
 
+import { authPlugin } from "../middlewares/auth";
+
 export const notificacionRoutes = new Elysia({ prefix: '/api/notificaciones' })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
-    })
-  )
-  .derive(async ({ jwt, headers: { authorization } }) => {
-    if (!authorization?.startsWith("Bearer ")) {
-      return { user: null, authError: "No autorizado" };
+  .use(authPlugin)
+  .derive(({ authenticatedUser }) => {
+    if (authenticatedUser && "error" in (authenticatedUser as any)) {
+      return { user: null, authError: (authenticatedUser as any).error };
     }
-    const token = authorization.slice(7);
-    try {
-      const payload = await jwt.verify(token);
-      if (!payload || !payload.sub) {
-        return { user: null, authError: "Token inválido" };
-      }
-      const user = await db.usuario.findUnique({
-        where: { id_usuario: payload.sub as string },
-      });
-      if (!user) {
-        return { user: null, authError: "Usuario no encontrado" };
-      }
-      return { user, authError: null };
-    } catch (e) {
-      return { user: null, authError: "Error de sesión" };
-    }
+    return { user: authenticatedUser, authError: null };
   })
 
   // 0. Obtener contactos válidos
@@ -144,7 +126,7 @@ export const notificacionRoutes = new Elysia({ prefix: '/api/notificaciones' })
     }
 
     try {
-      const { usuario_id, titulo, mensaje, tipo, relacionado_a } = body as any;
+      const { usuario_id, titulo, mensaje, tipo, relacionado_a } = body;
       
       return await db.notificacion.create({
         data: {
@@ -162,6 +144,14 @@ export const notificacionRoutes = new Elysia({ prefix: '/api/notificaciones' })
       set.status = 500;
       return { error: "Error al crear" };
     }
+  }, {
+    body: t.Object({
+      usuario_id: t.String(),
+      titulo: t.String(),
+      mensaje: t.String(),
+      tipo: t.Optional(t.String()),
+      relacionado_a: t.Optional(t.String())
+    })
   })
 
   // 4. Marcar individual

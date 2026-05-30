@@ -2,43 +2,17 @@ import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
 
+import { authPlugin } from "../middlewares/auth";
+
 export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
-    })
-  )
-  .derive(async ({ jwt, headers: { authorization }, set }) => {
-    if (!authorization?.startsWith("Bearer ")) {
-      set.status = 401;
-      return { error: "No autorizado" };
-    }
-    const token = authorization.slice(7);
-    let payload: any;
-    try {
-      payload = await jwt.verify(token);
-    } catch {
-      set.status = 401;
-      return { error: "Token inválido" };
-    }
-    if (!payload || !payload.sub) {
-      set.status = 401;
-      return { error: "Token inválido" };
-    }
-    const user = await db.usuario.findUnique({
-      where: { id_usuario: payload.sub as string },
-    });
-    if (!user) {
-      set.status = 401;
-      return { error: "Usuario no encontrado" };
-    }
-    return { authenticatedUser: user };
-  })
+  .use(authPlugin)
   .post(
     "/",
     async ({ body, authenticatedUser, set }) => {
-      if ("error" in (authenticatedUser as any)) return authenticatedUser;
+      if (!authenticatedUser || "error" in (authenticatedUser as any)) {
+        set.status = 401;
+        return { error: (authenticatedUser as any)?.error || "No autorizado" };
+      }
 
       const { id_inmueble, calificacion, comentario } = body;
 
@@ -77,7 +51,10 @@ export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
   .post(
     "/estudiantes",
     async ({ body, authenticatedUser, set }) => {
-      if ("error" in (authenticatedUser as any)) return authenticatedUser;
+      if (!authenticatedUser || "error" in (authenticatedUser as any)) {
+        set.status = 401;
+        return { error: (authenticatedUser as any)?.error || "No autorizado" };
+      }
 
       // Solo arrendadores pueden calificar estudiantes
       if (authenticatedUser.rol !== "ARRENDADOR") {

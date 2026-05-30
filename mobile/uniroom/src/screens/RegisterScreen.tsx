@@ -23,6 +23,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
+import { useMutation } from '@tanstack/react-query';
 
 export default function RegisterScreen({ navigation, route }: any) {
     // Estados para los campos de texto
@@ -44,7 +45,6 @@ export default function RegisterScreen({ navigation, route }: any) {
     const [focusedField, setFocusedField] = useState<string | null>(null);
 
     // Estado de carga
-    const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
@@ -108,6 +108,41 @@ export default function RegisterScreen({ navigation, route }: any) {
 
     const loginEndpoint = `${API_BASE_URL}/auth/login`
 
+    const registerMutation = useMutation({
+        mutationFn: async (formData: FormData) => {
+            const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                // Elysia devuelve { summary, type, on, property } para errores de validación (422)
+                let errorMsg = data?.error ?? data?.message ?? data?.summary;
+                if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
+                throw new Error(errorMsg ?? 'No se pudo completar el registro');
+            }
+
+            return data;
+        },
+        onSuccess: (data) => {
+            if (data.pendingVerification === false) {
+                 Alert.alert("¡Éxito!", "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.");
+                 navigation.navigate('Login');
+            } else {
+                 navigation.navigate('VerificarEmail', {
+                     email: email.trim(),
+                     password: password,
+                     fromLogin: false
+                 });
+            }
+        },
+        onError: (error: any) => {
+            setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
+        }
+    });
+
     const handleRegister = async () => {
         setErrorMessage('');
         setSuccessMessage('');
@@ -127,11 +162,6 @@ export default function RegisterScreen({ navigation, route }: any) {
             return;
         }
 
-        // if (!picture) {
-        //     setErrorMessage("Por favor, selecciona una foto de perfil")
-        //     return
-        // }
-
         // Validar formato de email antes de enviar al backend
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email.trim())) {
@@ -144,13 +174,9 @@ export default function RegisterScreen({ navigation, route }: any) {
             return;
         }
 
-        setIsLoading(true);
-
-
         const fullNameParts = fullName.trim().split(/\s+/).filter(Boolean);
         if (fullNameParts.length < 2) {
             setErrorMessage('Ingresa tu nombre y al menos un apellido');
-            setIsLoading(false);
             return;
         }
 
@@ -174,61 +200,23 @@ export default function RegisterScreen({ navigation, route }: any) {
         formData.append('genero', backendGender);
 
         if (picture && picture.includes(':/')) {
-        if (Platform.OS === 'web') {
-        const response = await fetch(picture);
-        const blob = await response.blob();
-        const fileType = blob.type.split('/')[1] || 'jpg';
-        formData.append('foto', blob, `profile_${Date.now()}.${fileType}`); 
-        } else {
-            const uriParts = picture.split('.');
-            const fileType = uriParts[uriParts.length - 1];
-            formData.append('foto', {
-                uri: Platform.OS === 'android' ? picture : picture.replace('file://', ''),
-                name: `profile_${Date.now()}.${fileType}`,
-                type: `image/${fileType}`,
-            } as any);
-        }
-        }
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/auth/register`, {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json().catch(() => ({}));
-
-            if (!response.ok) {
-                // Elysia devuelve { summary, type, on, property } para errores de validación (422)
-                let errorMsg = data?.error ?? data?.message ?? data?.summary;
-                if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
-                throw new Error(errorMsg ?? 'No se pudo completar el registro');
-            }
-
-            // setSuccessMessage('¡Tu cuenta ha sido creada! Por favor verifica tu correo electrónico.');
-            
-            // navigation.navigate('VerificarEmail', 
-            //     {email: email.trim(),
-            //     password: password, // <-- Se lo pasamos directamente a la siguiente pantalla
-            //     fromLogin: false}
-            // );
-            
-            if (data.pendingVerification === false) {
-                 Alert.alert("¡Éxito!", "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.");
-                 navigation.navigate('Login');
+            if (Platform.OS === 'web') {
+                const response = await fetch(picture);
+                const blob = await response.blob();
+                const fileType = blob.type.split('/')[1] || 'jpg';
+                formData.append('foto', blob, `profile_${Date.now()}.${fileType}`); 
             } else {
-                 navigation.navigate('VerificarEmail', {
-                     email: email.trim(),
-                     password: password,
-                     fromLogin: false
-                 });
+                const uriParts = picture.split('.');
+                const fileType = uriParts[uriParts.length - 1];
+                formData.append('foto', {
+                    uri: Platform.OS === 'android' ? picture : picture.replace('file://', ''),
+                    name: `profile_${Date.now()}.${fileType}`,
+                    type: `image/${fileType}`,
+                } as any);
             }
-
-        } catch (error: any) {
-            setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
-        } finally {
-            setIsLoading(false);
         }
+
+        registerMutation.mutate(formData);
     }
     return (
         <KeyboardAvoidingView
@@ -490,11 +478,11 @@ export default function RegisterScreen({ navigation, route }: any) {
                     </View>
                     {/* Botón Continuar */}
                     <TouchableOpacity 
-                        style={[styles.registerButton, { backgroundColor: colors.buttonMain }, isLoading && styles.registerButtonDisabled]} 
+                        style={[styles.registerButton, { backgroundColor: colors.buttonMain }, registerMutation.isPending && styles.registerButtonDisabled]} 
                         onPress={handleRegister}
-                        disabled={isLoading}
+                        disabled={registerMutation.isPending}
                     >
-                        {isLoading ? (
+                        {registerMutation.isPending ? (
                             <ActivityIndicator color={colors.buttonText} />
                         ) : (
                             <Text style={[styles.registerButtonText, { color: colors.buttonText }]}>Continuar</Text>

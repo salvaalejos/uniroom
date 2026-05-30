@@ -2,8 +2,7 @@ import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
 import { sendOTPEmail, sendForgotPasswordEmail } from "../lib/email";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { esEmailValido } from "../utils/validation";
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -23,10 +22,8 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
   .post(
     "/register",
     async ({ body, set }) => {
-      console.log("[register] body recibido:", JSON.stringify(body));
-
-      // Validar formato de email manualmente
-      if (!EMAIL_REGEX.test(body.email)) {
+      // Validar formato de email
+      if (!esEmailValido(body.email)) {
         set.status = 400;
         return { error: "El formato del correo electrónico no es válido" };
       }

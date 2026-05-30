@@ -12,39 +12,10 @@ function generateExpiryMinutes(minutes: number): Date {
   return new Date(Date.now() + minutes * 60 * 1000);
 }
 
+import { authPlugin } from "../middlewares/auth";
+
 export const usersRoutes = new Elysia({ prefix: "/users" })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
-    })
-  )
-  .derive(async ({ jwt, headers: { authorization }, set }) => {
-    if (!authorization?.startsWith("Bearer ")) {
-      set.status = 401;
-      return { error: "No autorizado" };
-    }
-    const token = authorization.slice(7);
-    let payload: any;
-    try {
-      payload = await jwt.verify(token);
-    } catch {
-      set.status = 401;
-      return { error: "Token inválido" };
-    }
-    if (!payload || !payload.sub) {
-      set.status = 401;
-      return { error: "Token inválido" };
-    }
-    const user = await db.usuario.findUnique({
-      where: { id_usuario: payload.sub as string },
-    });
-    if (!user) {
-      set.status = 401;
-      return { error: "Usuario no encontrado" };
-    }
-    return { authenticatedUser: user };
-  })
+  .use(authPlugin)
   .get("/", async ({ authenticatedUser, set }) => {
     if ("error" in (authenticatedUser as any)) return authenticatedUser;
     if (authenticatedUser.rol !== "ADMIN") {
@@ -323,7 +294,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       if (updateData.numero_contacto) {
           const cleanPhone = updateData.numero_contacto.trim();
           if (cleanPhone.length === 0) {
-              setStatus = 400;
+              set.status = 400;
               return { error: "El número de contacto es obligatorio" };
           }
           updateData.numero_contacto = cleanPhone;

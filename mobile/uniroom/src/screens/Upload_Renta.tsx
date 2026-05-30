@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTheme } from '../context/ThemeContext'
 import { useCustomAlert } from '../context/AlertContext'
 import { API_BASE_URL as API_URL } from '../config'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN
 Mapbox.setAccessToken(MAPBOX_TOKEN!)
@@ -97,6 +98,7 @@ const Lessor_Renthouse = () => {
     const route = useRoute<any>()
     const { colors, isDark } = useTheme()
     const { showAlert } = useCustomAlert()
+    const queryClient = useQueryClient()
 
     const inmuebleExistente = route.params?.inmueble ?? null
     const esEdicion = inmuebleExistente !== null
@@ -196,7 +198,6 @@ const Lessor_Renthouse = () => {
     const [previsualizando, setPrevisualizando] = useState(false)
     const [fechaActivaVisita, setFechaActivaVisita] = useState<string | null>(null)
     const [modalHora, setModalHora] = useState(false)
-    const [cargando, setCargando] = useState(false)
     const [mapaListo, setMapaListo] = useState(false)
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
     const cameraRef = useRef<Mapbox.Camera>(null)
@@ -336,9 +337,8 @@ const Lessor_Renthouse = () => {
         }))
     }
 
-    const guardarInmuebles = async () => {
-        setCargando(true)
-        try {
+    const guardarMutation = useMutation({
+        mutationFn: async () => {
             const token = await AsyncStorage.getItem('token')
             if (!token) throw new Error('No autenticado')
 
@@ -423,16 +423,18 @@ const Lessor_Renthouse = () => {
             try { data = JSON.parse(responseText); } catch(e) { data = { error: responseText }; }
 
             if (!resp.ok) throw new Error(data.error || data.details || "Error desconocido");
-
+            return { data, esEdicionReal };
+        },
+        onSuccess: ({ esEdicionReal }) => {
+            queryClient.invalidateQueries({ queryKey: ['misInmuebles'] });
+            queryClient.invalidateQueries({ queryKey: ['inmuebles'] });
             showAlert({ title: 'Éxito', message: esEdicionReal ? 'Actualizado correctamente' : 'Registrado correctamente', type: 'success' });
             navigation.goBack();
-
-        } catch (error: any) {
+        },
+        onError: (error: any) => {
             showAlert({ title: 'Error', message: error.message, type: 'error' });
-        } finally {
-            setCargando(false)
         }
-    }
+    });
 
     const formularioValido = () => {
         const basicos = form.titulo.trim() !== "" &&
@@ -453,7 +455,7 @@ const Lessor_Renthouse = () => {
             showAlert({ title: 'Campos incompletos', message: 'Asegúrate de llenar todos los campos obligatorios y de asignar al menos un horario a cada día de visita seleccionado.', type: 'warning' })
             return
         }
-        guardarInmuebles()
+        guardarMutation.mutate()
     }
 
     return (
@@ -574,13 +576,13 @@ const Lessor_Renthouse = () => {
                             onDidFinishLoadingMap={() => setMapaListo(true)}
                             onCameraChanged={(event) => {
                                 const coords = event.geometry?.coordinates || event.properties?.center;
-                                if (coords && !cargando) {
+                                if (coords && !guardarMutation.isPending) {
                                     setMapaCoords({ latitude: coords[1], longitude: coords[0] });
                                 }
                             }}
                             onRegionDidChange={(event) => {
                                 const coords = event.geometry?.coordinates || event.properties?.center;
-                                if (coords && !cargando) {
+                                if (coords && !guardarMutation.isPending) {
                                     setForm(f => ({ 
                                         ...f, 
                                         latitud: coords[1].toString(), 
@@ -831,7 +833,7 @@ const Lessor_Renthouse = () => {
                     <Text style={styles.btnPreviaTexto}>Vista previa</Text>
                 </TouchableOpacity>
 
-                {cargando && <ActivityIndicator style={{ margin: 20 }} color={colors.buttonMain} />}
+                {guardarMutation.isPending && <ActivityIndicator style={{ margin: 20 }} color={colors.buttonMain} />}
             </ScrollView>
 
             {/* Modal TimePicker */}

@@ -10,6 +10,8 @@ const paymentClient = new Payment(client);
 const customerClient = new Customer(client);
 const customerCardClient = new CustomerCard(client);
 
+import { authPlugin } from "../middlewares/auth";
+
 export const paymentRoutes = new Elysia({ prefix: "/payments" })
   .post("/webhook", async ({ body, set }) => {
     try {
@@ -38,32 +40,13 @@ export const paymentRoutes = new Elysia({ prefix: "/payments" })
       return { error: "Webhook failed" };
     }
   })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
-    })
-  )
-  // Middleware para verificar autenticación
-  .derive(async ({ jwt, headers: { authorization }, set }) => {
-    if (!authorization?.startsWith("Bearer ")) {
+  .use(authPlugin)
+  .derive(({ authenticatedUser, set }) => {
+    if (authenticatedUser && "error" in (authenticatedUser as any)) {
       set.status = 401;
-      throw new Error("No autorizado");
+      throw new Error((authenticatedUser as any).error);
     }
-    const token = authorization.slice(7);
-    const payload = await jwt.verify(token);
-    if (!payload || !payload.sub) {
-      set.status = 401;
-      throw new Error("Token inválido");
-    }
-    const user = await db.usuario.findUnique({
-      where: { id_usuario: payload.sub as string },
-    });
-    if (!user) {
-      set.status = 401;
-      throw new Error("Usuario no encontrado");
-    }
-    return { user };
+    return { user: authenticatedUser! };
   })
   .post(
     "/process",

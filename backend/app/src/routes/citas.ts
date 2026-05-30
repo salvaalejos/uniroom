@@ -3,32 +3,16 @@ import { db } from "../db";
 import jwt from "@elysiajs/jwt";
 import { emitToUser } from "../ws-server";
 
+import { authPlugin } from "../middlewares/auth";
+
 export const citasRoutes = new Elysia({ prefix: "/citas" })
-  .use(
-    jwt({
-      name: "jwt",
-      secret: process.env.JWT_SECRET || "super_secret_elysia_key",
-    })
-  )
-  .derive(async ({ jwt, headers: { authorization }, set }) => {
-    if (!authorization?.startsWith("Bearer ")) {
+  .use(authPlugin)
+  .derive(({ authenticatedUser, set }) => {
+    if (authenticatedUser && "error" in (authenticatedUser as any)) {
       set.status = 401;
-      throw new Error("No autorizado");
+      throw new Error((authenticatedUser as any).error);
     }
-    const token = authorization.slice(7);
-    const payload = await jwt.verify(token);
-    if (!payload || !payload.sub) {
-      set.status = 401;
-      throw new Error("Token inválido");
-    }
-    const user = await db.usuario.findUnique({
-      where: { id_usuario: payload.sub as string },
-    });
-    if (!user) {
-      set.status = 401;
-      throw new Error("Usuario no encontrado");
-    }
-    return { user };
+    return { user: authenticatedUser! };
   })
   // 1. Solicitar cita (estudiante)
   .post(

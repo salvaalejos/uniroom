@@ -11,6 +11,9 @@ import { API_BASE_URL } from "../config"
 import { getMediaUri } from "../utils/getMediaUri"
 import { GaleriaVideoItem } from "../components/GaleriaVideoItem"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { ConfirmModal } from "../components/ConfirmModal"
+import { RatingStars } from "../components/RatingStars"
+import { SectionHeader } from "../components/SectionHeader"
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window")
 const ANFITRION = require("../default_images/anfi.jpg")
@@ -233,7 +236,7 @@ const HomeScreen = ({ navigation, route }: { navigation?: any; route?: any }) =>
 
                     {/* Contrato */}
                     <View style={styles.cardVacio}>
-                        <Text style={[styles.cardLbl, { color: colors.textSecondary }]}>Contrato</Text>
+                        <SectionHeader title="Contrato" isUppercase={true} />
                         <View style={styles.timeline}>
                             <View style={styles.tlItem}>
                                 <View style={styles.tlLeft}>
@@ -264,7 +267,7 @@ const HomeScreen = ({ navigation, route }: { navigation?: any; route?: any }) =>
                     {/* Arrendador */}
                     <View style={[styles.cardDouble, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
                         <View style={{ flex: 1 }}>
-                            <Text style={[styles.cardLbl, { color: colors.textSecondary }]}>Arrendador</Text>
+                            <SectionHeader title="Arrendador" isUppercase={true} />
                             <View style={styles.arrenRow}>
                                 {rentaActual.arrendador.foto ? (
                                     <Image
@@ -281,7 +284,7 @@ const HomeScreen = ({ navigation, route }: { navigation?: any; route?: any }) =>
                             </View>
                         </View>
                         <View style={{ flex: 1, alignItems: "flex-end" }}>
-                            <Text style={[styles.cardLbl, styles.contactarLbl, { color: colors.textSecondary }]}>Contactar:</Text>
+                            <SectionHeader title="Contactar:" isUppercase={true} style={{ marginBottom: 4 }} />
                             <Text style={[styles.contactarVal, { color: colors.buttonMain || "#205EA6" }]}>{rentaActual.arrendador.numero_contacto || "Sin teléfono"}</Text>
                         </View>
                     </View>
@@ -289,7 +292,7 @@ const HomeScreen = ({ navigation, route }: { navigation?: any; route?: any }) =>
                     {/* Servicios */}
                     {rentaActual.servicios && rentaActual.servicios.length > 0 && (
                         <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                            <Text style={[styles.cardLbl, { color: colors.textSecondary }]}>Servicios incluidos</Text>
+                            <SectionHeader title="Servicios incluidos" isUppercase={true} />
                             <View style={styles.chips}>
                                 {rentaActual.servicios.map((s: any, i: number) => (
                                     <View key={i} style={[styles.chip, { backgroundColor: isDark ? colors.backgroundSecondary : '#EEF4FF' }]}>
@@ -303,7 +306,7 @@ const HomeScreen = ({ navigation, route }: { navigation?: any; route?: any }) =>
                     {/* Reglas */}
                     {rentaActual.restricciones && rentaActual.restricciones.length > 0 && (
                         <View style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
-                            <Text style={[styles.cardLbl, { color: colors.textSecondary }]}>Reglas de la vivienda</Text>
+                            <SectionHeader title="Reglas de la vivienda" isUppercase={true} />
                             <View style={styles.chips}>
                                 {rentaActual.restricciones.map((r: any, i: number) => (
                                     <View key={i} style={[styles.chip, styles.chipRegla, { backgroundColor: isDark ? '#3a1a1a' : "#FFF0F0" }]}>
@@ -371,38 +374,20 @@ const HomeScreen = ({ navigation, route }: { navigation?: any; route?: any }) =>
                 </View>
             </Modal>
 
-            {/* Modal cancelar contrato */}
-            <Modal visible={modalCancelarVisible} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalCard, { backgroundColor: colors.cardBackground }]}>
-                        <View style={[styles.modalIcono, { backgroundColor: colors.error || "#A32D2D" }]}>
-                            <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#ffffff" />
-                        </View>
-                        <Text style={[styles.modalTitulo, { color: colors.textPrimary }]}>¿Cancelar contrato?</Text>
-                        <Text style={[styles.modalSubtitulo, { color: colors.textSecondary }]}>
-                            Esta acción cancelará tu contrato activo. El inmueble quedará disponible nuevamente.
-                        </Text>
-                        <TouchableOpacity
-                            style={[styles.modalBtnPeligro, { backgroundColor: colors.error || "#A32D2D" }, cancelando && { opacity: 0.7 }]}
-                            onPress={handleCancelarRenta}
-                            disabled={cancelando}
-                        >
-                            {cancelando ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <Text style={styles.modalBtnPeligroTxt}>Sí, cancelar contrato</Text>
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.modalBtnVolver}
-                            onPress={() => setModalCancelarVisible(false)}
-                            disabled={cancelando}
-                        >
-                            <Text style={[styles.modalBtnVolverTxt, { color: colors.textSecondary }]}>Volver</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+            <ConfirmModal
+                visible={modalCancelarVisible}
+                title="¿Cancelar contrato?"
+                description="Esta acción cancelará tu contrato activo. El inmueble quedará disponible nuevamente."
+                icon="alert-circle-outline"
+                iconColor="#ffffff"
+                iconBackgroundColor={colors.error || "#A32D2D"}
+                primaryButtonText="Sí, cancelar contrato"
+                primaryButtonColor={colors.error || "#A32D2D"}
+                onPrimaryPress={handleCancelarRenta}
+                isPrimaryLoading={cancelando}
+                secondaryButtonText="Volver"
+                onSecondaryPress={() => setModalCancelarVisible(false)}
+            />
 
             {/* Modal calificación */}
             <Modal visible={modalCalificacionVisible} transparent animationType="fade">
@@ -417,17 +402,12 @@ const HomeScreen = ({ navigation, route }: { navigation?: any; route?: any }) =>
 
                         <Text style={[styles.ratingTitle, { color: colors.textPrimary }]}>¿Cómo calificas tu experiencia?</Text>
 
-                        <View style={styles.starsRow}>
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <TouchableOpacity key={star} onPress={() => setRating(star)}>
-                                    <MaterialCommunityIcons
-                                        name={star <= rating ? "star" : "star-outline"}
-                                        size={40}
-                                        color={star <= rating ? "#f39c12" : "#ccc"}
-                                    />
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                        <RatingStars 
+                            rating={rating} 
+                            onChange={setRating} 
+                            readonly={false} 
+                            size={40} 
+                        />
 
                         <TextInput
                             style={[styles.ratingInput, { backgroundColor: colors.backgroundSecondary, color: colors.textPrimary, borderColor: colors.border }]}
@@ -455,34 +435,22 @@ const HomeScreen = ({ navigation, route }: { navigation?: any; route?: any }) =>
                 </View>
             </Modal>
 
-            {/* Modal confirmar omitir */}
-            <Modal visible={modalOmitirVisible} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalCard, { backgroundColor: colors.cardBackground }]}>
-                        <MaterialCommunityIcons name="comment-text-outline" size={48} color={colors.buttonMain} style={{ marginBottom: 12 }} />
-                        <Text style={[styles.omitirTitulo, { color: colors.textPrimary }]}>¿Seguro que deseas omitir?</Text>
-                        <Text style={[styles.omitirSubtitulo, { color: colors.textSecondary }]}>
-                            Tu opinión puede ayudar a más usuarios
-                        </Text>
-                        <TouchableOpacity
-                            style={[styles.omitirBtnContinuar, { backgroundColor: colors.buttonMain }]}
-                            onPress={() => {
-                                setModalCalificacionVisible(false)
-                                setModalOmitirVisible(false)
-                                queryClient.invalidateQueries({ queryKey: ['rentaActual', userId] })
-                            }}
-                        >
-                            <Text style={styles.omitirBtnContinuarText}>Continuar sin reseña</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.modalBtnVolver}
-                            onPress={() => setModalOmitirVisible(false)}
-                        >
-                            <Text style={[styles.modalBtnVolverTxt, { color: colors.textSecondary }]}>Volver</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+            <ConfirmModal
+                visible={modalOmitirVisible}
+                title="¿Seguro que deseas omitir?"
+                description="Tu opinión puede ayudar a más usuarios"
+                icon="comment-text-outline"
+                iconColor={colors.buttonMain}
+                iconBackgroundColor="transparent"
+                primaryButtonText="Continuar sin reseña"
+                onPrimaryPress={() => {
+                    setModalCalificacionVisible(false)
+                    setModalOmitirVisible(false)
+                    queryClient.invalidateQueries({ queryKey: ['rentaActual', userId] })
+                }}
+                secondaryButtonText="Volver"
+                onSecondaryPress={() => setModalOmitirVisible(false)}
+            />
         </View>
     )
 }
@@ -540,26 +508,12 @@ const styles = StyleSheet.create({
     chipTxt: { fontSize: 12, fontWeight: "600" },
     chipRegla: { },
     chipTxtRegla: { },
-    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
-    modalCard: { borderRadius: 28, padding: 28, width: "85%", alignItems: "center", gap: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
-    modalIcono: { width: 68, height: 68, borderRadius: 34, justifyContent: "center", alignItems: "center", marginBottom: 4 },
-    modalTitulo: { fontSize: 18, fontWeight: "800" },
-    modalSubtitulo: { fontSize: 13, textAlign: "center", lineHeight: 20 },
-    modalBtnPeligro: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 24, width: "80%", alignItems: "center", marginTop: 6 },
-    modalBtnPeligroTxt: { fontSize: 14, fontWeight: "700", color: "#ffffff" },
-    modalBtnVolver: { paddingVertical: 10 },
-    modalBtnVolverTxt: { fontSize: 13, fontWeight: "600" },
     ratingOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
     ratingCard: { borderRadius: 20, padding: 24, width: "90%", alignItems: "center", gap: 16 },
     ratingSkipBtn: { position: "absolute", top: 16, right: 16 },
     ratingSkipBtnText: { fontSize: 14, fontWeight: "600" },
     ratingTitle: { fontSize: 18, fontWeight: "800", textAlign: "center" },
-    starsRow: { flexDirection: "row", gap: 10 },
     ratingInput: { borderRadius: 12, padding: 14, width: "100%", minHeight: 90, fontSize: 14, borderWidth: 1 },
     ratingSubmitBtn: { borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32, width: "100%", alignItems: "center" },
     ratingSubmitBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
-    omitirTitulo: { fontSize: 18, fontWeight: "800", textAlign: "center" },
-    omitirSubtitulo: { fontSize: 13, textAlign: "center", lineHeight: 20, marginBottom: 6 },
-    omitirBtnContinuar: { borderRadius: 12, paddingVertical: 13, paddingHorizontal: 24, width: "80%", alignItems: "center", marginTop: 6 },
-    omitirBtnContinuarText: { fontSize: 14, fontWeight: "700", color: "#ffffff" },
 })
