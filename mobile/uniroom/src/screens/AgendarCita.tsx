@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Animated, 
 import { Calendar } from "react-native-calendars"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import Constants from 'expo-constants';
 import { useTheme } from "../context/ThemeContext"
 import { API_BASE_URL as API_URL } from "../config"
+import Constants from 'expo-constants'
 
 // ─ Utilidades de formato ─
 const formatFechaLarga = (f: string) =>
@@ -24,6 +24,8 @@ const formatHora = (h: string) => {
     const h12 = hh % 12 === 0 ? 12 : hh % 12
     return `${h12}:${mm.toString().padStart(2, "0")} ${periodo}`
 }
+
+const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 // ─ Componente ─
 
@@ -99,24 +101,35 @@ const AgendarCita = ({ navigation, route }: any): React.ReactElement => {
         }
     }
 
-    const markedDates: Record<string, any> = {}
-    Object.keys(disponibilidad).forEach(fecha => {
-        const seleccionado = fecha === fechaSeleccionada
-        markedDates[fecha] = {
-            selected: seleccionado,
-            selectedColor: seleccionado ? "#205EA6" : undefined,
-            marked: true,
-            dotColor: seleccionado ? "#fff" : "#205EA6",
+    const fechasDisponibles = React.useMemo(() => {
+        const dates = [];
+        const today = new Date();
+        for (let i = 0; i < 14; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() + i);
+            const diaNombre = DIAS_SEMANA[d.getDay()];
+            const YYYYMMDD = d.toISOString().split('T')[0];
+            
+            if (disponibilidad[diaNombre] || disponibilidad[YYYYMMDD]) {
+                const horas = disponibilidad[diaNombre] || disponibilidad[YYYYMMDD];
+                dates.push({
+                    dateString: YYYYMMDD,
+                    diaNombre,
+                    horas,
+                    diaMes: d.getDate(),
+                    mesAbrev: d.toLocaleDateString("es-MX", { month: "short" })
+                });
+            }
         }
-    })
+        return dates;
+    }, [disponibilidad]);
 
-    const onDayPress = (day: { dateString: string }) => {
-        if (!disponibilidad[day.dateString]) return
-        setFechaSeleccionada(day.dateString)
+    const onDayPress = (dateString: string) => {
+        setFechaSeleccionada(dateString)
         setHoraSeleccionada(null)
     }
 
-    const horasDelDia = fechaSeleccionada ? disponibilidad[fechaSeleccionada] : []
+    const horasDelDia = fechaSeleccionada ? fechasDisponibles.find(f => f.dateString === fechaSeleccionada)?.horas || [] : []
     const listo = !!fechaSeleccionada && !!horaSeleccionada
 
     const fadeAnim = useRef(new Animated.Value(1)).current
@@ -157,40 +170,33 @@ const AgendarCita = ({ navigation, route }: any): React.ReactElement => {
                     <ActivityIndicator size="large" color={colors.buttonMain} style={{ marginTop: 20 }} />
                 ) : (
                     <>
-                        {/* Calendario */}
-                        <View style={[styles.calendarioWrapper, { backgroundColor: colors.cardBackground }]}>
-                            <Calendar
-                                onDayPress={onDayPress}
-                                markedDates={markedDates}
-                                minDate={new Date().toISOString().split("T")[0]}
-                                theme={{
-                                    backgroundColor: colors.cardBackground,
-                                    calendarBackground: colors.cardBackground,
-                                    textSectionTitleColor: colors.textSecondary,
-                                    selectedDayBackgroundColor: colors.buttonMain,
-                                    selectedDayTextColor: '#ffffff',
-                                    todayTextColor: colors.buttonMain,
-                                    dayTextColor: colors.textPrimary,
-                                    textDisabledColor: isDark ? '#444' : '#d9e1e8',
-                                    dotColor: colors.buttonMain,
-                                    arrowColor: colors.buttonMain,
-                                    monthTextColor: colors.textPrimary,
-                                    indicatorColor: colors.buttonMain,
-                                    textDayFontWeight: '600',
-                                    textMonthFontWeight: 'bold',
-                                    textDayHeaderFontWeight: '400',
-                                    textDayFontSize: 14,
-                                    textMonthFontSize: 16,
-                                    textDayHeaderFontSize: 12
-                                }}
-                            />
-
-                            <View style={styles.leyendaContainer}>
-                                <View style={styles.leyendaItem}>
-                                    <View style={[styles.leyendaDot, { backgroundColor: colors.buttonMain }]} />
-                                    <Text style={[styles.leyendaTexto, { color: colors.textSecondary }]}>Disponible</Text>
-                                </View>
-                            </View>
+                        {/* Días disponibles (Carrusel) */}
+                        <View style={styles.seccionDias}>
+                            <Text style={[styles.seccionTitulo, { color: colors.textPrimary }]}>Próximos días disponibles</Text>
+                            {fechasDisponibles.length === 0 ? (
+                                <Text style={[styles.hint, { textAlign: 'center', marginTop: 10 }]}>El arrendador aún no ha configurado horarios de visita.</Text>
+                            ) : (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.diasScrollContainer}>
+                                    {fechasDisponibles.map(item => {
+                                        const activo = item.dateString === fechaSeleccionada;
+                                        return (
+                                            <TouchableOpacity 
+                                                key={item.dateString}
+                                                style={[
+                                                    styles.diaCard,
+                                                    { backgroundColor: colors.cardBackground, borderColor: colors.border },
+                                                    activo && [styles.diaCardActivo, { borderColor: colors.buttonMain }]
+                                                ]}
+                                                onPress={() => onDayPress(item.dateString)}
+                                            >
+                                                <Text style={[styles.diaMesTexto, { color: activo ? colors.buttonMain : colors.textPrimary }]}>{item.diaMes}</Text>
+                                                <Text style={[styles.diaNombreTexto, { color: colors.textSecondary }]}>{item.diaNombre.substring(0,3)}</Text>
+                                                <Text style={[styles.diaMesAbrevTexto, { color: colors.textSecondary }]}>{item.mesAbrev}</Text>
+                                            </TouchableOpacity>
+                                        )
+                                    })}
+                                </ScrollView>
+                            )}
                         </View>
 
                         {/* Horas */}
@@ -313,11 +319,13 @@ const styles = StyleSheet.create({
     headerTitulo: { fontSize: 17, fontWeight: "800" },
     hintContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 14 },
     hint: { fontSize: 13, fontWeight: "600" },
-    calendarioWrapper: { marginHorizontal: 12, borderRadius: 20, padding: 8, elevation: 2, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8 },
-    leyendaContainer: { flexDirection: "row", justifyContent: "center", gap: 20, marginTop: 12, marginBottom: 4 },
-    leyendaItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-    leyendaDot: { width: 8, height: 8, borderRadius: 4 },
-    leyendaTexto: { fontSize: 11, fontWeight: "600" },
+    seccionDias: { marginTop: 10, paddingHorizontal: 16 },
+    diasScrollContainer: { gap: 12, paddingVertical: 10 },
+    diaCard: { width: 70, height: 90, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center", padding: 8 },
+    diaCardActivo: { borderWidth: 2, backgroundColor: "rgba(32, 94, 166, 0.05)" },
+    diaMesTexto: { fontSize: 24, fontWeight: "800", marginBottom: 2 },
+    diaNombreTexto: { fontSize: 12, fontWeight: "600", textTransform: "uppercase" },
+    diaMesAbrevTexto: { fontSize: 11, fontWeight: "500", marginTop: 2, textTransform: "capitalize" },
     seccionHoras: { padding: 20 },
     seccionTitulo: { fontSize: 15, fontWeight: "700", marginBottom: 16 },
     horasGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },

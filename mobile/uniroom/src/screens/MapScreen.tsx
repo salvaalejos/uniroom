@@ -43,6 +43,7 @@ export default function MapScreen({ route, navigation }: any) {
   const [filtrosActivos, setFiltrosActivos] = useState<any>(null);
   const [mapaListo, setMapaListo] = useState(false);
   const [modalFiltros, setModalFiltros] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<any>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
   const { colors, isDark } = useTheme();
 
@@ -117,6 +118,7 @@ export default function MapScreen({ route, navigation }: any) {
   }, [mapaListo, inmuebles]);
 
   const filtrarInmuebles = (datos: any) => {
+    setActiveFilters(datos);
     setModalFiltros(false);
     setFiltrosActivos(datos);
   };
@@ -139,10 +141,23 @@ export default function MapScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.cardBackground} />
+      {/* Nuevo Header Premium con Subtítulo */}
       <View style={[styles.header, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitulo, { color: colors.textPrimary }]}>UniRoomie Morelia</Text>
-        <TouchableOpacity style={[styles.btnFiltro, { backgroundColor: colors.buttonMain }]} onPress={() => setModalFiltros(true)}>
-          <MaterialCommunityIcons name="tune" size={24} color={colors.buttonText || "#fff"} />
+        <View>
+          <Text style={[styles.headerTitulo, { color: colors.textPrimary }]}>UniRoomie</Text>
+          <Text style={[styles.headerSubtitulo, { color: colors.textSecondary }]}>Morelia, Mich.</Text>
+        </View>
+        
+        {/* Barra Píldora de Búsqueda/Filtro Interactiva (Estilo Airbnb) */}
+        <TouchableOpacity 
+          style={[styles.searchPill, { backgroundColor: isDark ? colors.backgroundSecondary : "#F1F5F9" }]} 
+          onPress={() => setModalFiltros(true)}
+          activeOpacity={0.85}
+        >
+          <MaterialCommunityIcons name="magnify" size={18} color={colors.textSecondary} />
+          <Text style={[styles.searchPillText, { color: colors.textSecondary }]}>Filtrar</Text>
+          <View style={[styles.dividerPill, { backgroundColor: isDark ? "#475569" : "#CBD5E1" }]} />
+          <MaterialCommunityIcons name="tune" size={18} color={colors.buttonMain} />
         </TouchableOpacity>
       </View>
 
@@ -177,16 +192,40 @@ export default function MapScreen({ route, navigation }: any) {
         ))}
       </Mapbox.MapView>
 
-      <FiltrosModal visible={modalFiltros} onClose={() => setModalFiltros(false)} onApply={filtrarInmuebles} />
+      <FiltrosModal visible={modalFiltros} onClose={() => setModalFiltros(false)} onApply={filtrarInmuebles} initialFilters={activeFilters} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, zIndex: 10 },
-  headerTitulo: { fontSize: 20, fontWeight: '800' },
-  btnFiltro: { padding: 8, borderRadius: 12 },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    paddingVertical: 14, 
+    borderBottomWidth: 1, 
+    zIndex: 10 
+  },
+  headerTitulo: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  headerSubtitulo: { fontSize: 11, fontWeight: '700', marginTop: 1, opacity: 0.8 },
+  searchPill: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingVertical: 8, 
+    paddingHorizontal: 12, 
+    borderRadius: 24, 
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  searchPillText: { fontSize: 13, fontWeight: '700', marginHorizontal: 6 },
+  dividerPill: { width: 1.5, height: 14, marginHorizontal: 2 },
   map: { flex: 1, width: '100%', height: '100%' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   textoCarga: { marginTop: 15, fontSize: 16, fontWeight: '500' },

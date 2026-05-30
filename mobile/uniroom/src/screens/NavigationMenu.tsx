@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from "react-native"
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { useNavigationState } from "@react-navigation/native";
 import { useEffect, useRef, useState } from "react"
@@ -135,29 +135,27 @@ const TabButton = (props: any) => {
     const circleRef = useRef<any>(null)
     const textRef = useRef<any>(null)
     const iconRef = useRef<any>(null)
-
-    const circle1 = { 0: { scale: 0 }, 0.3: { scale: 0.9 }, 0.5: { scale: 0.3 }, 0.8: { scale: 0.7 }, 1: { scale: 1 } };
+    const circle1 = { 0: { scale: 0 }, 0.3: { scale: 0.9 }, 0.5: { scale: 0.3 }, 0.8: { scale: 0.7 }, 1: { scale: 1 } };
     const circle2 = { 0: { scale: 1 }, 1: { scale: 0 } };
-    const animation1 = { 0: { scale: .5, translateY: 8 }, 0.92: { translateY: -34 }, 1: { scale: 1.2, translateY: -24 } };
-    const animation2 = { 0: { scale: 1.2, translateY: -24 }, 1: { scale: 1, translateY: 8 } };
+    const animation1 = { 0: { scale: .5, translateY: 8 }, 0.92: { translateY: -22 }, 1: { scale: 1.12, translateY: -16 } };
+    const animation2 = { 0: { scale: 1.12, translateY: -16 }, 1: { scale: 1, translateY: 8 } };
     const imageAnimation = { 0: { rotate: "0deg" }, 1: { rotate: "360deg" } };
     const imageAnimation2 = { 0: { rotate: "360deg" }, 1: { rotate: "0deg" } };
-
+ 
     useEffect(() => {
-        // Aseguramos que las referencias existan antes de animar
         if (focused && viewRef.current) {
             viewRef.current.animate(animation1);
             circleRef.current.animate(circle1);
             textRef.current.transitionTo({ scale: 1 });
             iconRef.current.animate(imageAnimation);
-        } else if (!focused && viewRef.current) { // Condición más estricta aquí
+        } else if (!focused && viewRef.current) {
             viewRef.current.animate(animation2);
             circleRef.current.animate(circle2);
             textRef.current.transitionTo({ scale: 0 });
             iconRef.current.animate(imageAnimation2);
         }
     }, [focused]);
-
+ 
     return (
         <TouchableOpacity style={{ flex: 1, alignItems: "center", justifyContent: "center" }} onPress={onPress} activeOpacity={1}>
             <Animatable.View
@@ -165,34 +163,34 @@ const TabButton = (props: any) => {
                 animation="zoomIn"
                 duration={750}
                 style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-                <View style={{ width: 50, height: 50, borderRadius: 25, borderWidth: 6, borderColor: colors.background, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
+                <View style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 4, borderColor: colors.background, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
                     <Animatable.View
                         ref={circleRef}
-                        style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.buttonMain, borderRadius: 25 }} />
+                        style={{ ...StyleSheet.absoluteFillObject, backgroundColor: colors.buttonMain, borderRadius: 23 }} />
                     <Animatable.View
                         ref={iconRef}
                         duration={1250}>
-                        <MaterialCommunityIcons name={item.activeIcon}
-                            size={33}
+                        <MaterialCommunityIcons name={focused ? item.activeIcon : item.inActiveIcon}
+                            size={24}
                             color={focused ? colors.background : colors.buttonMain} />
                         
                         {/* BADGE DE NOTIFICACIONES */}
                         {item.route === 'Notificaciones' && unreadCount > 0 && (
                             <View style={{
                                 position: 'absolute',
-                                right: -5,
-                                top: -5,
+                                right: -8,
+                                top: -8,
                                 backgroundColor: '#E74C3C',
                                 borderRadius: 10,
-                                minWidth: 20,
-                                height: 20,
+                                minWidth: 18,
+                                height: 18,
                                 justifyContent: 'center',
                                 alignItems: 'center',
-                                borderWidth: 2,
+                                borderWidth: 1.5,
                                 borderColor: colors.background,
                                 zIndex: 10
                             }}>
-                                <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
+                                <Text style={{ color: 'white', fontSize: 9, fontWeight: 'bold' }}>
                                     {unreadCount > 99 ? '99+' : unreadCount}
                                 </Text>
                             </View>
@@ -201,7 +199,7 @@ const TabButton = (props: any) => {
                 </View>
                 <Animatable.Text
                     ref={textRef}
-                    style={{ fontSize: 12, color: colors.buttonMain }}>
+                    style={{ fontSize: 10, fontWeight: '700', color: colors.buttonMain, marginTop: 4 }}>
                     {item.label}
                 </Animatable.Text>
             </Animatable.View>
@@ -286,13 +284,14 @@ export default function NavigationMenu({ route }: any) {
         <Tab.Navigator
             screenOptions={{
                 tabBarStyle: {
-                    height: 70,
+                    height: Platform.OS === 'ios' ? 84 : 76,
                     position: "absolute",
                     left: 1,
                     right: 1,
                     backgroundColor: colors.background,
                     borderTopWidth: 1,
-                    borderTopColor: colors.border
+                    borderTopColor: colors.border,
+                    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
                 },
             }}
         >

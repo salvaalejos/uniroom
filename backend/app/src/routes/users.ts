@@ -68,8 +68,8 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   })
   // ── OAuth: Generar URL de vinculación de Mercado Pago ──
   .get("/oauth/url", async ({ authenticatedUser }) => {
-    const clientId = process.env.MP_APP_ID!;
-    const redirectUri = process.env.MP_REDIRECT_URI!;
+    const clientId = process.env.MP_APP_ID || "";
+    const redirectUri = process.env.MP_REDIRECT_URI || "";
     const url = `https://auth.mercadopago.com/authorization?client_id=${clientId}&response_type=code&platform_id=mp&state=${authenticatedUser.id_usuario}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     return { url };
   })
@@ -81,9 +81,9 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       return "Faltan parámetros de autorización.";
     }
 
-    const clientId = process.env.MP_APP_ID!;
-    const clientSecret = process.env.MP_CLIENT_SECRET!;
-    const redirectUri = process.env.MP_REDIRECT_URI!;
+    const clientId = process.env.MP_APP_ID || "";
+    const clientSecret = process.env.MP_CLIENT_SECRET || "";
+    const redirectUri = process.env.MP_REDIRECT_URI || "";
 
     try {
       const response = await fetch("https://api.mercadopago.com/oauth/token", {

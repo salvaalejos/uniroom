@@ -35,7 +35,7 @@ export default function CalendarScreen() {
     try {
       setLoading(true);
       await decidirRenta(id_cita, decision);
-      Alert.alert('Éxito', `Se ha \${decision.toLowerCase()} al estudiante para rentar.\`);
+      Alert.alert('Éxito', \`Se ha \${decision.toLowerCase()} al estudiante para rentar.\`);
       await cargarCitas();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'No se pudo registrar la decisión');

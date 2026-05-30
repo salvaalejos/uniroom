@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator } from 'react-native'
+import { View, ActivityIndicator, Text } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // Importa tus pantallas
 import LoginScreen from './src/screens/LoginScreen';
@@ -16,7 +16,20 @@ import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { NotificationProvider } from './src/context/NotificationContext';
+import { AlertProvider } from './src/context/AlertContext';
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Polyfill para fontFamily global (hack funcional en RN)
+const oldTextRender = (Text as any).render;
+if (oldTextRender) {
+    (Text as any).render = function (...args: any[]) {
+        const origin = oldTextRender.call(this, ...args);
+        return React.cloneElement(origin, {
+            style: [{ fontFamily: 'Inter_400Regular' }, origin.props.style],
+        });
+    };
+}
 
 const queryClient = new QueryClient();
 
@@ -132,10 +145,24 @@ function MainApp() {
 }
 
 export default function App() {
+    const [fontsLoaded] = useFonts({
+        Inter_400Regular,
+        Inter_500Medium,
+        Inter_600SemiBold,
+        Inter_700Bold,
+        Inter_800ExtraBold,
+    });
+
+    if (!fontsLoaded) {
+        return null; // o un SplashScreen
+    }
+
     return (
         <QueryClientProvider client={queryClient}>
             <ThemeProvider>
-                <MainApp />
+                <AlertProvider>
+                    <MainApp />
+                </AlertProvider>
             </ThemeProvider>
         </QueryClientProvider>
     );

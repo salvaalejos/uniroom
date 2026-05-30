@@ -12,8 +12,9 @@ const PROD_WS_URL  = 'https://uniroomie.tech';
 
 function buildDevUrl(port: number): string {
   const hostUri = Constants.expoConfig?.hostUri?.split(':').shift();
-  return `http://${hostUri}:${port}`
+  return hostUri ? `http://${hostUri}:${port}` : `http://localhost:${port}`;
 }
 
-export const API_BASE_URL: string = __DEV__ ? PROD_API_URL : PROD_API_URL;
-export const WS_URL: string       = __DEV__ ? PROD_WS_URL : PROD_WS_URL;
+// Forzado a producción para APK
+export const API_BASE_URL: string = PROD_API_URL;
+export const WS_URL: string       = PROD_WS_URL;

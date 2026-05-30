@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -17,14 +18,13 @@
     "android": {
       "package": "com.anonymous.uniroom",
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "INTERNET"
+        "ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -47,9 +47,8 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "46749591-274c-4783-bcc2-b233847583a2"
+        "projectId": "63c8ed71-4be5-41b3-a716-48ca74136c62"
       }
-    },
-    "owner": "uniroomie"
+    }
   }
 }

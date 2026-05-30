@@ -1,10 +1,3 @@
-# CREAR APK PARA DEVELOP Y RELEASE (ya con actualización de organización UNIROOMIE)
-Ejecuten estos comandos en mobile/uniroom/
-```bash
-eas project:init
-eas build --profile preview --platform android
-```
-
 # REVISIONES DE PRUEBAS RECIENTES CON MERGE DE TODOS LOS PUNTOS TRATADOS EN WHATSAPP 
 ## FALLOS INMEDIATOS A RESOLVER (ahorita los resuelv0, que la noche aún es joven como yo 💃): 
     Los detalles esteticos los dejamos para despues, todo lo demás parece funcionar a la perfección (en teoría). Falta la parte del merge nuevo de Mercado Pago con Salvador. 

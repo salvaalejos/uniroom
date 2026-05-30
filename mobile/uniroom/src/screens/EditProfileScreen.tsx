@@ -52,20 +52,54 @@ export default function EditProfileScreen({ navigation, route }: any) {
     };
 
     const selectPic = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert("Permiso denegado", "Se necesita permiso para acceder a la galería.");
-            return;
-        }
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [4,4],
-            quality: 1
-        });
-        if (!result.canceled){
-            setPicture(result.assets[0].uri);
-        }
+        Alert.alert(
+            "Foto de perfil",
+            "¿De dónde quieres obtener la foto?",
+            [
+                {
+                    text: "Cámara",
+                    onPress: async () => {
+                        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                        if (status !== 'granted') {
+                            Alert.alert("Permiso denegado", "Se necesita acceso a la cámara");
+                            return;
+                        }
+                        let fotito = await ImagePicker.launchCameraAsync({
+                            mediaTypes: ['images'],
+                            allowsEditing: true,
+                            aspect: [4, 4],
+                            quality: 1
+                        });
+                        if (!fotito.canceled) {
+                            setPicture(fotito.assets[0].uri);
+                        }
+                    }
+                },
+                {
+                    text: "Galería",
+                    onPress: async () => {
+                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                        if (status !== 'granted') {
+                            Alert.alert("Permiso denegado", "Se necesita acceso a la galería");
+                            return;
+                        }
+                        let fotito = await ImagePicker.launchImageLibraryAsync({
+                            mediaTypes: ['images'],
+                            allowsEditing: true,
+                            aspect: [4, 4],
+                            quality: 1
+                        });
+                        if (!fotito.canceled) {
+                            setPicture(fotito.assets[0].uri);
+                        }
+                    }
+                },
+                {
+                    text: "Cancelar",
+                    style: "cancel"
+                }
+            ]
+        );
     };
 
     const handleUpdate = async () => {

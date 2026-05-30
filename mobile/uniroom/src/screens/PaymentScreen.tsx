@@ -9,7 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 import { SavedCard } from '../types/payments';
 
-const MP_PUBLIC_KEY = process.env.EXPO_PUBLIC_MP_PUBLIC_KEY;
+const MP_PUBLIC_KEY = process.env.EXPO_PUBLIC_MP_PUBLIC_KEY || "TEST-PUBLIC-KEY-REEMPLAZAR";
 
 export default function PaymentScreen({ navigation, route }: any) {
     const insets = useSafeAreaInsets();
