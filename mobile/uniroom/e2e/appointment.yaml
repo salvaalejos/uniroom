@@ -1,0 +1,13 @@
+appId: com.uniroom.app
+---
+- launchApp
+- tapOn: "Inmuebles"
+- waitForVisible: "UniRoomie Morelia"
+- tapOn:
+    id: "propertyPin"
+    index: 0
+- waitForVisible: "Agendar Cita" 
+- tapOn: "Agendar Cita"
+- waitForVisible: "Agendar"
+- tapOn: "Confirmar"
+- assertVisible: "Cita agendada"

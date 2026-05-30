@@ -3,24 +3,19 @@ import { View, Text, TextInput, Image, StyleSheet, ScrollView, TouchableOpacity,
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState, useRef, useEffect } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
-import { useVideoPlayer, VideoView } from "expo-video"
 import { useNavigation } from "@react-navigation/native"
 import { useTheme } from "../context/ThemeContext"
 import AgendarCita from "./AgendarCita"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { API_BASE_URL } from "../config"
+import { getMediaUri } from "../utils/getMediaUri"
+import { useQuery } from "@tanstack/react-query"
 
 // ─ Constantes ─
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 
 // Foto del anfitrion provisional
 const ANFITRION = require("../default_images/anfi.jpg")
-
-const getMediaUri = (src: string): { uri: string } | number => {
-    if (!src) return 0;
-    if (src.startsWith("http")) return { uri: src };
-    return { uri: `${API_BASE_URL}${src}` };
-};
 
 // ─ Componente ─
 const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: propInmueble, token: propToken, route }: any) => {
@@ -41,29 +36,22 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
     const [imagenActual, setImagenActual] = useState(0)
     const [verComentarios, setVerComentarios] = useState(false)
     const [modalTarifaVisible, setModalTarifaVisible] = useState(false)
-    const [puedeRentar, setPuedeRentar] = useState(false)
-    const [yaEstáRentando, setYaEstáRentando] = useState(false)
     const [modalRentarVisible, setModalRentarVisible] = useState(false)
 
-    // Verificar si el usuario puede rentar este inmueble
-    useEffect(() => {
-        const checkRentaPermission = async () => {
-            if (!inmueble?.id_inmueble || !token) return
-            try {
-                const resp = await fetch(`${API_BASE_URL}/inmuebles/${inmueble.id_inmueble}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
-                if (resp.ok) {
-                    const data = await resp.json()
-                    setPuedeRentar(data.puede_rentar || false)
-                    setYaEstáRentando(data.usuario_actualmente_rentando || false)
-                }
-            } catch (error) {
-                console.error("Error verificando permiso de renta:", error)
-            }
-        }
-        checkRentaPermission()
-    }, [inmueble?.id_inmueble, token])
+    const { data: permisoData } = useQuery({
+        queryKey: ['permisoRenta', inmueble?.id_inmueble],
+        queryFn: async () => {
+            const resp = await fetch(`${API_BASE_URL}/inmuebles/${inmueble!.id_inmueble}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (!resp.ok) throw new Error("Error verificando permiso")
+            return resp.json()
+        },
+        enabled: !!inmueble?.id_inmueble && !!token,
+    })
+
+    const puedeRentar = permisoData?.puede_rentar || false
+    const yaEstáRentando = permisoData?.usuario_actualmente_rentando || false
 
     const esVideo = inmueble?.media?.[imagenActual]?.tipo === "video"
     const videoSource = esVideo ? inmueble?.media?.[imagenActual]?.src : null

@@ -1,47 +1,28 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Modal, Dimensions, ActivityIndicator, TextInput, Alert } from "react-native"
-import { useState, useRef, useEffect } from "react"
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Modal, Dimensions, ActivityIndicator, TextInput } from "react-native"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
-import { useVideoPlayer, VideoView } from "expo-video"
 import { useTheme } from "../context/ThemeContext"
 import { useCustomAlert } from "../context/AlertContext"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { obtenerRentaActual, cancelarRenta, crearCalificacion } from "../services/api"
 import { socketService } from "../services/websocketService"
 import { API_BASE_URL } from "../config"
+import { getMediaUri } from "../utils/getMediaUri"
+import { GaleriaVideoItem } from "../components/GaleriaVideoItem"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window")
 const ANFITRION = require("../default_images/anfi.jpg")
 
-const getMediaUri = (src: string): { uri: string } | number => {
-    if (!src) return 0;
-    if (src.startsWith("http")) return { uri: src };
-    return { uri: `${API_BASE_URL}${src}` };
-};
-
-const GaleriaVideoItem = ({ src }: { src: string }) => {
-    const player = useVideoPlayer(getMediaUri(src) as { uri: string })
-    return (
-        <VideoView
-            player={player}
-            style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.6 }}
-            allowsFullscreen
-        />
-    )
-}
-
-type Props = { navigation?: any; route?: any }
-
-const HomeScreen = ({ navigation, route }: Props) => {
+const HomeScreen = ({ navigation, route }: { navigation?: any; route?: any }) => {
     const insets = useSafeAreaInsets()
     const { colors, isDark } = useTheme()
     const { showAlert } = useCustomAlert()
     
     const userId = route?.params?.userId
     const token = route?.params?.token
-
-    const [rentaActual, setRentaActual] = useState<any>(null)
-    const [cargando, setCargando] = useState(true)
+    const queryClient = useQueryClient()
 
     const [imagenActual, setImagenActual] = useState(0)
     const [menuVisible, setMenuVisible] = useState(false)
@@ -55,7 +36,51 @@ const HomeScreen = ({ navigation, route }: Props) => {
     const [comentario, setComentario] = useState("")
     const [enviando, setEnviando] = useState(false)
 
+    const { data: rentaActual, isLoading: cargando } = useQuery({
+        queryKey: ['rentaActual', userId],
+        queryFn: async () => {
+            let currentUserId = userId
+            if (!currentUserId) {
+                currentUserId = await AsyncStorage.getItem('userId')
+            }
+            if (!currentUserId) return null
+            const data = await obtenerRentaActual(currentUserId)
+            return data.rentaActual
+        },
+        enabled: !!userId,
+    })
+
     const media = rentaActual?.media || []
+
+    const mutationCancelar = useMutation({
+        mutationFn: () => cancelarRenta(userId),
+        onMutate: () => setCancelando(true),
+        onSuccess: () => {
+            setModalCancelarVisible(false)
+            setRating(0)
+            setComentario("")
+            setModalCalificacionVisible(true)
+        },
+        onError: (error: any) => {
+            showAlert({ title: "Error", message: error.message, type: "error" })
+        },
+        onSettled: () => setCancelando(false),
+    })
+
+    const mutationCalificar = useMutation({
+        mutationFn: (data: any) => crearCalificacion(data),
+        onMutate: () => setEnviando(true),
+        onSuccess: () => {
+            setModalCalificacionVisible(false)
+            setModalOmitirVisible(false)
+            queryClient.invalidateQueries({ queryKey: ['rentaActual', userId] })
+        },
+        onError: (error: any) => {
+            console.error("Error enviando calificación:", error)
+            queryClient.invalidateQueries({ queryKey: ['rentaActual', userId] })
+        },
+        onSettled: () => setEnviando(false),
+    })
 
     const galeriaScrollRef = useRef<ScrollView>(null)
 
@@ -73,87 +98,39 @@ const HomeScreen = ({ navigation, route }: Props) => {
         }
     }, [mediaActual])
 
+    const refreshRenta = useCallback(() => {
+        if (userId) queryClient.invalidateQueries({ queryKey: ['rentaActual', userId] })
+    }, [userId, queryClient])
+
     useEffect(() => {
-        const fetchRenta = async () => {
-            let currentUserId = userId
-            if (!currentUserId) {
-                const savedUserId = await AsyncStorage.getItem('userId')
-                if (savedUserId) currentUserId = savedUserId
-            }
-            
-            if (!currentUserId) {
-                setCargando(false)
-                return
-            }
-            try {
-                const data = await obtenerRentaActual(currentUserId)
-                setRentaActual(data.rentaActual)
-            } catch (error) {
-                console.error("Error obteniendo renta actual:", error)
-            } finally {
-                setCargando(false)
-            }
-        }
-
-        fetchRenta()
-
-        // Listener de navegación para refrescar al entrar a la pestaña
-        const unsubscribe = navigation.addListener('focus', () => {
-            fetchRenta()
-        })
-
-        // Listener de WebSocket para actualización en tiempo real tras pago
+        const unsubscribe = navigation.addListener('focus', refreshRenta)
         socketService.on('renta_confirmada_estudiante', (data) => {
             console.log("Renta confirmada recibida vía WebSocket:", data)
-            fetchRenta()
+            refreshRenta()
         })
-
         return () => {
             unsubscribe()
             socketService.off('renta_confirmada_estudiante')
         }
-    }, [userId, navigation])
+    }, [userId, navigation, refreshRenta])
 
-    const handleCancelarRenta = async () => {
-        setCancelando(true)
-        try {
-            await cancelarRenta(userId)
-            setModalCancelarVisible(false)
-            setRating(0)
-            setComentario("")
-            setModalCalificacionVisible(true)
-        } catch (error: any) {
-            showAlert({ title: "Error", message: error.message, type: "error" })
-        } finally {
-            setCancelando(false)
-        }
+    const handleCancelarRenta = () => {
+        mutationCancelar.mutate()
     }
 
-    const handleEnviarCalificacion = async () => {
+    const handleEnviarCalificacion = () => {
         if (rating === 0) {
             setEnviando(false)
             setModalCalificacionVisible(false)
             setModalOmitirVisible(false)
-            setRentaActual(null)
+            queryClient.invalidateQueries({ queryKey: ['rentaActual', userId] })
             return
         }
-        setEnviando(true)
-        try {
-            await crearCalificacion({
-                id_inmueble: rentaActual.id_inmueble,
-                calificacion: rating,
-                comentario: comentario || undefined,
-            })
-            setModalCalificacionVisible(false)
-            setModalOmitirVisible(false)
-            setRentaActual(null)
-        } catch (error: any) {
-            console.error("Error enviando calificación:", error)
-            setModalCalificacionVisible(false)
-            setRentaActual(null)
-        } finally {
-            setEnviando(false)
-        }
+        mutationCalificar.mutate({
+            id_inmueble: rentaActual.id_inmueble,
+            calificacion: rating,
+            comentario: comentario || undefined,
+        })
     }
 
     if (cargando) {
@@ -492,7 +469,7 @@ const HomeScreen = ({ navigation, route }: Props) => {
                             onPress={() => {
                                 setModalCalificacionVisible(false)
                                 setModalOmitirVisible(false)
-                                setRentaActual(null)
+                                queryClient.invalidateQueries({ queryKey: ['rentaActual', userId] })
                             }}
                         >
                             <Text style={styles.omitirBtnContinuarText}>Continuar sin reseña</Text>

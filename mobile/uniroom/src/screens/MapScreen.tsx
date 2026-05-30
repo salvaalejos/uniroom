@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import Mapbox from "@rnmapbox/maps";
 import * as Location from "expo-location";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useQuery } from "@tanstack/react-query";
 
 // Componentes extra
 import InmuebleScreen from "./InmuebleScreen";
@@ -39,10 +40,7 @@ const getDistancia = (lat2: number, lon2: number) => {
 };
 
 export default function MapScreen({ route, navigation }: any) {
-  // Estados combinados
-  const [inmuebles, setInmuebles] = useState<any[]>([]);
-  const [originales, setOriginales] = useState<any[]>([]);
-  const [cargando, setCargando] = useState(true);
+  const [filtrosActivos, setFiltrosActivos] = useState<any>(null);
   const [mapaListo, setMapaListo] = useState(false);
   const [modalFiltros, setModalFiltros] = useState(false);
   const [activeFilters, setActiveFilters] = useState<any>(null);
@@ -50,15 +48,59 @@ export default function MapScreen({ route, navigation }: any) {
   const { colors, isDark } = useTheme();
 
   useEffect(() => {
-    const inicializar = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+    Location.requestForegroundPermissionsAsync().then(({ status }) => {
       if (status !== "granted") {
         console.log("Permiso de ubicación denegado");
       }
-      await fetchInmuebles();
-    };
-    inicializar();
+    });
   }, []);
+
+  const fetchInmueblesFn = async () => {
+    const token = await AsyncStorage.getItem('token');
+    let url = `${API_BASE_URL}/inmuebles`;
+    if (filtrosActivos) {
+      const params = new URLSearchParams();
+      if (filtrosActivos.precioMax && filtrosActivos.precioMax < 99999) params.append('precioMax', filtrosActivos.precioMax.toString());
+      if (filtrosActivos.distanciaMax) params.append('distanciaMax', filtrosActivos.distanciaMax.toString());
+      if (filtrosActivos.servicios?.length > 0) params.append('servicios', filtrosActivos.servicios.join(','));
+      if (filtrosActivos.restricciones?.length > 0) params.append('restricciones', filtrosActivos.restricciones.join(','));
+      if (filtrosActivos.calificacionMin > 0) params.append('calificacionMin', filtrosActivos.calificacionMin.toString());
+      const queryString = params.toString();
+      if (queryString) url += `?${queryString}`;
+    }
+    console.log("[Map] Fetching inmuebles desde:", url);
+    const res = await fetch(url, {
+      headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+    }).catch(() => null);
+    let data = res ? await res.json() : [];
+    if (!data || data.error || !Array.isArray(data)) data = [];
+    return data.map((item: any) => {
+      const total = item.calificaciones?.reduce((acc: number, c: any) => acc + c.calificacion, 0) || 0;
+      const media = item.imagenes?.map((img: any) => {
+        const isVideo = img.imagen.match(/\.(mp4|mov|avi|wmv)$/i);
+        return { tipo: isVideo ? "video" : "imagen", src: { uri: img.imagen.startsWith('http') ? img.imagen : `${API_BASE_URL}${img.imagen}` } };
+      }) || [];
+      let fotoUrl = item.arrendador?.foto;
+      if (fotoUrl && !fotoUrl.startsWith('http')) fotoUrl = `${API_BASE_URL}${fotoUrl}`;
+      return {
+        ...item,
+        anfitrion: item.arrendador ? `${item.arrendador.nombre} ${item.arrendador.apellidos}` : "Anónimo",
+        fotoAnfitrion: fotoUrl ? { uri: fotoUrl } : null,
+        contacto: item.arrendador?.numero_contacto || "Sin contacto",
+        ubicacion: `Morelia, Mich. (a ${getDistancia(Number(item.direccion_latitud), Number(item.direccion_longitud))} km)`,
+        media,
+        promedio: item.calificaciones?.length > 0 ? total / item.calificaciones.length : 0,
+        calificacion: item.calificaciones?.length > 0 ? (total / item.calificaciones.length).toFixed(1) : "0",
+        opiniones: item.calificaciones?.length || 0,
+        distancia: parseFloat(getDistancia(Number(item.direccion_latitud), Number(item.direccion_longitud)))
+      };
+    });
+  };
+
+  const { data: inmuebles = [], isLoading: cargando, refetch } = useQuery({
+    queryKey: ['inmueblesMapa', filtrosActivos],
+    queryFn: fetchInmueblesFn,
+  });
 
   useEffect(() => {
     if (mapaListo && cameraRef.current) {
@@ -71,86 +113,14 @@ export default function MapScreen({ route, navigation }: any) {
           animationMode: 'flyTo',
         });
       }, 500);
-      
       return () => clearTimeout(timer);
     }
   }, [mapaListo, inmuebles]);
 
-  const fetchInmuebles = async (filtros?: any) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-
-      let url = `${API_BASE_URL}/inmuebles`;
-      if (filtros) {
-        const params = new URLSearchParams();
-        if (filtros.precioMax && filtros.precioMax < 99999) params.append('precioMax', filtros.precioMax.toString());
-        if (filtros.distanciaMax) params.append('distanciaMax', filtros.distanciaMax.toString());
-        if (filtros.servicios && filtros.servicios.length > 0) params.append('servicios', filtros.servicios.join(','));
-        if (filtros.restricciones && filtros.restricciones.length > 0) params.append('restricciones', filtros.restricciones.join(','));
-        if (filtros.calificacionMin && filtros.calificacionMin > 0) params.append('calificacionMin', filtros.calificacionMin.toString());
-        
-        const queryString = params.toString();
-        if (queryString) url += `?${queryString}`;
-      }
-      
-      console.log("[Map] Fetching inmuebles desde:", url);
-      
-      const res = await fetch(url, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      }).catch(() => null);
-
-      let data = res ? await res.json() : null;
-      
-      if (!data || data.error || !Array.isArray(data)) {
-        console.log("[Map] No se recibieron datos reales, usando fallback...");
-        data = [];
-      }
-      
-      const procesados = data.map((item: any) => {
-        const total = item.calificaciones?.reduce((acc: number, c: any) => acc + c.calificacion, 0) || 0;
-        
-        const media = item.imagenes?.map((img: any) => {
-            const isVideo = img.imagen.match(/\.(mp4|mov|avi|wmv)$/i);
-            return { 
-                tipo: isVideo ? "video" : "imagen", 
-                src: { uri: img.imagen.startsWith('http') ? img.imagen : `${API_BASE_URL}${img.imagen}` } 
-            };
-        }) || [];
-
-        let fotoUrl = item.arrendador?.foto;
-        if (fotoUrl && !fotoUrl.startsWith('http')) {
-            fotoUrl = `${API_BASE_URL}${fotoUrl}`;
-        }
-
-        return {
-          ...item,
-          anfitrion: item.arrendador ? `${item.arrendador.nombre} ${item.arrendador.apellidos}` : "Anónimo",
-          fotoAnfitrion: fotoUrl ? { uri: fotoUrl } : null,
-          contacto: item.arrendador?.numero_contacto || "Sin contacto",
-          ubicacion: `Morelia, Mich. (a ${getDistancia(Number(item.direccion_latitud), Number(item.direccion_longitud))} km)`,
-          media,
-          promedio: item.calificaciones?.length > 0 ? total / item.calificaciones.length : 0,
-          calificacion: item.calificaciones?.length > 0 ? (total / item.calificaciones.length).toFixed(1) : "0",
-          opiniones: item.calificaciones?.length || 0,
-          distancia: parseFloat(getDistancia(Number(item.direccion_latitud), Number(item.direccion_longitud)))
-        };
-      });
-
-      setInmuebles(procesados);
-      if (!filtros) setOriginales(procesados);
-    } catch (err) {
-      console.error("Error fetching inmuebles:", err);
-    } finally {
-      setCargando(false);
-    }
-  };
-
   const filtrarInmuebles = (datos: any) => {
     setActiveFilters(datos);
     setModalFiltros(false);
-    fetchInmuebles(datos);
+    setFiltrosActivos(datos);
   };
 
   const abrirDetalle = (inmueble: any) => {

@@ -18,6 +18,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { AlertProvider } from './src/context/AlertContext';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Polyfill para fontFamily global (hack funcional en RN)
 const oldTextRender = (Text as any).render;
@@ -29,6 +30,8 @@ if (oldTextRender) {
         });
     };
 }
+
+const queryClient = new QueryClient();
 
 // Crea el Stack
 const Stack = createNativeStackNavigator();
@@ -155,10 +158,12 @@ export default function App() {
     }
 
     return (
-        <ThemeProvider>
-            <AlertProvider>
-                <MainApp />
-            </AlertProvider>
-        </ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+                <AlertProvider>
+                    <MainApp />
+                </AlertProvider>
+            </ThemeProvider>
+        </QueryClientProvider>
     );
 }

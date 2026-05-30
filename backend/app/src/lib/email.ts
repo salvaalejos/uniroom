@@ -2,7 +2,17 @@ import { Resend } from "resend";
 import * as fs from "fs";
 import * as path from "path";
 
-const resend = new Resend(process.env.RESEND_API_KEY || "");
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error("RESEND_API_KEY no configurada");
+    }
+    _resend = new Resend(apiKey);
+  }
+  return _resend;
+}
 
 const OTP_TEMPLATE_PATH = path.join(__dirname, "..", "templates", "email-otp.html");
 
@@ -19,7 +29,7 @@ export async function sendOTPEmail(email: string, otpCode: string): Promise<{ su
   try {
     const html = loadEmailTemplate(otpCode, email);
 
-    const result = await resend.emails.send({
+    const result = await getResend().emails.send({
       from: "uniroomie@uniroomie.tech",
       to: email,
       subject: "Verifica tu correo electrónico - Código UniRoom",
@@ -54,7 +64,7 @@ export async function sendForgotPasswordEmail(email: string, otpCode: string): P
   try {
     const html = loadForgotPasswordTemplate(otpCode, email);
 
-    const result = await resend.emails.send({
+    const result = await getResend().emails.send({
       from: "uniroomie@uniroomie.tech",
       to: email,
       subject: "Recupera tu contraseña - Código UniRoomie",

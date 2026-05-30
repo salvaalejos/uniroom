@@ -13,25 +13,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL as BACKEND_URL } from '../config';
-
-// --- TIPOS UNIFICADOS ---
-type Notificacion = {
-  id: string;
-  tipo: string;
-  titulo: string;
-  mensaje: string;
-  leida: boolean;
-  remitente: string;
-  remitenteFoto?: string;
-  fecha: string;
-  relacionado_a?: string;
-  datosExtra?: any;
-};
-
-interface ContactoType {
-  id_usuario: string;
-  nombre: string;
-}
+import { Notificacion, ContactoType } from '../types/notifications';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function NotificationScreen() {
   // --- ESTADOS ---
@@ -40,6 +23,7 @@ export default function NotificationScreen() {
   const [cargando, setCargando] = useState(false);
   const { refreshUnreadCount } = useNotifications();
   const { colors, isDark } = useTheme();
+  const queryClient = useQueryClient();
   
   const [userId, setUserId] = useState<string>("");
   const [userRole, setUserRole] = useState<"estudiante" | "anfitrion">("estudiante");
@@ -69,13 +53,51 @@ export default function NotificationScreen() {
   const [citasOcultas, setCitasOcultas] = useState<string[]>([]);
   const [citasLeidas, setCitasLeidas] = useState<string[]>([]);
 
+  // Notificaciones con TanStack Query
+  const notifsQuery = useQuery({
+    queryKey: ['notificaciones', userId],
+    queryFn: async () => {
+      const token = await AsyncStorage.getItem('token');
+      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!respuesta.ok) throw new Error("Error al cargar notificaciones");
+      const datos = await respuesta.json();
+      const formateadas: Notificacion[] = datos.map((notif: any) => {
+        const d = new Date(notif.fecha_creacion);
+        const nombreFinal = notif.remitente
+          ? `${notif.remitente.nombre} ${notif.remitente.apellidos}`
+          : notif.remitente_nombre;
+        return {
+          id: notif.id.toString(),
+          tipo: notif.tipo || 'mensaje',
+          titulo: notif.titulo,
+          mensaje: notif.mensaje,
+          leida: notif.visto,
+          remitente: nombreFinal,
+          remitenteFoto: notif.remitente?.foto,
+          fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
+          relacionado_a: notif.relacionado_a,
+          datosExtra: { ...notif, estado: notif.estado_cita }
+        };
+      });
+      return formateadas;
+    },
+    enabled: !!userId,
+  });
+
+  useEffect(() => {
+    if (notifsQuery.data) {
+      setNotificaciones(notifsQuery.data);
+    }
+  }, [notifsQuery.data]);
+
   // --- INICIALIZACIÓN Y WEBSOCKETS ---
   useEffect(() => {
     const init = async () => {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
 
-      // Cargar preferencias locales de citas (ocultas y leídas)
       const ocultas = await AsyncStorage.getItem('citas_ocultas');
       if (ocultas) setCitasOcultas(JSON.parse(ocultas));
       const leidas = await AsyncStorage.getItem('citas_leidas');
@@ -89,7 +111,6 @@ export default function NotificationScreen() {
       setUserRole(rol);
       
       socketService.connect(id, rol);
-      await cargarTodo(id, rol);
       await cargarContactosReales(id);
     };
 
@@ -249,15 +270,15 @@ export default function NotificationScreen() {
     }
   };
 
-  const cargarTodo = async (idActual: string, rolActual: string) => {
+  const cargarTodo = async () => {
     setCargando(true);
-    await cargarNotificacionesBD(idActual);
+    await notifsQuery.refetch();
     setCargando(false);
   };
 
   const onRefresh = async () => {
     if (userId) {
-      await cargarTodo(userId, userRole);
+      await cargarTodo();
       await refreshUnreadCount();
     }
   };
@@ -271,44 +292,6 @@ export default function NotificationScreen() {
       }
     } catch (error) {
       console.error("Error cargando rating de estudiante:", error);
-    }
-  };
-
-  const cargarNotificacionesBD = async (idActual: string) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones/${idActual}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (respuesta.ok) {
-        const datos = await respuesta.json();
-        const formateadas: Notificacion[] = datos.map((notif: any) => {
-          const d = new Date(notif.fecha_creacion);
-          // Priorizar el nombre del remitente del objeto Usuario, sino usar el caché
-          const nombreFinal = notif.remitente 
-            ? `${notif.remitente.nombre} ${notif.remitente.apellidos}`
-            : notif.remitente_nombre;
-
-          return {
-            id: notif.id.toString(),
-            tipo: notif.tipo || 'mensaje',
-            titulo: notif.titulo,
-            mensaje: notif.mensaje,
-            leida: notif.visto,
-            remitente: nombreFinal,
-            remitenteFoto: notif.remitente?.foto,
-            fecha: `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`,
-            relacionado_a: notif.relacionado_a,
-            datosExtra: { ...notif, estado: notif.estado_cita } // Sincronizar estado de la cita
-          };
-        });
-        
-        setNotificaciones(formateadas);
-      }
-    } catch (error) {
-      console.error("Error conectando al backend:", error);
     }
   };
 
@@ -369,8 +352,7 @@ export default function NotificationScreen() {
       setRatingEstudiante(0);
       setComentarioEstudiante("");
 
-      // Recargar notificaciones
-      if (userId) await cargarTodo(userId, userRole);
+      if (userId) await cargarTodo();
     } catch (error: any) {
       Alert.alert("Error", error.message);
     } finally {
@@ -388,7 +370,7 @@ export default function NotificationScreen() {
       await actualizarEstadoCita(citaId, nuevoEstado, motivoRechazo);
       Alert.alert(aceptar ? 'Cita aceptada' : 'Cita rechazada', 'Se ha notificado al solicitante.');
       setModalVisible(false);
-      if(userId) await cargarTodo(userId, userRole);
+      if(userId) await cargarTodo();
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -406,7 +388,7 @@ export default function NotificationScreen() {
       await marcarCitaRealizada(citaId);
       Alert.alert('Visita registrada', 'Ahora puedes decidir si autorizas al estudiante para rentar.');
       setModalVisible(false);
-      if(userId) await cargarTodo(userId, userRole);
+      if(userId) await cargarTodo();
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -429,7 +411,7 @@ export default function NotificationScreen() {
           : `Has rechazado la renta.`
       );
       setModalVisible(false);
-      if(userId) await cargarTodo(userId, userRole);
+      if(userId) await cargarTodo();
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -484,7 +466,7 @@ export default function NotificationScreen() {
         Alert.alert("¡Enviado!", "Tu mensaje ha sido enviado exitosamente.");
         setNuevoTitulo(""); setNuevoMensaje(""); setDestinatarioSeleccionado(null);
         setModalFormularioVisible(false);
-        if(userId) cargarNotificacionesBD(userId);
+        if(userId) cargarTodo();
       }
     } catch (error) {
       Alert.alert("Error de conexión", "No se pudo conectar con el servidor.");

@@ -11,7 +11,7 @@ import staticPlugin from "@elysiajs/static";
 import { notificacionRoutes } from "./routes/notificacion";
 import { calificacionRoutes } from "./routes/calificaciones";
 import "./ws-server"; 
-const app = new Elysia()
+export const app = new Elysia()
   .use(staticPlugin({
         assets: 'uploads', //Carpeta
         prefix: '/public'  //URL externa lol
@@ -35,7 +35,12 @@ const app = new Elysia()
   .use(calificacionRoutes)
   .use(inmueblesRoutes) // <-- agregar
   .use(filtroRoutes)
-  .get("/", () => "Hello Elysia")
-  .listen({ port: 3000, hostname: '0.0.0.0' });
+  .get("/", () => "Hello Elysia");
 
-console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
+const port = parseInt(process.env.PORT || "3000");
+if (!process.env.BUN_TEST) {
+  app.listen({ port, hostname: '0.0.0.0' });
+  console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
+}
+
+export default app;

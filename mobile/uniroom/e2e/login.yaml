@@ -1,0 +1,11 @@
+appId: com.uniroom.app
+---
+- launchApp
+- waitForVisible: "Iniciar Sesión"
+- tapOn: "Correo electrónico"
+- inputText: "test@uniroom.com"
+- tapOn: "Contraseña"
+- inputText: "Test1234!"
+- tapOn: "Iniciar Sesión"
+- waitForVisible: "UniRoomie Morelia"
+- assertVisible: "UniRoomie Morelia"
