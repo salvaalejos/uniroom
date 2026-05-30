@@ -7,7 +7,7 @@ Este documento detalla las acciones correctivas y refactorizaciones implementada
 ## 1. General & Back End (Resolución de Bugs, Arquitectura y Código Muerto)
 **Objetivos requeridos:** Unificar patrón de autenticación, corregir bug en `users.ts`, integrar utilidades de validación, eliminar código muerto, agregar middleware de errores.
 
-**✅ Cambios Implementados (Fase 1 y 2):**
+**✅ Cambios Implementados:**
 - **Eliminación de Código Muerto:** Se purgó el repositorio eliminando archivos inactivos y duplicados: `Filtro.ts` (ruta duplicada), `socket.ts` (unificado en `websocketService.ts`), `server.js` (código legacy) y `crypto.ts` (utilidad sin uso).
 - **Corrección de Bugs Críticos:** Se corrigió la línea 326 en `backend/app/src/routes/users.ts`, cambiando la sintaxis inválida `setStatus = 400` por el formato correcto del framework Elysia: `set.status = 400`. Adicionalmente se blindó la ruta `/calificaciones` para evitar errores 500 cuando el token es nulo, retornando correctamente un HTTP 401.
 - **Middleware de Autenticación Unificado:** Se creó `src/middlewares/auth.ts` con el plugin `.derive()`. Se eliminó la lógica de verificación manual en todos los archivos de rutas, inyectando un único middleware centralizado que procesa los tokens JWT de manera uniforme.
@@ -19,7 +19,7 @@ Este documento detalla las acciones correctivas y refactorizaciones implementada
 ## 2. Front End (Composabilidad y Reactividad)
 **Objetivos requeridos:** Crear componentes reutilizables, eliminar pantallas sin uso (`wat.tsx`), utilizar Tanstack Query en todas las pantallas.
 
-**✅ Cambios Implementados (Fase 1 y 3):**
+**✅ Cambios Implementados:**
 - **Eliminación de Pantallas Inútiles:** Se borró por completo `wat.tsx` limpiando el árbol de navegación.
 - **Migración total a TanStack Query:** Se erradicó el uso excesivo de `useEffect` y peticiones fetch manuales.
   - **Consultas (`useQuery`):** Se implementaron consultas con caché automatizado, deduplicación y manejo de estados nativo (`isPending`, `isError`) en `HomeScreen` (rentas activas), `Inmuebles` (listados con filtros), `ProfileScreen`, `MapScreen` y `NotificationScreen`.
@@ -35,7 +35,7 @@ Este documento detalla las acciones correctivas y refactorizaciones implementada
 ## 3. Build y Deploy (Optimización de Producción)
 **Objetivos requeridos:** Configurar Dockerfile sin `--watch`, agregar `prisma generate`, externalizar credenciales de BD.
 
-**✅ Cambios Implementados (Fase 4):**
+**✅ Cambios Implementados:**
 - **Refactor del Dockerfile:** Se eliminó el flag iterativo `--watch` en el comando `CMD` para que el servidor de Bun corra de manera optimizada en producción. Se incluyó el paso `RUN bunx prisma generate` durante el build para asegurar que los binarios del cliente Prisma existan antes de arrancar.
 - **Gestión Estricta de Variables de Entorno:**
   - Se eliminaron las contraseñas hardcodeadas (`12345`) en `docker-compose.yml`. Todo el sistema ahora depende de variables como `${POSTGRES_USER}` y `${POSTGRES_PASSWORD}`.
@@ -47,6 +47,6 @@ Este documento detalla las acciones correctivas y refactorizaciones implementada
 ## 4. Logging (Seguridad y Niveles de Traza)
 **Objetivos requeridos:** Configurar niveles de log, eliminar logging de datos sensibles.
 
-**✅ Cambios Implementados (Fase 1 y 2):**
+**✅ Cambios Implementados:**
 - **Saneamiento de Privacidad:** Se borró el `console.log` de la línea 26 en `auth.ts` que exponía el body completo (incluyendo la contraseña en texto plano) durante los registros de nuevos estudiantes.
 - **Sistema de Logs Semánticos:** Se creó e integró un logger centralizado (`src/middlewares/logger.ts`) que tipifica la salida de la consola por niveles de importancia (`info`, `warn`, `error`, `debug`), estructurando mejor los logs vinculados al middleware global de errores.
