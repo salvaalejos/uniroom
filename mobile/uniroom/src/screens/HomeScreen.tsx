@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
     tlItem: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
     tlLeft: { alignItems: "center", width: 16, flexShrink: 0, marginTop: 2 },
     tlDot: { width: 10, height: 10, borderRadius: 5 },
-    tlDotFin: { backgroundColor: "transparent", borderOfWidth: 2, borderBottomWidth: 2, borderTopWidth: 2, borderLeftWidth: 2, borderRightWidth: 2 },
+    tlDotFin: { backgroundColor: "transparent", borderWidth: 2, borderBottomWidth: 2, borderTopWidth: 2, borderLeftWidth: 2, borderRightWidth: 2 },
     tlLinea: { width: 2, flex: 1, minHeight: 30 },
     tlContent: { paddingBottom: 14, flex: 1 },
     tlLbl: { fontSize: 11, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase" },

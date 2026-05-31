@@ -154,7 +154,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         ? { uri: `${API_BASE_URL}${userData.foto}` } 
         : require("../default_images/profile_photo.jpg");
 
-    console.log(userData.foto)
+    console.log("USER DATA RECIBIDO DE LA API:", JSON.stringify(userData, null, 2));
 
     const InfoRow = ({ icon, label, value }: any) => (
         <View style={styles.infoRow}>

@@ -17,7 +17,7 @@ import { authPlugin } from "../middlewares/auth";
 export const usersRoutes = new Elysia({ prefix: "/users" })
   .use(authPlugin)
   .get("/", async ({ authenticatedUser, set }) => {
-    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) return authenticatedUser || { error: "No autorizado" };
+    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) { set.status = 401; return typeof authenticatedUser === "object" ? authenticatedUser : { error: "No autorizado" }; }
     if (authenticatedUser.rol !== "ADMIN") {
       set.status = 403;
       return { error: "No autorizado" };
@@ -104,7 +104,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   })
   // ── Obtener datos de usuario ──
   .get("/:id", async ({ params: { id }, authenticatedUser, set }) => {
-    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) return authenticatedUser || { error: "No autorizado" };
+    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) { set.status = 401; return typeof authenticatedUser === "object" ? authenticatedUser : { error: "No autorizado" }; }
     const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
     if (!canAccess) {
@@ -152,7 +152,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     return { ...user, rating };
   })
   .get("/:id/transactions", async ({ params: { id }, authenticatedUser, set }) => {
-    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) return authenticatedUser || { error: "No autorizado" };
+    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) { set.status = 401; return typeof authenticatedUser === "object" ? authenticatedUser : { error: "No autorizado" }; }
     const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
     if (!canAccess) {
@@ -170,7 +170,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   .post(
     "/:id/upload-foto",
     async ({ params: { id }, body, authenticatedUser, set }) => {
-      if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) return authenticatedUser || { error: "No autorizado" };
+      if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) { set.status = 401; return typeof authenticatedUser === "object" ? authenticatedUser : { error: "No autorizado" }; }
       const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
       if (!canAccess) {
@@ -218,7 +218,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   .put(
     "/:id",
     async ({ params: { id }, body, authenticatedUser, set }) => {
-      if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) return authenticatedUser || { error: "No autorizado" };
+      if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) { set.status = 401; return typeof authenticatedUser === "object" ? authenticatedUser : { error: "No autorizado" }; }
       const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
       if (!canAccess) {
@@ -358,7 +358,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     }
   )
   .delete("/:id", async ({ params: { id }, authenticatedUser, set }) => {
-    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) return authenticatedUser || { error: "No autorizado" };
+    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) { set.status = 401; return typeof authenticatedUser === "object" ? authenticatedUser : { error: "No autorizado" }; }
     const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
 
     if (!canAccess) {
@@ -389,7 +389,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   })
   // Obtener la renta actual del estudiante
   .get("/:id/renta-actual", async ({ params: { id }, authenticatedUser, set }) => {
-    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) return authenticatedUser || { error: "No autorizado" };
+    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) { set.status = 401; return typeof authenticatedUser === "object" ? authenticatedUser : { error: "No autorizado" }; }
     const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
     if (!canAccess) {
       set.status = 403;
@@ -453,7 +453,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   })
   // Cancelar renta activa del estudiante
   .delete("/:id/cancelar-renta", async ({ params: { id }, authenticatedUser, set }) => {
-    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) return authenticatedUser || { error: "No autorizado" };
+    if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) { set.status = 401; return typeof authenticatedUser === "object" ? authenticatedUser : { error: "No autorizado" }; }
     const canAccess = authenticatedUser.rol === "ADMIN" || authenticatedUser.id_usuario === id;
     if (!canAccess) {
       set.status = 403;
