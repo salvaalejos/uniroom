@@ -9,7 +9,7 @@ export const authPlugin = new Elysia()
       secret: process.env.JWT_SECRET || "super_secret_elysia_key",
     })
   )
-  .derive(async ({ jwt, headers: { authorization }, set }) => {
+  .derive({ as: 'global' }, async ({ jwt, headers: { authorization }, set }) => {
     if (!authorization?.startsWith("Bearer ")) {
       set.status = 401;
       return { authenticatedUser: { error: "No autorizado" } as any };
