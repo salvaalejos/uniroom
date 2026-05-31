@@ -11,7 +11,6 @@ export const authPlugin = new Elysia()
   )
   .derive({ as: 'global' }, async ({ jwt, headers: { authorization }, set }) => {
     if (!authorization?.startsWith("Bearer ")) {
-      set.status = 401;
       return { authenticatedUser: { error: "No autorizado" } as any };
     }
     const token = authorization.slice(7);
@@ -19,18 +18,15 @@ export const authPlugin = new Elysia()
     try {
       payload = await jwt.verify(token);
     } catch {
-      set.status = 401;
       return { authenticatedUser: { error: "Token inválido" } as any };
     }
     if (!payload || !payload.sub) {
-      set.status = 401;
       return { authenticatedUser: { error: "Token inválido" } as any };
     }
     const user = await db.usuario.findUnique({
       where: { id_usuario: payload.sub as string },
     });
     if (!user) {
-      set.status = 401;
       return { authenticatedUser: { error: "Usuario no encontrado" } as any };
     }
     return { authenticatedUser: user };
