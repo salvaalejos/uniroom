@@ -24,6 +24,9 @@ const MisInmuebles = () => {
     const queryClient = useQueryClient();
     const { colors, isDark } = useTheme()
 
+    const [menuAbierto, setMenuAbierto] = useState<number | null>(null);
+    const [confirmarId, setConfirmarId] = useState<number | null>(null);
+
     const { data: inmuebles = [], isLoading: cargando } = useQuery({
         queryKey: ['misInmuebles'],
         queryFn: async () => {
