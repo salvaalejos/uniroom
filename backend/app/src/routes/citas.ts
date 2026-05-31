@@ -8,7 +8,7 @@ import { authPlugin } from "../middlewares/auth";
 export const citasRoutes = new Elysia({ prefix: "/citas" })
   .use(authPlugin)
   .derive(({ authenticatedUser, set }) => {
-    if (authenticatedUser && "error" in (authenticatedUser as any)) {
+    if (authenticatedUser && (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) {
       set.status = 401;
       throw new Error((authenticatedUser as any).error);
     }

@@ -7,7 +7,7 @@ import { authPlugin } from "../middlewares/auth";
 export const notificacionRoutes = new Elysia({ prefix: '/api/notificaciones' })
   .use(authPlugin)
   .derive(({ authenticatedUser }) => {
-    if (authenticatedUser && "error" in (authenticatedUser as any)) {
+    if (authenticatedUser && (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) {
       return { user: null, authError: (authenticatedUser as any).error };
     }
     return { user: authenticatedUser, authError: null };

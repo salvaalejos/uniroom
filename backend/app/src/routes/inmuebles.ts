@@ -11,7 +11,7 @@ import { authPlugin } from "../middlewares/auth";
 export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
   .use(authPlugin)
   .derive(({ authenticatedUser, set }) => {
-    if (authenticatedUser && "error" in (authenticatedUser as any)) {
+    if (authenticatedUser && (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) {
       if (set.status === 401) set.status = 200;
       return { authenticatedUser: null };
     }
