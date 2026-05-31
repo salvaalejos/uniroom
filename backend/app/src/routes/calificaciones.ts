@@ -9,7 +9,7 @@ export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
   .post(
     "/",
     async ({ body, authenticatedUser, set }) => {
-      if (!authenticatedUser || "error" in (authenticatedUser as any)) {
+      if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) {
         set.status = 401;
         return { error: (authenticatedUser as any)?.error || "No autorizado" };
       }
@@ -51,7 +51,7 @@ export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
   .post(
     "/estudiantes",
     async ({ body, authenticatedUser, set }) => {
-      if (!authenticatedUser || "error" in (authenticatedUser as any)) {
+      if (!authenticatedUser || (typeof authenticatedUser === "object" && "error" in (authenticatedUser as any))) {
         set.status = 401;
         return { error: (authenticatedUser as any)?.error || "No autorizado" };
       }
