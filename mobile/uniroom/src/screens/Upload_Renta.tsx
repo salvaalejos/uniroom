@@ -143,6 +143,17 @@ const Lessor_Renthouse = () => {
     };
 
     const [form, setForm] = useState<Formulario>(initialForm)
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+    const clearUploadError = (key: string) => {
+        if (fieldErrors[key]) {
+            setFieldErrors(prev => {
+                const next = { ...prev };
+                delete next[key];
+                return next;
+            });
+        }
+    };
 
     useEffect(() => {
         if (route.params?.inmueble) {
@@ -450,7 +461,28 @@ const Lessor_Renthouse = () => {
         return horasCompletas;
     }
 
+    const validarFormularioDetallado = (): boolean => {
+        const errs: Record<string, string> = {};
+        if (form.medios.length === 0) errs.medios = "Sube al menos 1 foto o video del inmueble (máximo 6).";
+        const tituloTrim = form.titulo.trim();
+        if (!tituloTrim || tituloTrim.length < 8) errs.titulo = "El título debe tener al menos 8 caracteres descriptivos.";
+        else if (!/[a-zA-ZáéíóúÁÉÍÓÚñÑ]{3,}/.test(tituloTrim)) errs.titulo = "El título debe contener palabras válidas.";
+        if (!form.tipoInmueble) errs.tipoInmueble = "Selecciona el tipo de inmueble.";
+        const precioNum = parseFloat(form.precio);
+        if (!form.precio.trim() || isNaN(precioNum) || precioNum < 500 || precioNum > 100000) errs.precio = "Ingresa un precio mensual válido entre $500 y $100,000 MXN.";
+        const descTrim = form.descripcion.trim();
+        if (!descTrim || descTrim.length < 20) errs.descripcion = "La descripción debe tener al menos 20 caracteres detallando el inmueble.";
+        if (form.horariosVisita.length === 0) errs.horariosVisita = "Selecciona al menos un día disponible para visitas.";
+        else if (!form.horariosVisita.every(h => h.horas.length > 0)) errs.horariosVisita = "Asigna al menos una hora disponible a cada día seleccionado.";
+        setFieldErrors(errs);
+        return Object.keys(errs).length === 0;
+    };
+
     const publicar = () => {
+        if (!validarFormularioDetallado()) {
+            showAlert({ title: 'Revisa los campos marcados', message: 'Algunos campos obligatorios tienen errores (marcados en rojo).', type: 'warning' });
+            return;
+        }
         if (!formularioValido()) {
             showAlert({ title: 'Campos incompletos', message: 'Asegúrate de llenar todos los campos obligatorios y de asignar al menos un horario a cada día de visita seleccionado.', type: 'warning' })
             return
@@ -526,11 +558,14 @@ const Lessor_Renthouse = () => {
                 <View style={styles.seccion}>
                     <Text style={[styles.label, { color: colors.textPrimary }]}>Título <Text style={styles.requerido}>*</Text></Text>
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: fieldErrors.titulo ? colors.error : colors.border, borderWidth: fieldErrors.titulo ? 1.5 : 1, color: colors.textPrimary }]}
                         placeholder="Ej. Departamento amueblado cerca del Tec"
                         placeholderTextColor={colors.textSecondary}
                         value={form.titulo}
-                        onChangeText={v => setForm(f => ({ ...f, titulo: v }))}
+                        onChangeText={v => { setForm(f => ({ ...f, titulo: v })); clearUploadError('titulo'); }}
+                    />
+                    {fieldErrors.titulo ? <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>{fieldErrors.titulo}</Text> : null}
+                    <View style={{ display: 'none' }}
                     />
                 </View>
 
@@ -626,7 +661,8 @@ const Lessor_Renthouse = () => {
                 <View style={styles.seccion}>
                     <Text style={[styles.label, { color: colors.textPrimary }]}>Dirección textual <Text style={styles.requerido}>*</Text></Text>
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: fieldErrors.titulo ? colors.error : colors.border, borderWidth: fieldErrors.titulo ? 1.5 : 1, color: colors.textPrimary }]}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: fieldErrors.ubicacion ? colors.error : colors.border, borderWidth: fieldErrors.ubicacion ? 1.5 : 1, color: colors.textPrimary }]}
                         placeholder="Ej. Centro Histórico, Morelia"
                         placeholderTextColor={colors.textSecondary}
                         value={form.ubicacion}
@@ -638,11 +674,16 @@ const Lessor_Renthouse = () => {
                 <View style={styles.seccion}>
                     <Text style={[styles.label, { color: colors.textPrimary }]}>Precio mensual (MXN) <Text style={styles.requerido}>*</Text></Text>
                     <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: fieldErrors.titulo ? colors.error : colors.border, borderWidth: fieldErrors.titulo ? 1.5 : 1, color: colors.textPrimary }]}
+                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: fieldErrors.precio ? colors.error : colors.border, borderWidth: fieldErrors.precio ? 1.5 : 1, color: colors.textPrimary }]}
                         placeholder="Ej. 3500"
                         placeholderTextColor={colors.textSecondary}
                         value={form.precio}
-                        onChangeText={v => setForm(f => ({ ...f, precio: v.replace(/[^0-9]/g, '') }))}
+                        onChangeText={v => { setForm(f => ({ ...f, precio: v.replace(/[^0-9]/g, '') })); clearUploadError('precio'); }}
+                        keyboardType="numeric"
+                    />
+                    {fieldErrors.precio ? <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>{fieldErrors.precio}</Text> : null}
+                    <View style={{ display: 'none' }}
                         keyboardType="numeric"
                     />
                 </View>
@@ -651,11 +692,15 @@ const Lessor_Renthouse = () => {
                 <View style={styles.seccion}>
                     <Text style={[styles.label, { color: colors.textPrimary }]}>Descripción <Text style={styles.requerido}>*</Text></Text>
                     <TextInput
-                        style={[styles.input, styles.inputMultiline, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                        style={[styles.input, styles.inputMultiline, { backgroundColor: colors.cardBackground, borderColor: fieldErrors.descripcion ? colors.error : colors.border, borderWidth: fieldErrors.descripcion ? 1.5 : 1, color: colors.textPrimary }]}
                         placeholder="Describe tu propiedad..."
                         placeholderTextColor={colors.textSecondary}
                         value={form.descripcion}
-                        onChangeText={v => setForm(f => ({ ...f, descripcion: v }))}
+                        onChangeText={v => { setForm(f => ({ ...f, descripcion: v })); clearUploadError('descripcion'); }}
+                        multiline
+                    />
+                    {fieldErrors.descripcion ? <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>{fieldErrors.descripcion}</Text> : null}
+                    <View style={{ display: 'none' }}
                         multiline
                     />
                 </View>

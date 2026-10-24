@@ -3,12 +3,24 @@ import {
     View, Text, TextInput, TouchableOpacity, StyleSheet, 
     ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Switch 
 } from 'react-native';
-import { MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
+import { MaterialCommunityIcons, FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 import { SavedCard } from '../types/payments';
+import {
+    validarLuhnTarjeta,
+    validarExpiracionTarjeta,
+    validarNombreCompletoCliente,
+} from '../utils/validation';
+
+type PaymentFieldErrors = {
+    cardNumber?: string;
+    expiration?: string;
+    cvc?: string;
+    cardholderName?: string;
+};
 
 export default function PaymentScreen({ navigation, route }: any) {
     const insets = useSafeAreaInsets();
@@ -27,6 +39,7 @@ export default function PaymentScreen({ navigation, route }: any) {
     const [cvc, setCvc] = useState('');
     const [cardholderName, setCardholderName] = useState('');
     const [saveCard, setSaveCard] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<PaymentFieldErrors>({});
     
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
@@ -44,6 +57,13 @@ export default function PaymentScreen({ navigation, route }: any) {
 
     const getAuthToken = async () => {
         return routeToken || (await AsyncStorage.getItem('token')) || '';
+    };
+
+    const clearFieldError = (field: keyof PaymentFieldErrors) => {
+        if (fieldErrors[field]) {
+            setFieldErrors(prev => ({ ...prev, [field]: undefined }));
+        }
+        if (errorMessage) setErrorMessage('');
     };
 
     const loadSavedCards = async () => {
@@ -106,6 +126,7 @@ export default function PaymentScreen({ navigation, route }: any) {
             formatted = cleaned.match(/.{1,4}/g)?.join(' ') || cleaned;
         }
         setCardNumber(formatted.substring(0, 19));
+        clearFieldError('cardNumber');
     };
 
     const handleExpirationChange = (text: string) => {
@@ -115,6 +136,7 @@ export default function PaymentScreen({ navigation, route }: any) {
         } else {
             setExpiration(cleaned);
         }
+        clearFieldError('expiration');
     };
 
     const getPaymentMethodId = (number: string) => {
@@ -152,17 +174,54 @@ export default function PaymentScreen({ navigation, route }: any) {
     
     const currentCardStyle = cardStyles[cardType as keyof typeof cardStyles];
 
+    const validatePaymentFields = (): boolean => {
+        const errors: PaymentFieldErrors = {};
+
+        if (useNewCard) {
+            const cleanDigits = cardNumber.replace(/\D/g, '');
+            if (!cleanDigits) {
+                errors.cardNumber = "Ingresa el número de la tarjeta";
+            } else if (cleanDigits.length < 15 || cleanDigits.length > 16 || !validarLuhnTarjeta(cleanDigits)) {
+                errors.cardNumber = "Ingresa un número de tarjeta válido (15 o 16 dígitos)";
+            }
+
+            const expErr = validarExpiracionTarjeta(expiration);
+            if (expErr) {
+                errors.expiration = expErr;
+            }
+
+            const expectedCvcLen = cardType === 'amex' ? 4 : 3;
+            if (!cvc || !/^\d{3,4}$/.test(cvc)) {
+                errors.cvc = `Ingresa los ${expectedCvcLen} dígitos del CVC`;
+            }
+
+            const holderErr = validarNombreCompletoCliente(cardholderName);
+            if (holderErr) {
+                errors.cardholderName = holderErr;
+            }
+        } else {
+            if (!selectedCard) {
+                setErrorMessage("Selecciona una tarjeta para pagar.");
+                return false;
+            }
+            if (!cvc || !/^\d{3,4}$/.test(cvc)) {
+                errors.cvc = "Ingresa el código de seguridad (CVC) de 3 o 4 dígitos";
+            }
+        }
+
+        setFieldErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            setErrorMessage("Por favor revisa los datos de la tarjeta marcados en rojo.");
+            return false;
+        }
+        return true;
+    };
+
     const processPayment = async () => {
         setErrorMessage('');
         setSuccessMessage('');
 
-        if (useNewCard) {
-            if (!cardNumber || !expiration || !cvc || !cardholderName) {
-                setErrorMessage("Por favor llena todos los datos de la tarjeta.");
-                return;
-            }
-        } else if (!selectedCard) {
-            setErrorMessage("Selecciona una tarjeta para pagar.");
+        if (!validatePaymentFields()) {
             return;
         }
 
@@ -177,11 +236,7 @@ export default function PaymentScreen({ navigation, route }: any) {
             let expYear: number | undefined;
 
             if (useNewCard) {
-                // Simulación local de token de tarjeta sin llamar a api.mercadopago.com
                 const cleanDigits = cardNumber.replace(/\D/g, '');
-                if (cleanDigits.length < 13) {
-                    throw new Error("El número de tarjeta debe tener al menos 13 dígitos.");
-                }
                 const parts = expiration.split('/');
                 expMonth = parseInt(parts[0] || '12', 10) || 12;
                 expYear = parseInt("20" + (parts[1] || '29'), 10) || 2029;
@@ -190,11 +245,6 @@ export default function PaymentScreen({ navigation, route }: any) {
                 paymentMethodId = getPaymentMethodId(cardNumber);
                 issuerId = "sim_issuer";
             } else {
-                if (!cvc) {
-                    setIsLoading(false);
-                    setErrorMessage("Ingresa el código de seguridad (CVC) de tu tarjeta.");
-                    return;
-                }
                 cardToken = `sim_tok_saved_${selectedCard!.id}_${Date.now()}`;
                 paymentMethodId = selectedCard!.payment_method.id;
                 issuerId = selectedCard!.issuer?.id?.toString() || "sim_issuer";
@@ -205,7 +255,6 @@ export default function PaymentScreen({ navigation, route }: any) {
 
             const authToken = await getAuthToken();
 
-            // Enviar Token Simulado a nuestro Backend Local
             const backendResponse = await fetch(`${API_BASE_URL}/payments/process`, {
                 method: 'POST',
                 headers: {
@@ -220,7 +269,7 @@ export default function PaymentScreen({ navigation, route }: any) {
                     saveCard: useNewCard ? saveCard : false,
                     issuer_id: issuerId,
                     last_four_digits: lastFourDigits,
-                    cardholder_name: useNewCard ? cardholderName : selectedCard?.cardholder?.name,
+                    cardholder_name: useNewCard ? cardholderName.trim() : selectedCard?.cardholder?.name,
                     expiration_month: expMonth,
                     expiration_year: expYear
                 })
@@ -232,7 +281,6 @@ export default function PaymentScreen({ navigation, route }: any) {
                 throw new Error(backendData.error || backendData.detail || "Error al procesar el pago");
             }
 
-            // Éxito
             setSuccessMessage(`¡Has pagado la renta de ${titulo_inmueble} exitosamente!`);
             
             setTimeout(() => {
@@ -244,6 +292,16 @@ export default function PaymentScreen({ navigation, route }: any) {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const renderFieldError = (err?: string) => {
+        if (!err) return null;
+        return (
+            <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={14} color={colors.error} />
+                <Text style={[styles.fieldErrorText, { color: colors.error }]}>{err}</Text>
+            </View>
+        );
     };
 
     if (loadingCards) {
@@ -260,7 +318,7 @@ export default function PaymentScreen({ navigation, route }: any) {
             style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]} 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll}>
                 
                 <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
                     <MaterialCommunityIcons name="chevron-left" size={28} color={colors.textPrimary}/>
@@ -298,7 +356,7 @@ export default function PaymentScreen({ navigation, route }: any) {
                 {/* Tarjetas Guardadas */}
                 {savedCards.length > 0 && (
                     <View style={styles.savedCardsSection}>
-                        <Text style={styles.sectionTitle}>Tarjetas Guardadas</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Tarjetas Guardadas</Text>
                         {savedCards.map((card) => (
                             <TouchableOpacity
                                 key={card.id}
@@ -310,6 +368,7 @@ export default function PaymentScreen({ navigation, route }: any) {
                                     setSelectedCard(card);
                                     setUseNewCard(false);
                                     setCvc('');
+                                    setFieldErrors({});
                                 }}
                             >
                                 <View style={styles.savedCardLeft}>
@@ -338,29 +397,42 @@ export default function PaymentScreen({ navigation, route }: any) {
                             </TouchableOpacity>
                         ))}
 
-                        {/* CVC para tarjeta guardada */}
                         {!useNewCard && selectedCard && (
                             <View style={styles.cvcSavedContainer}>
-                                <Text style={styles.label}>Código de seguridad (CVC)</Text>
+                                <Text style={[styles.label, { color: colors.textPrimary }]}>Código de seguridad (CVC)</Text>
                                 <TextInput 
-                                    style={[styles.input, { width: 120 }]}
+                                    style={[
+                                        styles.input,
+                                        {
+                                            width: 140,
+                                            backgroundColor: colors.cardBackground,
+                                            color: colors.textPrimary,
+                                            borderColor: fieldErrors.cvc ? colors.error : colors.border,
+                                            borderWidth: fieldErrors.cvc ? 1.5 : 1,
+                                        }
+                                    ]}
                                     keyboardType="number-pad"
                                     placeholder="CVC"
+                                    placeholderTextColor={colors.textSecondary}
                                     secureTextEntry
                                     maxLength={4}
                                     value={cvc}
-                                    onChangeText={setCvc}
+                                    onChangeText={(t) => {
+                                        setCvc(t.replace(/\D/g, ''));
+                                        clearFieldError('cvc');
+                                    }}
                                 />
+                                {renderFieldError(fieldErrors.cvc)}
                             </View>
                         )}
 
-                        {/* Botón para usar tarjeta nueva */}
                         <TouchableOpacity 
                             style={[styles.newCardButton, useNewCard && styles.newCardButtonActive]}
                             onPress={() => {
                                 setUseNewCard(true);
                                 setSelectedCard(null);
                                 setCvc('');
+                                setFieldErrors({});
                             }}
                         >
                             <MaterialCommunityIcons 
@@ -375,14 +447,12 @@ export default function PaymentScreen({ navigation, route }: any) {
                     </View>
                 )}
 
-                {/* Formulario de tarjeta nueva */}
                 {useNewCard && (
                     <>
                         {savedCards.length > 0 && (
-                            <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Nueva Tarjeta</Text>
+                            <Text style={[styles.sectionTitle, { marginBottom: 16, color: colors.textPrimary }]}>Nueva Tarjeta</Text>
                         )}
 
-                        {/* Tarjeta Virtual Visual */}
                         <View style={[styles.cardVisual, { backgroundColor: currentCardStyle.backgroundColor }]}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <MaterialCommunityIcons name="credit-card-chip-outline" size={32} color="#DCEEFF" />
@@ -410,7 +480,15 @@ export default function PaymentScreen({ navigation, route }: any) {
                             <View style={styles.inputGroup}>
                                 <Text style={[styles.label, { color: colors.textPrimary }]}>Número de Tarjeta</Text>
                                 <TextInput 
-                                    style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                                    style={[
+                                        styles.input,
+                                        {
+                                            backgroundColor: colors.cardBackground,
+                                            borderColor: fieldErrors.cardNumber ? colors.error : colors.border,
+                                            borderWidth: fieldErrors.cardNumber ? 1.5 : 1,
+                                            color: colors.textPrimary
+                                        }
+                                    ]}
                                     keyboardType="number-pad"
                                     placeholder="0000 0000 0000 0000"
                                     placeholderTextColor={colors.textSecondary}
@@ -418,13 +496,22 @@ export default function PaymentScreen({ navigation, route }: any) {
                                     value={cardNumber}
                                     onChangeText={handleCardNumberChange}
                                 />
+                                {renderFieldError(fieldErrors.cardNumber)}
                             </View>
 
                             <View style={styles.row}>
                                 <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
                                     <Text style={[styles.label, { color: colors.textPrimary }]}>Expiración</Text>
                                     <TextInput 
-                                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                                        style={[
+                                            styles.input,
+                                            {
+                                                backgroundColor: colors.cardBackground,
+                                                borderColor: fieldErrors.expiration ? colors.error : colors.border,
+                                                borderWidth: fieldErrors.expiration ? 1.5 : 1,
+                                                color: colors.textPrimary
+                                            }
+                                        ]}
                                         keyboardType="number-pad"
                                         placeholder="MM/YY"
                                         placeholderTextColor={colors.textSecondary}
@@ -432,32 +519,58 @@ export default function PaymentScreen({ navigation, route }: any) {
                                         value={expiration}
                                         onChangeText={handleExpirationChange}
                                     />
+                                    {renderFieldError(fieldErrors.expiration)}
                                 </View>
                                 <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
                                     <Text style={[styles.label, { color: colors.textPrimary }]}>CVC</Text>
                                     <TextInput 
-                                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
+                                        style={[
+                                            styles.input,
+                                            {
+                                                backgroundColor: colors.cardBackground,
+                                                borderColor: fieldErrors.cvc ? colors.error : colors.border,
+                                                borderWidth: fieldErrors.cvc ? 1.5 : 1,
+                                                color: colors.textPrimary
+                                            }
+                                        ]}
                                         keyboardType="number-pad"
                                         placeholder="123"
                                         placeholderTextColor={colors.textSecondary}
                                         secureTextEntry
                                         maxLength={4}
                                         value={cvc}
-                                        onChangeText={setCvc}
+                                        onChangeText={(t) => {
+                                            setCvc(t.replace(/\D/g, ''));
+                                            clearFieldError('cvc');
+                                        }}
                                     />
+                                    {renderFieldError(fieldErrors.cvc)}
                                 </View>
                             </View>
 
                             <View style={styles.inputGroup}>
                                 <Text style={[styles.label, { color: colors.textPrimary }]}>Nombre del Titular</Text>
                                 <TextInput 
-                                    style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                                    placeholder="Como aparece en la tarjeta"
+                                    style={[
+                                        styles.input,
+                                        {
+                                            backgroundColor: colors.cardBackground,
+                                            borderColor: fieldErrors.cardholderName ? colors.error : colors.border,
+                                            borderWidth: fieldErrors.cardholderName ? 1.5 : 1,
+                                            color: colors.textPrimary
+                                        }
+                                    ]}
+                                    placeholder="Nombre y apellido como aparece en la tarjeta"
                                     placeholderTextColor={colors.textSecondary}
                                     autoCapitalize="words"
+                                    maxLength={100}
                                     value={cardholderName}
-                                    onChangeText={setCardholderName}
+                                    onChangeText={(t) => {
+                                        setCardholderName(t);
+                                        clearFieldError('cardholderName');
+                                    }}
                                 />
+                                {renderFieldError(fieldErrors.cardholderName)}
                             </View>
 
                             <View style={[styles.switchContainer, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
@@ -491,7 +604,7 @@ export default function PaymentScreen({ navigation, route }: any) {
                 </TouchableOpacity>
                 <View style={styles.secureBadge}>
                     <MaterialCommunityIcons name="lock" size={14} color={colors.textSecondary} />
-                    <Text style={[styles.secureText, { color: colors.textSecondary }]}>Pagos protegidos (Modo Simulación Local)</Text>
+                    <Text style={[styles.secureText, { color: colors.textSecondary }]}>Pagos protegidos con validación de seguridad</Text>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -507,7 +620,6 @@ const styles = StyleSheet.create({
     amountContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderRadius: 16, marginBottom: 24 },
     amountLabel: { fontSize: 16, fontWeight: '600' },
     amountValue: { fontSize: 24, fontWeight: 'bold' },
-    // Tarjetas guardadas
     savedCardsSection: { marginBottom: 24 },
     sectionTitle: { fontSize: 17, fontWeight: '700', marginBottom: 12 },
     savedCardItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 2, borderColor: '#E2E8F0', borderRadius: 12, padding: 16, marginBottom: 10 },
@@ -522,7 +634,6 @@ const styles = StyleSheet.create({
     newCardButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14, borderRadius: 12, borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', marginTop: 6 },
     newCardButtonActive: { borderColor: '#205EA6', backgroundColor: '#F0F7FF' },
     newCardButtonText: { fontSize: 15, fontWeight: '600', color: '#7F8C8D', marginLeft: 8 },
-    // Tarjeta visual
     cardVisual: { borderRadius: 16, padding: 24, height: 200, justifyContent: 'space-between', marginBottom: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 8 },
     cardVisualNumber: { color: '#FFFFFF', fontSize: 22, letterSpacing: 2, fontWeight: '600' },
     cardVisualFooter: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -533,6 +644,8 @@ const styles = StyleSheet.create({
     inputGroup: { marginBottom: 16 },
     label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
     input: { borderWidth: 1, borderRadius: 12, padding: 16, fontSize: 16 },
+    fieldErrorRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, paddingHorizontal: 2 },
+    fieldErrorText: { fontSize: 12, marginLeft: 4, flex: 1 },
     switchContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, padding: 16, borderRadius: 12, borderWidth: 1 },
     switchLabel: { fontSize: 15, fontWeight: '600' },
     switchSubLabel: { fontSize: 12, color: '#7F8C8D', marginTop: 4 },

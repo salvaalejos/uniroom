@@ -15,14 +15,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 
-const OTP_LENGTH = 5;
+const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 60;
 
 export default function VerificarEmailScreen({ navigation, route }: any) {
-    const [routeEmail, setRouteEmail] = useState(route.params?.email || '');
-    const [routePassword, setRoutePassword] = useState(route.params?.password || '');
-    const fromLogin = route.params?.fromLogin || false;
-    const [email, setEmail] = useState(route.params?.email || '');
+    const [email] = useState((route.params?.email || '').trim().toLowerCase());
     const [password, setPassword] = useState(route.params?.password || '');
 
     const [otp, setOtp] = useState('');
@@ -63,13 +60,15 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
     };
 
     const verifyCodeAndLogin = async () => {
-        if (otp.length !== OTP_LENGTH) return;
+        if (otp.length !== OTP_LENGTH) {
+            setErrorMessage('Ingresa los 6 dígitos del código enviado a tu correo.');
+            return;
+        }
         
         setIsLoading(true);
         setErrorMessage('');
 
         try {
-            // 1. Verificar el código OTP (el backend ya devuelve token y user)
             const verifyResponse = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -88,7 +87,6 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
             let userName = getUserName(verifyPayload);
             let userRole = getUserRole(verifyPayload);
 
-            // 2. Fallback por si no viniera token en verify-otp y tenemos password
             if ((!userId || !token) && password) {
                 const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
                     method: 'POST',
@@ -112,16 +110,14 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                 throw new Error('Error al obtener los datos de acceso.');
             }
 
-            // 3. Guardamos el token y datos de sesión
             await AsyncStorage.setItem('token', token);
             await AsyncStorage.setItem('userId', String(userId));
             if (userName) await AsyncStorage.setItem('userName', String(userName));
             if (userRole) await AsyncStorage.setItem('userRole', String(userRole));
             await AsyncStorage.removeItem('pendingAuth'); 
             
-            setPassword(''); // Limpiamos RAM
+            setPassword('');
 
-            // 4. ¡Adentro!
             navigation.replace('Navigator', { userId, token });
 
         } catch (error: any) {
@@ -131,7 +127,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
         } finally {
             setIsLoading(false);
         }
-    }
+    };
 
     const handleResend = async () => {
         if (countdown > 0 || resending) return;
@@ -155,7 +151,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
             }
 
             setCountdown(RESEND_COOLDOWN);
-            Alert.alert('Código enviado', 'Usa el código simulado: 12345');
+            Alert.alert('Código enviado', `Hemos enviado un nuevo código de 6 dígitos a ${email}. Revisa tu bandeja de entrada o spam.`);
 
         } catch (error: any) {
             setErrorMessage(error?.message ?? 'Error al reenviar el código');
@@ -166,6 +162,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
 
     const handleChangeText = (text: string, index: number) => {
         const cleanText = text.replace(/[^0-9]/g, '');
+        if (errorMessage) setErrorMessage('');
         
         if (cleanText.length > 0) {
             const newOtp = otp + cleanText;
@@ -178,10 +175,12 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
     };
 
     const handleBackspace = (index: number) => {
-        if (otp.length > 0 && index > 0) {
+        if (otp.length > 0 && index >= 0) {
             const newOtp = otp.slice(0, -1);
             setOtp(newOtp);
-            inputRefs.current[index - 1]?.focus();
+            if (index > 0) {
+                inputRefs.current[index - 1]?.focus();
+            }
         }
     };
 
@@ -203,7 +202,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                     </View>
                     <Text style={[styles.title, { color: colors.textPrimary }]}>Verifica tu correo</Text>
                     <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                        Ingresa el código de 5 dígitos (12345) para{' '}
+                        Ingresa el código de 6 dígitos que enviamos a{' '}
                         <Text style={[styles.emailText, { color: colors.accent }]}>{email}</Text>
                     </Text>
                 </View>
@@ -335,14 +334,14 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
     otpInput: {
-        width: 48,
-        height: 56,
+        width: 45,
+        height: 55,
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
         borderWidth: 2,
         borderColor: '#E5E7EB',
         textAlign: 'center',
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: 'bold',
         color: '#1F2937',
         marginHorizontal: 4,

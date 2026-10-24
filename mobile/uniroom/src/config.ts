@@ -1,8 +1,9 @@
 /**
- * Configuración centralizada de URLs del backend (Modo Local).
+ * Configuración centralizada de URLs del backend.
  *
- * Detecta la IP del equipo automáticamente usando el hostUri de Expo
- * o usa la IP de red local (192.168.100.97) tanto en desarrollo como en el APK compilado.
+ * Si se definen EXPO_PUBLIC_API_URL y EXPO_PUBLIC_WS_URL en mobile/uniroom/.env,
+ * se utilizan para conectar con el backend desplegado en la nube.
+ * En caso contrario, detecta automáticamente la IP local de Expo.
  */
 import Constants from 'expo-constants';
 
@@ -14,5 +15,8 @@ function buildLocalUrl(port: number): string {
   return `http://${host}:${port}`;
 }
 
-export const API_BASE_URL: string = buildLocalUrl(3000);
-export const WS_URL: string       = buildLocalUrl(3001);
+export const API_BASE_URL: string =
+  process.env.EXPO_PUBLIC_API_URL || buildLocalUrl(3000);
+
+export const WS_URL: string =
+  process.env.EXPO_PUBLIC_WS_URL || buildLocalUrl(3001);

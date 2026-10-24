@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
     StyleSheet, Text, View, TextInput, TouchableOpacity,
@@ -10,15 +10,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    validarNombreCompletoCliente,
+    validarTelefonoCliente,
+    validarPasswordCliente,
+    evaluarPassword,
+} from '../utils/validation';
+
+type ProfileFieldErrors = {
+    fullName?: string;
+    phone?: string;
+    password?: string;
+    gender?: string;
+};
 
 export default function EditProfileScreen({ navigation, route }: any) {
-    const userToEdit = route.params?.userData; // Data passed from ProfileScreen
+    const userToEdit = route.params?.userData;
     const token = route.params?.token;
 
     const [fullName, setFullName] = useState(userToEdit ? `${userToEdit.nombre} ${userToEdit.apellidos}` : '');
     const [phone, setPhone] = useState(userToEdit?.numero_contacto || '');
-    const email = userToEdit?.email || ''; // Email is now a constant, not editable
+    const email = userToEdit?.email || '';
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [focusedField, setFocusedField] = useState<string | null>(null);
     const [gender, setGender] = useState<string | null>(
         userToEdit?.genero === 'MASCULINO' ? 'man' : 
         userToEdit?.genero === 'FEMENINO' ? 'woman' : 
@@ -26,12 +41,22 @@ export default function EditProfileScreen({ navigation, route }: any) {
     );
     const [picture, setPicture] = useState(userToEdit?.foto ? `${API_BASE_URL}${userToEdit.foto}` : "");
     const [errorMessage, setErrorMessage] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<ProfileFieldErrors>({});
     const [modalVisible, setModalVisible] = useState(false);
     const [modalConfig, setModalConfig] = useState({ title: '', message: '', isEmailChange: false });
     const { colors, isDark } = useTheme();
     const [mpLinked, setMpLinked] = useState(!!userToEdit?.mp_vendedor_id);
     const [linkingMP, setLinkingMP] = useState(false);
     const queryClient = useQueryClient();
+
+    const passwordChecks = useMemo(() => evaluarPassword(password), [password]);
+
+    const clearFieldError = (field: keyof ProfileFieldErrors) => {
+        if (fieldErrors[field]) {
+            setFieldErrors(prev => ({ ...prev, [field]: undefined }));
+        }
+        if (errorMessage) setErrorMessage('');
+    };
 
     const handleLinkMercadoPago = async () => {
         setLinkingMP(true);
@@ -74,7 +99,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
                             mediaTypes: ['images'],
                             allowsEditing: true,
                             aspect: [4, 4],
-                            quality: 1
+                            quality: 0.85
                         });
                         if (!fotito.canceled) {
                             setPicture(fotito.assets[0].uri);
@@ -93,7 +118,7 @@ export default function EditProfileScreen({ navigation, route }: any) {
                             mediaTypes: ['images'],
                             allowsEditing: true,
                             aspect: [4, 4],
-                            quality: 1
+                            quality: 0.85
                         });
                         if (!fotito.canceled) {
                             setPicture(fotito.assets[0].uri);
@@ -110,41 +135,32 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
     const handleUpdate = async () => {
         setErrorMessage('');
-        
-        // 1. Sanitización de entradas
-        const cleanFullName = fullName.trim();
+        const errors: ProfileFieldErrors = {};
+
+        const nameErr = validarNombreCompletoCliente(fullName);
+        if (nameErr) errors.fullName = nameErr;
+
+        const phoneErr = validarTelefonoCliente(phone);
+        if (phoneErr) errors.phone = phoneErr;
+
+        if (password.trim().length > 0) {
+            const passErr = validarPasswordCliente(password, { email, fullName });
+            if (passErr) errors.password = passErr;
+        }
+
+        if (!gender) {
+            errors.gender = 'Selecciona el género con el que te identificas';
+        }
+
+        setFieldErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            setErrorMessage('Por favor corrige los campos marcados en rojo.');
+            return;
+        }
+
+        const cleanFullName = fullName.trim().replace(/\s+/g, ' ');
         const cleanPhone = phone.trim();
-        const cleanPassword = password.trim();
-
-        // 2. Validaciones de robustez
-        if (!cleanFullName) {
-            setErrorMessage('Por favor ingresa tu nombre completo');
-            return;
-        }
-
-        const fullNameParts = cleanFullName.split(/\s+/).filter(Boolean);
-        if (fullNameParts.length < 2) {
-            setErrorMessage('Por favor ingresa al menos un nombre y un apellido');
-            return;
-        }
-
-        if (!cleanPhone) {
-            setErrorMessage('El número de teléfono es obligatorio');
-            return;
-        }
-
-        // Validación de formato de teléfono (ejemplo: 10 dígitos)
-        const phoneRegex = /^\d{10}$/;
-        if (!phoneRegex.test(cleanPhone)) {
-            setErrorMessage('El número de teléfono debe tener 10 dígitos numéricos');
-            return;
-        }
-
-        if (cleanPassword && cleanPassword.length < 6) {
-            setErrorMessage('La nueva contraseña debe tener al menos 6 caracteres');
-            return;
-        }
-
+        const fullNameParts = cleanFullName.split(' ').filter(Boolean);
         const nombre = fullNameParts[0];
         const apellidos = fullNameParts.slice(1).join(' ');
 
@@ -158,8 +174,8 @@ export default function EditProfileScreen({ navigation, route }: any) {
         formData.append('numero_contacto', cleanPhone);
         formData.append('genero', backendGender);
         
-        if (cleanPassword !== '') {
-            formData.append('password', cleanPassword);
+        if (password.trim() !== '') {
+            formData.append('password', password);
         }
 
         if (picture && !picture.startsWith(API_BASE_URL)) {
@@ -170,11 +186,11 @@ export default function EditProfileScreen({ navigation, route }: any) {
                 formData.append('foto', blob, `profile_${Date.now()}.${fileType}`); 
             } else {
                 const uriParts = picture.split('.');
-                const fileType = uriParts[uriParts.length - 1];
+                const fileType = uriParts[uriParts.length - 1] || 'jpg';
                 formData.append('foto', {
                     uri: Platform.OS === 'android' ? picture : picture.replace('file://', ''),
                     name: `profile_${Date.now()}.${fileType}`,
-                    type: `image/${fileType}`,
+                    type: `image/${fileType === 'jpg' ? 'jpeg' : fileType}`,
                 } as any);
             }
         }
@@ -198,7 +214,9 @@ export default function EditProfileScreen({ navigation, route }: any) {
             if (!response.ok) {
                 let errorMsg = data?.error ?? data?.message ?? data?.summary;
                 if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
-                throw new Error(errorMsg ?? 'No se pudo actualizar el perfil');
+                const err: any = new Error(errorMsg ?? 'No se pudo actualizar el perfil');
+                err.field = data?.field;
+                throw err;
             }
             return data;
         },
@@ -222,7 +240,12 @@ export default function EditProfileScreen({ navigation, route }: any) {
             }
         },
         onError: (error: any) => {
-            setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
+            const msg = error?.message ?? 'Ocurrió un error de conexión';
+            const field = error?.field as keyof ProfileFieldErrors | undefined;
+            if (field) {
+                setFieldErrors(prev => ({ ...prev, [field]: msg }));
+            }
+            setErrorMessage(msg);
         }
     });
 
@@ -240,9 +263,32 @@ export default function EditProfileScreen({ navigation, route }: any) {
         }
     };
 
+    const renderFieldError = (err?: string) => {
+        if (!err) return null;
+        return (
+            <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={15} color={colors.error} />
+                <Text style={[styles.fieldErrorText, { color: colors.error }]}>{err}</Text>
+            </View>
+        );
+    };
+
+    const renderCheckItem = (passed: boolean, label: string) => (
+        <View style={styles.checkItemRow}>
+            <Ionicons
+                name={passed ? "checkmark-circle" : "ellipse-outline"}
+                size={15}
+                color={passed ? "#27AE60" : colors.textSecondary}
+            />
+            <Text style={[styles.checkItemText, { color: passed ? "#27AE60" : colors.textSecondary }]}>
+                {label}
+            </Text>
+        </View>
+    );
+
     return (
         <KeyboardAvoidingView behavior={Platform.OS === 'android' ? 'padding' : 'height'} style={[styles.container, { backgroundColor: colors.background }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.background }]}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.background }]}>
                 <View style={styles.title_container}>
                     <Text style={[styles.title, { color: colors.textPrimary }]}>Editar Perfil</Text>
                     <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Actualiza tu información</Text>
@@ -274,66 +320,198 @@ export default function EditProfileScreen({ navigation, route }: any) {
                 ) : null}
 
                 <View style={styles.formContainer}>
-                    <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                        placeholder="Nombre completo"
-                        placeholderTextColor={colors.textSecondary}
-                        autoCapitalize="words"
-                        value={fullName}
-                        onChangeText={setFullName}
-                    />
+                    {/* Nombre Completo */}
+                    <View style={styles.fieldWrapper}>
+                        <View style={[
+                            styles.inputContainer,
+                            {
+                                backgroundColor: colors.cardBackground,
+                                borderColor: fieldErrors.fullName
+                                    ? colors.error
+                                    : focusedField === 'fullName'
+                                    ? colors.buttonMain
+                                    : colors.border,
+                                borderWidth: fieldErrors.fullName || focusedField === 'fullName' ? 1.5 : 1,
+                            }
+                        ]}>
+                            <TextInput
+                                style={[styles.inputField, { color: colors.textPrimary }]}
+                                placeholder="Nombre completo"
+                                placeholderTextColor={colors.textSecondary}
+                                autoCapitalize="words"
+                                maxLength={100}
+                                value={fullName}
+                                onChangeText={(text) => {
+                                    setFullName(text);
+                                    clearFieldError('fullName');
+                                }}
+                                onFocus={() => setFocusedField('fullName')}
+                                onBlur={() => {
+                                    setFocusedField(null);
+                                    const err = validarNombreCompletoCliente(fullName);
+                                    if (err) setFieldErrors(prev => ({ ...prev, fullName: err }));
+                                }}
+                            />
+                        </View>
+                        {renderFieldError(fieldErrors.fullName)}
+                    </View>
 
-                    <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                        placeholder="Número de teléfono"
-                        placeholderTextColor={colors.textSecondary}
-                        keyboardType="phone-pad"
-                        value={phone}
-                        onChangeText={setPhone}
-                    />
+                    {/* Teléfono */}
+                    <View style={styles.fieldWrapper}>
+                        <View style={[
+                            styles.inputContainer,
+                            {
+                                backgroundColor: colors.cardBackground,
+                                borderColor: fieldErrors.phone
+                                    ? colors.error
+                                    : focusedField === 'phone'
+                                    ? colors.buttonMain
+                                    : colors.border,
+                                borderWidth: fieldErrors.phone || focusedField === 'phone' ? 1.5 : 1,
+                            }
+                        ]}>
+                            <TextInput
+                                style={[styles.inputField, { color: colors.textPrimary }]}
+                                placeholder="Número de teléfono (10 dígitos)"
+                                placeholderTextColor={colors.textSecondary}
+                                keyboardType="number-pad"
+                                maxLength={10}
+                                value={phone}
+                                onChangeText={(text) => {
+                                    setPhone(text.replace(/\D/g, '').slice(0, 10));
+                                    clearFieldError('phone');
+                                }}
+                                onFocus={() => setFocusedField('phone')}
+                                onBlur={() => {
+                                    setFocusedField(null);
+                                    const err = validarTelefonoCliente(phone);
+                                    if (err) setFieldErrors(prev => ({ ...prev, phone: err }));
+                                }}
+                            />
+                        </View>
+                        {renderFieldError(fieldErrors.phone)}
+                    </View>
 
-                    <TextInput
-                        style={[styles.input, { backgroundColor: isDark ? colors.backgroundSecondary : '#F2F2F2', borderColor: colors.border, color: colors.textSecondary }]}
-                        placeholder="Correo electrónico"
-                        placeholderTextColor={colors.textSecondary}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={email}
-                        editable={false}
-                    />
+                    {/* Correo (Solo lectura) */}
+                    <View style={styles.fieldWrapper}>
+                        <View style={[
+                            styles.inputContainer,
+                            { backgroundColor: isDark ? colors.backgroundSecondary : '#F2F2F2', borderColor: colors.border }
+                        ]}>
+                            <TextInput
+                                style={[styles.inputField, { color: colors.textSecondary }]}
+                                placeholder="Correo electrónico"
+                                placeholderTextColor={colors.textSecondary}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                value={email}
+                                editable={false}
+                            />
+                            <View style={styles.eyeIconContainer}>
+                                <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
+                            </View>
+                        </View>
+                    </View>
 
-                    <TextInput
-                        style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                        placeholder="Nueva contraseña (opcional)"
-                        placeholderTextColor={colors.textSecondary}
-                        secureTextEntry
-                        value={password}
-                        onChangeText={setPassword}
-                    />
+                    {/* Nueva Contraseña Opcional */}
+                    <View style={styles.fieldWrapper}>
+                        <View style={[
+                            styles.inputContainer,
+                            {
+                                backgroundColor: colors.cardBackground,
+                                borderColor: fieldErrors.password
+                                    ? colors.error
+                                    : focusedField === 'password'
+                                    ? colors.buttonMain
+                                    : colors.border,
+                                borderWidth: fieldErrors.password || focusedField === 'password' ? 1.5 : 1,
+                            }
+                        ]}>
+                            <TextInput
+                                style={[styles.inputField, { color: colors.textPrimary }]}
+                                placeholder="Nueva contraseña (opcional)"
+                                placeholderTextColor={colors.textSecondary}
+                                secureTextEntry={!showPassword}
+                                maxLength={128}
+                                value={password}
+                                onChangeText={(text) => {
+                                    setPassword(text);
+                                    clearFieldError('password');
+                                }}
+                                onFocus={() => setFocusedField('password')}
+                                onBlur={() => {
+                                    setFocusedField(null);
+                                    if (password.trim()) {
+                                        const err = validarPasswordCliente(password, { email, fullName });
+                                        if (err) setFieldErrors(prev => ({ ...prev, password: err }));
+                                    }
+                                }}
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIconContainer}>
+                                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color={fieldErrors.password ? colors.error : colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        {renderFieldError(fieldErrors.password)}
 
-                    <Text style={[styles.roleLabel, { color: colors.textPrimary }]}>¿Con qué género te identificas?</Text>
-                    <View style={styles.roleContainer}>
-                        <TouchableOpacity
-                            style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'man' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
-                            onPress={() => setGender('man')}
-                        >
-                            <MaterialCommunityIcons name='human-male' size={32} color={gender === 'man' ? colors.accent : colors.textSecondary} />
-                            <Text style={[styles.roleText, { color: colors.textSecondary }, gender === 'man' && [styles.roleTextActive, { color: colors.accent }]]}>Hombre</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'woman' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
-                            onPress={() => setGender('woman')}
-                        >
-                            <MaterialCommunityIcons name='human-female' size={32} color={gender === 'woman' ? colors.accent : colors.textSecondary} />
-                            <Text style={[styles.roleText, { color: colors.textSecondary }, gender === 'woman' && [styles.roleTextActive, { color: colors.accent }]]}>Mujer</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'non-binary' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
-                            onPress={() => setGender('non-binary')}
-                        >
-                            <MaterialCommunityIcons name='human-non-binary' size={32} color={gender === 'non-binary' ? colors.accent : colors.textSecondary} />
-                            <Text style={[styles.roleText, { color: colors.textSecondary }, gender === 'non-binary' && [styles.roleTextActive, { color: colors.accent }]]}>No Binario</Text>
-                        </TouchableOpacity>
+                        {(focusedField === 'password' && password.length > 0) && (
+                            <View style={[styles.passwordChecklist, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.checklistTitle, { color: colors.textPrimary }]}>Requisitos de seguridad:</Text>
+                                {renderCheckItem(passwordChecks.minLength, "Mínimo 8 caracteres")}
+                                {renderCheckItem(passwordChecks.hasUppercase, "Al menos una letra mayúscula (A-Z)")}
+                                {renderCheckItem(passwordChecks.hasLowercase, "Al menos una letra minúscula (a-z)")}
+                                {renderCheckItem(passwordChecks.hasNumber, "Al menos un número (0-9)")}
+                                {renderCheckItem(passwordChecks.hasSpecial, "Al menos un símbolo (!@#$%&*)")}
+                            </View>
+                        )}
+                    </View>
+
+                    <View style={styles.fieldWrapper}>
+                        <Text style={[styles.roleLabel, { color: colors.textPrimary }]}>¿Con qué género te identificas?</Text>
+                        <View style={styles.roleContainer}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.genderCard,
+                                    { backgroundColor: colors.cardBackground, borderColor: fieldErrors.gender ? colors.error : colors.border },
+                                    gender === 'man' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
+                                ]}
+                                onPress={() => {
+                                    setGender('man');
+                                    clearFieldError('gender');
+                                }}
+                            >
+                                <MaterialCommunityIcons name='human-male' size={32} color={gender === 'man' ? colors.accent : colors.textSecondary} />
+                                <Text style={[styles.roleText, { color: colors.textSecondary }, gender === 'man' && [styles.roleTextActive, { color: colors.accent }]]}>Hombre</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.genderCard,
+                                    { backgroundColor: colors.cardBackground, borderColor: fieldErrors.gender ? colors.error : colors.border },
+                                    gender === 'woman' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
+                                ]}
+                                onPress={() => {
+                                    setGender('woman');
+                                    clearFieldError('gender');
+                                }}
+                            >
+                                <MaterialCommunityIcons name='human-female' size={32} color={gender === 'woman' ? colors.accent : colors.textSecondary} />
+                                <Text style={[styles.roleText, { color: colors.textSecondary }, gender === 'woman' && [styles.roleTextActive, { color: colors.accent }]]}>Mujer</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.genderCard,
+                                    { backgroundColor: colors.cardBackground, borderColor: fieldErrors.gender ? colors.error : colors.border },
+                                    gender === 'non-binary' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
+                                ]}
+                                onPress={() => {
+                                    setGender('non-binary');
+                                    clearFieldError('gender');
+                                }}
+                            >
+                                <MaterialCommunityIcons name='human-non-binary' size={32} color={gender === 'non-binary' ? colors.accent : colors.textSecondary} />
+                                <Text style={[styles.roleText, { color: colors.textSecondary }, gender === 'non-binary' && [styles.roleTextActive, { color: colors.accent }]]}>No Binario</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {renderFieldError(fieldErrors.gender)}
                     </View>
 
                     {/* Sección de Mercado Pago (solo arrendadores) */}
@@ -415,7 +593,7 @@ const styles = StyleSheet.create({
     title_container: { marginTop: 20, alignItems: "center" },
     title: { fontSize: 32, fontWeight: 'bold', color: "#0F2C4F", padding: 0 },
     subtitle: { fontSize: 16, color: '#7F8C8D', marginTop: 5, padding: 5 },
-    headerContainer: { marginTop: 40, marginBottom: 30, alignItems: "center" },
+    headerContainer: { marginTop: 30, marginBottom: 24, alignItems: "center" },
     profile_placeholder: {
         height: 140, width: 140, borderRadius: 100, backgroundColor: '#EBF5FB',
         borderColor: '#3498DB', borderWidth: 2, borderStyle: 'dashed',
@@ -438,15 +616,40 @@ const styles = StyleSheet.create({
     },
     errorTextUI: { color: '#E74C3C', marginLeft: 8, fontSize: 15, flex: 1 },
     formContainer: { marginBottom: 20 },
-    input: {
-        backgroundColor: '#FFFFFF', padding: 16, borderRadius: 12, marginBottom: 16,
-        borderWidth: 1, borderColor: '#DBDBDB', fontSize: 16, color: "#0F2C4F"
+    fieldWrapper: { marginBottom: 16 },
+    inputContainer: {
+        flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF',
+        borderRadius: 12, borderWidth: 1, borderColor: '#DBDBDB',
+    },
+    inputField: {
+        flex: 1, padding: 16, fontSize: 16, color: "#0F2C4F"
+    },
+    eyeIconContainer: {
+        paddingHorizontal: 16, paddingVertical: 14, justifyContent: 'center',
+    },
+    fieldErrorRow: {
+        flexDirection: 'row', alignItems: 'center', marginTop: 6, paddingHorizontal: 4,
+    },
+    fieldErrorText: {
+        fontSize: 13, marginLeft: 5, flex: 1,
+    },
+    passwordChecklist: {
+        marginTop: 8, padding: 12, borderRadius: 10, borderWidth: 1,
+    },
+    checklistTitle: {
+        fontSize: 13, fontWeight: '600', marginBottom: 6,
+    },
+    checkItemRow: {
+        flexDirection: 'row', alignItems: 'center', marginVertical: 2,
+    },
+    checkItemText: {
+        fontSize: 12, marginLeft: 6,
     },
     roleLabel: {
-        fontSize: 16, fontWeight: 'bold', color: "#0F2C4F", marginTop: 10,
-        marginBottom: 15, textAlign: 'center',
+        fontSize: 16, fontWeight: 'bold', color: "#0F2C4F", marginTop: 6,
+        marginBottom: 12, textAlign: 'center',
     },
-    roleContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+    roleContainer: { flexDirection: 'row', justifyContent: 'space-between' },
     genderCard: {
         flex: 1, backgroundColor: '#FFFFFF', padding: 20, borderRadius: 12,
         borderWidth: 2, borderColor: '#DBDBDB', alignItems: 'center', marginHorizontal: 5,
@@ -454,7 +657,7 @@ const styles = StyleSheet.create({
     genderCardActive: { borderColor: '#3498DB', backgroundColor: '#EBF5FB' },
     roleText: { marginTop: 8, fontSize: 14, color: '#7F8C8D', fontWeight: '600', textAlign: 'center' },
     roleTextActive: { color: '#3498DB' },
-    registerButton: { backgroundColor: '#205EA6', padding: 16, borderRadius: 12, alignItems: 'center' },
+    registerButton: { backgroundColor: '#205EA6', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 },
     registerButtonDisabled: { opacity: 0.7 },
     registerButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
@@ -473,8 +676,7 @@ const styles = StyleSheet.create({
     mpTitle: {
         fontSize: 18, fontWeight: 'bold', marginLeft: 8,
     },
-    mpLinkedContainer: {
-    },
+    mpLinkedContainer: {},
     mpStatusBadge: {
         flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
         paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginBottom: 8,

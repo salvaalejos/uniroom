@@ -1,6 +1,7 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
+import { sanitizarTexto } from "../utils/validation";
 
 import { authPlugin } from "../middlewares/auth";
 
@@ -33,7 +34,7 @@ export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
           id_estudiante: authenticatedUser.id_usuario,
           id_inmueble,
           calificacion,
-          descripcion: comentario || "",
+          descripcion: sanitizarTexto(comentario || "", 500),
         },
       });
 
@@ -43,7 +44,7 @@ export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
       body: t.Object({
         id_inmueble: t.Number(),
         calificacion: t.Integer({ minimum: 1, maximum: 5 }),
-        comentario: t.Optional(t.String()),
+        comentario: t.Optional(t.String({ maxLength: 500 })),
       }),
     }
   )
@@ -92,7 +93,7 @@ export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
           id_arrendador: authenticatedUser.id_usuario,
           id_estudiante,
           calificacion,
-          descripcion: comentario || "",
+          descripcion: sanitizarTexto(comentario || "", 500),
         },
       });
 
@@ -108,7 +109,7 @@ export const calificacionRoutes = new Elysia({ prefix: "/calificaciones" })
       body: t.Object({
         id_estudiante: t.String(),
         calificacion: t.Integer({ minimum: 1, maximum: 5 }),
-        comentario: t.Optional(t.String()),
+        comentario: t.Optional(t.String({ maxLength: 500 })),
       }),
     }
   );

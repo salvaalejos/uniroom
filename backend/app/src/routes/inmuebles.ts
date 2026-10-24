@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
 import { existsSync, mkdirSync } from "node:fs";
-import { esPrecioValido } from "../utils/validation";
+import { esPrecioValido, sanitizarTexto, sanitizarNombreArchivo } from "../utils/validation";
 
 console.log("[Inmuebles] Cargando rutas de inmuebles...");
 
@@ -303,7 +303,19 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
 
         if (!esPrecioValido(precio_mensual)) {
           set.status = 400;
-          return { error: "El precio debe ser un número válido" };
+          return { error: "El precio debe ser un número válido", field: "precio" };
+        }
+
+        const tituloSanitizado = sanitizarTexto(titulo || "Sin título", 150);
+        const descripcionSanitizada = sanitizarTexto(descripcion || "", 2000);
+
+        if ( !isNaN(lat) && (lat < -90 || lat > 90) ) {
+          set.status = 400;
+          return { error: "La latitud no es válida", field: "ubicacion" };
+        }
+        if ( !isNaN(lng) && (lng < -180 || lng > 180) ) {
+          set.status = 400;
+          return { error: "La longitud no es válida", field: "ubicacion" };
         }
 
         // Mapear tipos
@@ -343,9 +355,15 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         if (!existsSync(housesDir)) mkdirSync(housesDir, { recursive: true });
 
         const files = imagenes ? (Array.isArray(imagenes) ? imagenes : [imagenes]) : [];
+        const allowedExtensions = new Set(["jpg", "jpeg", "png", "webp", "mp4", "mov"]);
         for (const file of files) {
           if (file instanceof File) {
-            const extension = file.name.split(".").pop() || "file";
+            const safeOriginal = sanitizarNombreArchivo(file.name);
+            const extension = (safeOriginal.split(".").pop() || "jpg").toLowerCase();
+            if (!allowedExtensions.has(extension)) {
+              set.status = 400;
+              return { error: `Formato de archivo no permitido (.${extension})`, field: "medios" };
+            }
             const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`;
             console.log(`[Inmuebles] Escribiendo archivo (${file.type}):`, fileName);
             await Bun.write(`${housesDir}/${fileName}`, file);
@@ -356,9 +374,9 @@ export const inmueblesRoutes = new Elysia({ prefix: "/inmuebles" })
         console.log("[Inmuebles] Guardando en DB...");
         const nuevo = await db.inmueble.create({
           data: {
-            titulo: titulo || "Sin título",
+            titulo: tituloSanitizado,
             precio_mensual: precio,
-            descripcion: descripcion || "",
+            descripcion: descripcionSanitizada,
             direccion_latitud: isNaN(lat) ? null : lat,
             direccion_longitud: isNaN(lng) ? null : lng,
             tipo_inmueble: tipoFinal,

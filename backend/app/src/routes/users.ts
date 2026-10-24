@@ -1,11 +1,21 @@
 import { Elysia, t } from "elysia";
 import { db } from "../db";
 import { jwt } from "@elysiajs/jwt";
+import { randomInt } from "node:crypto";
+import { existsSync, mkdirSync } from "node:fs";
 import { sendOTPEmail } from "../lib/email";
 import { emitToUser } from "../ws-server";
+import {
+  validarEmail,
+  validarTextoNombre,
+  validarTelefono,
+  validarPassword,
+  sanitizarTexto,
+  sanitizarNombreArchivo,
+} from "../utils/validation";
 
 function generateOTP(): string {
-  return "12345";
+  return randomInt(100000, 1000000).toString();
 }
 
 function generateExpiryMinutes(minutes: number): Date {
@@ -224,7 +234,9 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
 
       let fotoPath = existingUser.foto;
       if (body.foto) {
-        const fileName = `${Date.now()}-${body.foto.name}`;
+        if (!existsSync("./uploads")) mkdirSync("./uploads", { recursive: true });
+        const safeName = sanitizarNombreArchivo(body.foto.name);
+        const fileName = `${Date.now()}-${safeName}`;
         const destination = `./uploads/${fileName}`;
         await Bun.write(destination, body.foto);
         fotoPath = `/public/${fileName}`;
@@ -234,41 +246,78 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         ...body,
       };
 
+      if (updateData.nombre !== undefined) {
+        const cleanNombre = sanitizarTexto(updateData.nombre, 100).replace(/\s+/g, " ");
+        const checkNombre = validarTextoNombre(cleanNombre, "nombre", "fullName");
+        if (!checkNombre.valido) {
+          set.status = 400;
+          return { error: checkNombre.error, field: "fullName" };
+        }
+        updateData.nombre = cleanNombre;
+      }
+
+      if (updateData.apellidos !== undefined) {
+        const cleanApellidos = sanitizarTexto(updateData.apellidos, 100).replace(/\s+/g, " ");
+        const checkApellidos = validarTextoNombre(cleanApellidos, "apellido", "fullName");
+        if (!checkApellidos.valido) {
+          set.status = 400;
+          return { error: checkApellidos.error, field: "fullName" };
+        }
+        updateData.apellidos = cleanApellidos;
+      }
+
       let emailChanged = false;
 
       // Si el email viene en el body y es distinto al actual
-      if (body.email && body.email !== existingUser.email) {
+      if (body.email && body.email.trim().toLowerCase() !== existingUser.email) {
+        const newEmail = body.email.trim().toLowerCase();
+        const emailCheck = validarEmail(newEmail);
+        if (!emailCheck.valido) {
+          set.status = 400;
+          return { error: emailCheck.error, field: "email" };
+        }
+
         const emailInUse = await db.usuario.findUnique({
-          where: { email: body.email },
+          where: { email: newEmail },
         });
         if (emailInUse) {
           set.status = 400;
-          return { error: "El email proporcionado ya está en uso" };
+          return { error: "El correo electrónico proporcionado ya está en uso", field: "email" };
         }
 
         updateData.email_verificado = false;
         emailChanged = true;
 
-        // Invalidar códigos anteriores y generar nuevo (simulado localmente: 12345)
-        const otpCode = "12345";
+        const otpCode = generateOTP();
         await db.verificacionEmail.updateMany({
-          where: { email: body.email, used: false },
+          where: { email: newEmail, used: false },
           data: { used: true },
         });
 
         await db.verificacionEmail.create({
           data: {
-            email: body.email,
+            email: newEmail,
             codigo: otpCode,
             expiresAt: generateExpiryMinutes(10),
           },
         });
 
-        console.log(`[SIMULACIÓN OTP CAMBIO EMAIL] Email: ${body.email} | Código: ${otpCode}`);
+        await sendOTPEmail(newEmail, otpCode);
       }
 
       if (updateData.password) {
-        updateData.password_hash = await Bun.password.hash(updateData.password);
+        const passCheck = validarPassword(updateData.password, {
+          email: existingUser.email,
+          nombre: updateData.nombre || existingUser.nombre,
+        });
+        if (!passCheck.valido) {
+          set.status = 400;
+          return { error: passCheck.error, field: "password" };
+        }
+        updateData.password_hash = await Bun.password.hash(updateData.password, {
+          algorithm: "bcrypt",
+          cost: 10,
+        });
         delete updateData.password;
       }
 
@@ -277,11 +326,12 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       delete updateData.id_usuario;
 
       // Validación de número de contacto
-      if (updateData.numero_contacto) {
-        const cleanPhone = updateData.numero_contacto.trim();
-        if (cleanPhone.length === 0) {
+      if (updateData.numero_contacto !== undefined) {
+        const cleanPhone = updateData.numero_contacto.trim().replace(/[\s-]/g, "");
+        const telCheck = validarTelefono(cleanPhone);
+        if (!telCheck.valido) {
           set.status = 400;
-          return { error: "El número de contacto es obligatorio" };
+          return { error: telCheck.error, field: "phone" };
         }
         updateData.numero_contacto = cleanPhone;
       }

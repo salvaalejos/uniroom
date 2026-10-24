@@ -7,9 +7,10 @@ export const authPlugin = new Elysia()
     jwt({
       name: "jwt",
       secret: process.env.JWT_SECRET || "super_secret_elysia_key",
+      exp: "7d",
     })
   )
-  .derive({ as: 'global' }, async ({ jwt, headers: { authorization }, set }) => {
+  .derive({ as: "global" }, async ({ jwt, headers: { authorization } }) => {
     if (!authorization?.startsWith("Bearer ")) {
       return { authenticatedUser: { error: "No autorizado" } as any };
     }
@@ -18,7 +19,7 @@ export const authPlugin = new Elysia()
     try {
       payload = await jwt.verify(token);
     } catch {
-      return { authenticatedUser: { error: "Token inválido" } as any };
+      return { authenticatedUser: { error: "Token inválido o expirado" } as any };
     }
     if (!payload || !payload.sub) {
       return { authenticatedUser: { error: "Token inválido" } as any };
@@ -28,6 +29,9 @@ export const authPlugin = new Elysia()
     });
     if (!user) {
       return { authenticatedUser: { error: "Usuario no encontrado" } as any };
+    }
+    if (user.estado !== "ACTIVO") {
+      return { authenticatedUser: { error: "La cuenta está suspendida" } as any };
     }
     return { authenticatedUser: user };
   });

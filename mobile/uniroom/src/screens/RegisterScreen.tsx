@@ -1,7 +1,3 @@
-/*
-Aparentemente utilizando image-picker no me deja poner la foto xd, pero ahorita queda xd
-ya quedo btw xd
-*/
 import React, { useState, useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -18,15 +14,29 @@ import {
     ActivityIndicator,
     Alert
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 import { useMutation } from '@tanstack/react-query';
+import {
+    validarEmailCliente,
+    validarNombreCompletoCliente,
+    validarTelefonoCliente,
+    validarPasswordCliente,
+    evaluarPassword,
+} from '../utils/validation';
+
+type RegisterErrors = {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    confirmPassword?: string;
+    role?: string;
+    gender?: string;
+};
 
 export default function RegisterScreen({ navigation, route }: any) {
-    // Estados para los campos de texto
     const userToEdit = route.params?.userToEdit;
     const [fullName, setFullName] = useState(userToEdit?.fullName || '');
     const [email, setEmail] = useState(userToEdit?.email || '');
@@ -34,25 +44,26 @@ export default function RegisterScreen({ navigation, route }: any) {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    // Estado para el rol ('student' | 'landlord' | null)
     const [role, setRole] = useState<string | null>(userToEdit?.role || null);
     const [gender, setGenger] = useState<string | null>(userToEdit?.gender || null);
-    const [selectedPic, setselectedPic] = useState(false)
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [picture, setPicture] = useState(userToEdit?.picture || "");
     const [focusedField, setFocusedField] = useState<string | null>(null);
 
-    // Estado de carga
     const [errorMessage, setErrorMessage] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<RegisterErrors>({});
 
     const { colors, isDark } = useTheme();
 
-    const getUserId = (payload: any) => {
-    if (!payload || typeof payload !== 'object') return '';
-    return payload.id_usuario ?? payload.usuario?.id_usuario ?? payload.user?.id_usuario ?? '';
+    const passwordChecks = useMemo(() => evaluarPassword(password), [password]);
+
+    const clearFieldError = (field: keyof RegisterErrors) => {
+        if (fieldErrors[field]) {
+            setFieldErrors(prev => ({ ...prev, [field]: undefined }));
+        }
+        if (errorMessage) setErrorMessage('');
     };
 
     const selectPic = async () => {
@@ -72,7 +83,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                             mediaTypes: ['images'],
                             allowsEditing: true,
                             aspect: [4, 4],
-                            quality: 1
+                            quality: 0.85
                         });
                         if (!fotito.canceled) {
                             setPicture(fotito.assets[0].uri);
@@ -91,7 +102,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                             mediaTypes: ['images'],
                             allowsEditing: true,
                             aspect: [4, 4],
-                            quality: 1
+                            quality: 0.85
                         });
                         if (!fotito.canceled) {
                             setPicture(fotito.assets[0].uri);
@@ -104,9 +115,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                 }
             ]
         );
-    }
-
-    const loginEndpoint = `${API_BASE_URL}/auth/login`
+    };
 
     const registerMutation = useMutation({
         mutationFn: async (formData: FormData) => {
@@ -118,68 +127,83 @@ export default function RegisterScreen({ navigation, route }: any) {
             const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                // Elysia devuelve { summary, type, on, property } para errores de validación (422)
                 let errorMsg = data?.error ?? data?.message ?? data?.summary;
                 if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg);
-                throw new Error(errorMsg ?? 'No se pudo completar el registro');
+                const err: any = new Error(errorMsg ?? 'No se pudo completar el registro');
+                err.field = data?.field;
+                throw err;
             }
 
             return data;
         },
         onSuccess: (data) => {
             if (data.pendingVerification === false) {
-                 Alert.alert("¡Éxito!", "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.");
-                 navigation.navigate('Login');
+                Alert.alert("¡Éxito!", "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.");
+                navigation.navigate('Login');
             } else {
-                 navigation.navigate('VerificarEmail', {
-                     email: email.trim(),
-                     password: password,
-                     fromLogin: false
-                 });
+                navigation.navigate('VerificarEmail', {
+                    email: email.trim().toLowerCase(),
+                    password: password,
+                    fromLogin: false
+                });
             }
         },
         onError: (error: any) => {
-            setErrorMessage(error?.message ?? 'Ocurrió un error de conexión');
+            const msg = error?.message ?? 'Ocurrió un error de conexión';
+            const field = error?.field as keyof RegisterErrors | undefined;
+            if (field) {
+                setFieldErrors(prev => ({ ...prev, [field]: msg }));
+            }
+            setErrorMessage(msg);
         }
     });
 
-    const handleRegister = async () => {
-        setErrorMessage('');
-        setSuccessMessage('');
+    const validateAll = (): boolean => {
+        const errors: RegisterErrors = {};
+
+        const nameErr = validarNombreCompletoCliente(fullName);
+        if (nameErr) errors.fullName = nameErr;
+
+        const emailErr = validarEmailCliente(email);
+        if (emailErr) errors.email = emailErr;
+
+        const phoneErr = validarTelefonoCliente(phone);
+        if (phoneErr) errors.phone = phoneErr;
+
+        const passErr = validarPasswordCliente(password, { email, fullName });
+        if (passErr) errors.password = passErr;
+
+        if (!confirmPassword) {
+            errors.confirmPassword = 'Confirma tu contraseña';
+        } else if (password !== confirmPassword) {
+            errors.confirmPassword = 'Las contraseñas no coinciden';
+        }
 
         if (!role) {
-            setErrorMessage('Falta seleccionar un rol');
-            return;
+            errors.role = 'Selecciona cómo usarás la aplicación (Estudiante o Arrendador)';
         }
 
-        if (password !== confirmPassword) {
-            setErrorMessage('Las contraseñas no coinciden');
-            return;
+        if (!gender) {
+            errors.gender = 'Selecciona el género con el que te identificas';
         }
 
-        if (!fullName || !email || !password) {
-            setErrorMessage('Por favor completa todos los campos obligatorios');
-            return;
-        }
+        setFieldErrors(errors);
 
-        // Validar formato de email antes de enviar al backend
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email.trim())) {
-            setErrorMessage('Ingresa un correo electrónico válido (ej: nombre@dominio.com)');
-            return;
+        if (Object.keys(errors).length > 0) {
+            setErrorMessage('Por favor corrige los campos marcados en rojo para continuar.');
+            return false;
         }
+        return true;
+    };
 
-        if (password.length <= 5) {
-            setErrorMessage('La contraseña debe tener más de 5 caracteres.');
+    const handleRegister = async () => {
+        setErrorMessage('');
+
+        if (!validateAll()) {
             return;
         }
 
         const fullNameParts = fullName.trim().split(/\s+/).filter(Boolean);
-        if (fullNameParts.length < 2) {
-            setErrorMessage('Ingresa tu nombre y al menos un apellido');
-            return;
-        }
-
         const [nombre, ...apellidosParts] = fullNameParts;
         const apellidos = apellidosParts.join(' ');
         const backendRole = role === 'student' ? 'ESTUDIANTE' : 'ARRENDADOR';
@@ -188,15 +212,13 @@ export default function RegisterScreen({ navigation, route }: any) {
         if (gender === 'man') backendGender = 'MASCULINO';
         else if (gender === 'woman') backendGender = 'FEMENINO';
 
-        //Este form data es para enviar la foto y la info en un solo golpe xd
         const formData = new FormData();
-
-        formData.append('email', email.trim());
+        formData.append('email', email.trim().toLowerCase());
         formData.append('password', password);
         formData.append('nombre', nombre);
         formData.append('apellidos', apellidos);
         formData.append('rol', backendRole);
-        formData.append('numero_contacto', phone)
+        formData.append('numero_contacto', phone.trim());
         formData.append('genero', backendGender);
 
         if (picture && picture.includes(':/')) {
@@ -207,39 +229,61 @@ export default function RegisterScreen({ navigation, route }: any) {
                 formData.append('foto', blob, `profile_${Date.now()}.${fileType}`); 
             } else {
                 const uriParts = picture.split('.');
-                const fileType = uriParts[uriParts.length - 1];
+                const fileType = uriParts[uriParts.length - 1] || 'jpg';
                 formData.append('foto', {
                     uri: Platform.OS === 'android' ? picture : picture.replace('file://', ''),
                     name: `profile_${Date.now()}.${fileType}`,
-                    type: `image/${fileType}`,
+                    type: `image/${fileType === 'jpg' ? 'jpeg' : fileType}`,
                 } as any);
             }
         }
 
         registerMutation.mutate(formData);
-    }
+    };
+
+    const renderFieldError = (err?: string) => {
+        if (!err) return null;
+        return (
+            <View style={styles.fieldErrorRow}>
+                <Ionicons name="alert-circle" size={15} color={colors.error} />
+                <Text style={[styles.fieldErrorText, { color: colors.error }]}>{err}</Text>
+            </View>
+        );
+    };
+
+    const renderCheckItem = (passed: boolean, label: string) => (
+        <View style={styles.checkItemRow}>
+            <Ionicons
+                name={passed ? "checkmark-circle" : "ellipse-outline"}
+                size={15}
+                color={passed ? "#27AE60" : colors.textSecondary}
+            />
+            <Text style={[styles.checkItemText, { color: passed ? "#27AE60" : colors.textSecondary }]}>
+                {label}
+            </Text>
+        </View>
+    );
+
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
             style={[styles.container, { backgroundColor: colors.background }]}>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { backgroundColor: colors.background }]}>
-                {/* Encabezado */}
                 <View style={styles.title_container}>
                     <Text style={[styles.title, { color: colors.textPrimary }]}>Crea tu cuenta</Text>
                     <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Únete a UniRoomie</Text>
                 </View>
+
                 <View style={styles.headerContainer}>
                     <Pressable onPress={selectPic} style={{justifyContent: "center", alignItems: "center"}}>
                         {picture ? (
-                            /* Si hay foto, mostramos la imagen normal */
                             <Image
                                 id='foto_de_perfil'
                                 style={[styles.profile_picture, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}
                                 source={{uri: picture}} 
                             />
                         ) : (
-                            /* Si NO hay foto, mostramos un círculo con borde punteado y la cámara */
                             <View style={[styles.profile_placeholder, { backgroundColor: isDark ? colors.cardBackground : '#EBF5FB', borderColor: colors.accent }]}>
                                 <MaterialCommunityIcons name='camera-plus' size={40} color={colors.accent} />
                                 <Text style={[styles.addPhotoText, { color: colors.accent }]}>Subir foto</Text>
@@ -255,227 +299,373 @@ export default function RegisterScreen({ navigation, route }: any) {
                     </View>
                 ) : null}
 
-                {/* {successMessage ? (
-                    <View style={styles.successContainer}>
-                        <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
-                        <View style={styles.successTextContainer}>
-                            <Text style={styles.successTitle}>Registrado con éxito</Text>
-                            <Text style={styles.successTextUI}>{successMessage}</Text>
-                            <TouchableOpacity style={styles.successButton} onPress={() => navigation.goBack()}>
-                                <Text style={styles.successButtonText}>Ir a Iniciar Sesión</Text>
+                <View style={styles.formContainer}>
+                    {/* Nombre Completo */}
+                    <View style={styles.fieldWrapper}>
+                        <View style={[
+                            styles.inputContainer,
+                            {
+                                backgroundColor: colors.cardBackground,
+                                borderColor: fieldErrors.fullName
+                                    ? colors.error
+                                    : focusedField === 'name'
+                                    ? colors.buttonMain
+                                    : colors.border,
+                                borderWidth: fieldErrors.fullName || focusedField === 'name' ? 1.5 : 1
+                            }
+                        ]}>
+                            <TextInput
+                                style={[styles.inputField, { color: colors.textPrimary }]}
+                                placeholder="Nombre completo (nombre y apellidos)"
+                                placeholderTextColor={colors.textSecondary}
+                                autoCapitalize="words"
+                                maxLength={100}
+                                value={fullName}
+                                onChangeText={(text) => {
+                                    setFullName(text);
+                                    clearFieldError('fullName');
+                                }}
+                                onFocus={() => setFocusedField('name')}
+                                onBlur={() => {
+                                    setFocusedField(null);
+                                    if (fullName.trim()) {
+                                        const err = validarNombreCompletoCliente(fullName);
+                                        if (err) setFieldErrors(prev => ({ ...prev, fullName: err }));
+                                    }
+                                }}
+                            />
+                            {fieldErrors.fullName && (
+                                <View style={styles.eyeIconContainer}>
+                                    <Ionicons name="alert-circle" size={20} color={colors.error} />
+                                </View>
+                            )}
+                        </View>
+                        {renderFieldError(fieldErrors.fullName)}
+                    </View>
+
+                    {/* Correo Electrónico */}
+                    <View style={styles.fieldWrapper}>
+                        <View style={[
+                            styles.inputContainer,
+                            {
+                                backgroundColor: colors.cardBackground,
+                                borderColor: fieldErrors.email
+                                    ? colors.error
+                                    : focusedField === 'email'
+                                    ? colors.buttonMain
+                                    : colors.border,
+                                borderWidth: fieldErrors.email || focusedField === 'email' ? 1.5 : 1
+                            }
+                        ]}>
+                            <TextInput
+                                style={[styles.inputField, { color: colors.textPrimary }]}
+                                placeholder="Correo electrónico"
+                                placeholderTextColor={colors.textSecondary}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                maxLength={254}
+                                value={email}
+                                onChangeText={(text) => {
+                                    setEmail(text);
+                                    clearFieldError('email');
+                                }}
+                                onFocus={() => setFocusedField('email')}
+                                onBlur={() => {
+                                    setFocusedField(null);
+                                    if (email.trim()) {
+                                        const err = validarEmailCliente(email);
+                                        if (err) setFieldErrors(prev => ({ ...prev, email: err }));
+                                    }
+                                }}
+                            />
+                            {fieldErrors.email && (
+                                <View style={styles.eyeIconContainer}>
+                                    <Ionicons name="alert-circle" size={20} color={colors.error} />
+                                </View>
+                            )}
+                        </View>
+                        {renderFieldError(fieldErrors.email)}
+                    </View>
+
+                    {/* Teléfono */}
+                    <View style={styles.fieldWrapper}>
+                        <View style={[
+                            styles.inputContainer,
+                            {
+                                backgroundColor: colors.cardBackground,
+                                borderColor: fieldErrors.phone
+                                    ? colors.error
+                                    : focusedField === 'phone'
+                                    ? colors.buttonMain
+                                    : colors.border,
+                                borderWidth: fieldErrors.phone || focusedField === 'phone' ? 1.5 : 1
+                            }
+                        ]}>
+                            <TextInput
+                                style={[styles.inputField, { color: colors.textPrimary }]}
+                                placeholder="Número de teléfono (10 dígitos)"
+                                placeholderTextColor={colors.textSecondary}
+                                keyboardType="number-pad"
+                                maxLength={10}
+                                value={phone}
+                                onChangeText={(text) => {
+                                    const onlyDigits = text.replace(/\D/g, '').slice(0, 10);
+                                    setPhone(onlyDigits);
+                                    clearFieldError('phone');
+                                }}
+                                onFocus={() => setFocusedField('phone')}
+                                onBlur={() => {
+                                    setFocusedField(null);
+                                    if (phone.trim()) {
+                                        const err = validarTelefonoCliente(phone);
+                                        if (err) setFieldErrors(prev => ({ ...prev, phone: err }));
+                                    }
+                                }}
+                            />
+                            {fieldErrors.phone && (
+                                <View style={styles.eyeIconContainer}>
+                                    <Ionicons name="alert-circle" size={20} color={colors.error} />
+                                </View>
+                            )}
+                        </View>
+                        {renderFieldError(fieldErrors.phone)}
+                    </View>
+
+                    {/* Contraseña */}
+                    <View style={styles.fieldWrapper}>
+                        <View style={[
+                            styles.inputContainer, 
+                            { 
+                                backgroundColor: colors.cardBackground, 
+                                borderColor: fieldErrors.password
+                                    ? colors.error
+                                    : focusedField === 'password'
+                                    ? colors.buttonMain
+                                    : colors.border,
+                                borderWidth: fieldErrors.password || focusedField === 'password' ? 1.5 : 1
+                            }
+                        ]}>
+                            <TextInput
+                                style={[styles.inputField, { color: colors.textPrimary }]}
+                                placeholder="Contraseña segura"
+                                placeholderTextColor={colors.textSecondary}
+                                secureTextEntry={!showPassword}
+                                maxLength={128}
+                                value={password}
+                                onChangeText={(text) => {
+                                    setPassword(text);
+                                    clearFieldError('password');
+                                }}
+                                onFocus={() => setFocusedField('password')}
+                                onBlur={() => {
+                                    setFocusedField(null);
+                                    if (password) {
+                                        const err = validarPasswordCliente(password, { email, fullName });
+                                        if (err) setFieldErrors(prev => ({ ...prev, password: err }));
+                                    }
+                                }}
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIconContainer}>
+                                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color={fieldErrors.password ? colors.error : colors.textSecondary} />
                             </TouchableOpacity>
                         </View>
-                    </View>
-                ) : null} */}
+                        {renderFieldError(fieldErrors.password)}
 
-                {/* Formulario */}
-                {!successMessage && (
-                    <View style={styles.formContainer}>
-                    <TextInput
-                        style={[
-                            styles.input, 
-                            { 
-                                backgroundColor: colors.cardBackground, 
-                                borderColor: focusedField === 'name' ? colors.buttonMain : colors.border, 
-                                color: colors.textPrimary,
-                                borderWidth: focusedField === 'name' ? 1.5 : 1
-                            }
-                        ]}
-                        placeholder="Nombre completo"
-                        placeholderTextColor={colors.textSecondary}
-                        autoCapitalize="words"
-                        value={fullName}
-                        onChangeText={setFullName}
-                        onFocus={() => setFocusedField('name')}
-                        onBlur={() => setFocusedField(null)}
-                    />
-
-                    <TextInput
-                        style={[
-                            styles.input, 
-                            { 
-                                backgroundColor: colors.cardBackground, 
-                                borderColor: focusedField === 'email' ? colors.buttonMain : colors.border, 
-                                color: colors.textPrimary,
-                                borderWidth: focusedField === 'email' ? 1.5 : 1
-                            }
-                        ]}
-                        placeholder="Correo electrónico"
-                        placeholderTextColor={colors.textSecondary}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={email}
-                        onChangeText={setEmail}
-                        onFocus={() => setFocusedField('email')}
-                        onBlur={() => setFocusedField(null)}
-                    />
-
-                    <TextInput
-                        style={[
-                            styles.input, 
-                            { 
-                                backgroundColor: colors.cardBackground, 
-                                borderColor: focusedField === 'phone' ? colors.buttonMain : colors.border, 
-                                color: colors.textPrimary,
-                                borderWidth: focusedField === 'phone' ? 1.5 : 1
-                            }
-                        ]}
-                        placeholder="Número de teléfono"
-                        placeholderTextColor={colors.textSecondary}
-                        keyboardType="phone-pad"
-                        value={phone}
-                        onChangeText={setPhone}
-                        onFocus={() => setFocusedField('phone')}
-                        onBlur={() => setFocusedField(null)}
-                    />
-
-                    <View style={[
-                        styles.inputContainer, 
-                        { 
-                            backgroundColor: colors.cardBackground, 
-                            borderColor: focusedField === 'password' ? colors.buttonMain : colors.border,
-                            borderWidth: focusedField === 'password' ? 1.5 : 1
-                        }
-                    ]}>
-                        <TextInput
-                            style={[styles.inputField, { color: colors.textPrimary }]}
-                            placeholder="Contraseña"
-                            placeholderTextColor={colors.textSecondary}
-                            secureTextEntry={!showPassword}
-                            value={password}
-                            onChangeText={setPassword}
-                            onFocus={() => setFocusedField('password')}
-                            onBlur={() => setFocusedField(null)}
-                        />
-                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIconContainer}>
-                            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textSecondary} />
-                        </TouchableOpacity>
+                        {(focusedField === 'password' || password.length > 0) && (
+                            <View style={[styles.passwordChecklist, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}>
+                                <Text style={[styles.checklistTitle, { color: colors.textPrimary }]}>Requisitos de seguridad:</Text>
+                                {renderCheckItem(passwordChecks.minLength, "Mínimo 8 caracteres")}
+                                {renderCheckItem(passwordChecks.hasUppercase, "Al menos una letra mayúscula (A-Z)")}
+                                {renderCheckItem(passwordChecks.hasLowercase, "Al menos una letra minúscula (a-z)")}
+                                {renderCheckItem(passwordChecks.hasNumber, "Al menos un número (0-9)")}
+                                {renderCheckItem(passwordChecks.hasSpecial, "Al menos un símbolo (!@#$%&*)")}
+                            </View>
+                        )}
                     </View>
 
-                    <View style={[
-                        styles.inputContainer, 
-                        { 
-                            backgroundColor: colors.cardBackground, 
-                            borderColor: focusedField === 'confirmPassword' ? colors.buttonMain : colors.border,
-                            borderWidth: focusedField === 'confirmPassword' ? 1.5 : 1
-                        }
-                    ]}>
-                        <TextInput
-                            style={[styles.inputField, { color: colors.textPrimary }]}
-                            placeholder="Confirmar contraseña"
-                            placeholderTextColor={colors.textSecondary}
-                            secureTextEntry={!showConfirmPassword}
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            onFocus={() => setFocusedField('confirmPassword')}
-                            onBlur={() => setFocusedField(null)}
-                        />
-                        <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIconContainer}>
-                            <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={22} color={colors.textSecondary} />
-                        </TouchableOpacity>
+                    {/* Confirmar Contraseña */}
+                    <View style={styles.fieldWrapper}>
+                        <View style={[
+                            styles.inputContainer, 
+                            { 
+                                backgroundColor: colors.cardBackground, 
+                                borderColor: fieldErrors.confirmPassword
+                                    ? colors.error
+                                    : focusedField === 'confirmPassword'
+                                    ? colors.buttonMain
+                                    : colors.border,
+                                borderWidth: fieldErrors.confirmPassword || focusedField === 'confirmPassword' ? 1.5 : 1
+                            }
+                        ]}>
+                            <TextInput
+                                style={[styles.inputField, { color: colors.textPrimary }]}
+                                placeholder="Confirmar contraseña"
+                                placeholderTextColor={colors.textSecondary}
+                                secureTextEntry={!showConfirmPassword}
+                                maxLength={128}
+                                value={confirmPassword}
+                                onChangeText={(text) => {
+                                    setConfirmPassword(text);
+                                    clearFieldError('confirmPassword');
+                                }}
+                                onFocus={() => setFocusedField('confirmPassword')}
+                                onBlur={() => {
+                                    setFocusedField(null);
+                                    if (confirmPassword && password !== confirmPassword) {
+                                        setFieldErrors(prev => ({ ...prev, confirmPassword: 'Las contraseñas no coinciden' }));
+                                    }
+                                }}
+                            />
+                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIconContainer}>
+                                <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={22} color={fieldErrors.confirmPassword ? colors.error : colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+                        {renderFieldError(fieldErrors.confirmPassword)}
                     </View>
 
-                    {/* Selección de Rol ---------------------------------------------------------------------------------*/}
-                    <Text style={[styles.roleLabel, { color: colors.textPrimary }]}>¿Cómo usarás la app?</Text>
-                    <View style={styles.roleContainer}>
-                        {/* Botón Estudiante */}
-                        <TouchableOpacity
-                            style={[
-                                styles.roleCard,
-                                { backgroundColor: colors.cardBackground, borderColor: colors.border },
-                                role === 'student' && [styles.roleCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
-                            ]}
-                            onPress={() => setRole('student')}
+                    {/* Selección de Rol */}
+                    <View style={styles.fieldWrapper}>
+                        <Text style={[styles.roleLabel, { color: colors.textPrimary }]}>¿Cómo usarás la app?</Text>
+                        <View style={styles.roleContainer}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.roleCard,
+                                    { backgroundColor: colors.cardBackground, borderColor: fieldErrors.role ? colors.error : colors.border },
+                                    role === 'student' && [styles.roleCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
+                                ]}
+                                onPress={() => {
+                                    setRole('student');
+                                    clearFieldError('role');
+                                }}
                             >
-                            <Ionicons
-                                name="school-outline"
-                                size={32}
-                                color={role === 'student' ? colors.accent : colors.textSecondary}
-                            />
-                            <Text style={[
-                                styles.roleText,
-                                { color: colors.textSecondary },
-                                role === 'student' && [styles.roleTextActive, { color: colors.accent }]
-                            ]}>Estudiante</Text>
-                        </TouchableOpacity>
+                                <Ionicons
+                                    name="school-outline"
+                                    size={32}
+                                    color={role === 'student' ? colors.accent : fieldErrors.role ? colors.error : colors.textSecondary}
+                                />
+                                <Text style={[
+                                    styles.roleText,
+                                    { color: colors.textSecondary },
+                                    role === 'student' && [styles.roleTextActive, { color: colors.accent }]
+                                ]}>Estudiante</Text>
+                            </TouchableOpacity>
 
-                        {/* Botón Arrendador */}
-                        <TouchableOpacity
-                            style={[
-                                styles.roleCard,
-                                { backgroundColor: colors.cardBackground, borderColor: colors.border },
-                                role === 'landlord' && [styles.roleCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
-                            ]}
-                            onPress={() => setRole('landlord')}
-                        >
-                            <Ionicons
-                                name="home-outline"
-                                size={32}
-                                color={role === 'landlord' ? colors.accent : colors.textSecondary}
-                            />
-                            <Text style={[
-                                styles.roleText,
-                                { color: colors.textSecondary },
-                                role === 'landlord' && [styles.roleTextActive, { color: colors.accent }]
-                            ]}>Arrendador</Text>
-                        </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.roleCard,
+                                    { backgroundColor: colors.cardBackground, borderColor: fieldErrors.role ? colors.error : colors.border },
+                                    role === 'landlord' && [styles.roleCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
+                                ]}
+                                onPress={() => {
+                                    setRole('landlord');
+                                    clearFieldError('role');
+                                }}
+                            >
+                                <Ionicons
+                                    name="home-outline"
+                                    size={32}
+                                    color={role === 'landlord' ? colors.accent : fieldErrors.role ? colors.error : colors.textSecondary}
+                                />
+                                <Text style={[
+                                    styles.roleText,
+                                    { color: colors.textSecondary },
+                                    role === 'landlord' && [styles.roleTextActive, { color: colors.accent }]
+                                ]}>Arrendador</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {renderFieldError(fieldErrors.role)}
                     </View>
-                    {/* Selección de SEXO ---------------------------------------------------------------------------------*/}
-                    <Text style={[styles.roleLabel, { color: colors.textPrimary }]}>¿Con qué género te identificas?</Text>
-                    <View id='seleccion_de_genero' style={styles.roleContainer}>
-                        <TouchableOpacity id='man_button'
-                        style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'man' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
-                        onPress={() => setGenger('man')}
-                        >
-                            <MaterialCommunityIcons 
-                            name='human-male'
-                            size={32}
-                            color={gender === 'man' ? colors.accent : colors.textSecondary} />
-                            <Text 
-                                numberOfLines={1}
-                                adjustsFontSizeToFit
+
+                    {/* Selección de Género */}
+                    <View style={styles.fieldWrapper}>
+                        <Text style={[styles.roleLabel, { color: colors.textPrimary }]}>¿Con qué género te identificas?</Text>
+                        <View id='seleccion_de_genero' style={styles.roleContainer}>
+                            <TouchableOpacity
+                                id='man_button'
                                 style={[
-                                    styles.genderText,
-                                    { color: colors.textSecondary },
-                                    gender === 'man' && [styles.genderTextActive, { color: colors.accent }]
+                                    styles.genderCard,
+                                    { backgroundColor: colors.cardBackground, borderColor: fieldErrors.gender ? colors.error : colors.border },
+                                    gender === 'man' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
                                 ]}
-                            >Hombre</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity id='woman_button'
-                        style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'woman' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
-                        onPress={() => setGenger('woman')}>
-                            <MaterialCommunityIcons 
-                            name='human-female'
-                            size={32}
-                            color={gender === 'woman' ? colors.accent : colors.textSecondary} />
-                            <Text 
-                                numberOfLines={1}
-                                adjustsFontSizeToFit
+                                onPress={() => {
+                                    setGenger('man');
+                                    clearFieldError('gender');
+                                }}
+                            >
+                                <MaterialCommunityIcons 
+                                    name='human-male'
+                                    size={32}
+                                    color={gender === 'man' ? colors.accent : fieldErrors.gender ? colors.error : colors.textSecondary}
+                                />
+                                <Text 
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    style={[
+                                        styles.genderText,
+                                        { color: colors.textSecondary },
+                                        gender === 'man' && [styles.genderTextActive, { color: colors.accent }]
+                                    ]}
+                                >Hombre</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                id='woman_button'
                                 style={[
-                                    styles.genderText,
-                                    { color: colors.textSecondary },
-                                    gender === 'woman' && [styles.genderTextActive, { color: colors.accent }]
+                                    styles.genderCard,
+                                    { backgroundColor: colors.cardBackground, borderColor: fieldErrors.gender ? colors.error : colors.border },
+                                    gender === 'woman' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
                                 ]}
-                            >Mujer</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity id='helicopter_button'
-                        style={[styles.genderCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }, gender === 'non-binary' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]]}
-                        onPress={() => setGenger('non-binary')}>
-                            <MaterialCommunityIcons 
-                            name='human-non-binary'
-                            size={32}
-                            color={gender === 'non-binary' ? colors.accent : colors.textSecondary} />
-                            <Text 
-                                numberOfLines={1}
-                                adjustsFontSizeToFit
+                                onPress={() => {
+                                    setGenger('woman');
+                                    clearFieldError('gender');
+                                }}
+                            >
+                                <MaterialCommunityIcons 
+                                    name='human-female'
+                                    size={32}
+                                    color={gender === 'woman' ? colors.accent : fieldErrors.gender ? colors.error : colors.textSecondary}
+                                />
+                                <Text 
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    style={[
+                                        styles.genderText,
+                                        { color: colors.textSecondary },
+                                        gender === 'woman' && [styles.genderTextActive, { color: colors.accent }]
+                                    ]}
+                                >Mujer</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                id='helicopter_button'
                                 style={[
-                                    styles.genderText,
-                                    { color: colors.textSecondary },
-                                    gender === 'non-binary' && [styles.genderTextActive, { color: colors.accent }]
+                                    styles.genderCard,
+                                    { backgroundColor: colors.cardBackground, borderColor: fieldErrors.gender ? colors.error : colors.border },
+                                    gender === 'non-binary' && [styles.genderCardActive, { borderColor: colors.accent, backgroundColor: isDark ? colors.backgroundSecondary : '#EBF5FB' }]
                                 ]}
-                            >No Binario</Text>
-                        </TouchableOpacity>
+                                onPress={() => {
+                                    setGenger('non-binary');
+                                    clearFieldError('gender');
+                                }}
+                            >
+                                <MaterialCommunityIcons 
+                                    name='human-non-binary'
+                                    size={32}
+                                    color={gender === 'non-binary' ? colors.accent : fieldErrors.gender ? colors.error : colors.textSecondary}
+                                />
+                                <Text 
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    style={[
+                                        styles.genderText,
+                                        { color: colors.textSecondary },
+                                        gender === 'non-binary' && [styles.genderTextActive, { color: colors.accent }]
+                                    ]}
+                                >No Binario</Text>
+                            </TouchableOpacity>
+                        </View>
+                        {renderFieldError(fieldErrors.gender)}
                     </View>
+
                     {/* Botón Continuar */}
                     <TouchableOpacity 
                         style={[styles.registerButton, { backgroundColor: colors.buttonMain }, registerMutation.isPending && styles.registerButtonDisabled]} 
@@ -489,9 +679,7 @@ export default function RegisterScreen({ navigation, route }: any) {
                         )}
                     </TouchableOpacity>
                 </View>
-                )}
 
-                {/* Footer */}
                 <View style={styles.footerContainer}>
                     <Text style={[styles.footerText, { color: colors.textSecondary }]}>¿Ya tienes cuenta? </Text>
                     <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -504,10 +692,6 @@ export default function RegisterScreen({ navigation, route }: any) {
 }
 
 const styles = StyleSheet.create({
-    errorStyle: {
-        color: "#F02D07",
-        padding: 8
-    },
     container: {
         flex: 1,
         backgroundColor: '#F5F7FA',
@@ -516,10 +700,10 @@ const styles = StyleSheet.create({
         height: 140,
         width: 140,
         borderRadius: 100,
-        backgroundColor: '#EBF5FB', // Fondo azul clarito
-        borderColor: '#3498DB',     // Borde azul
+        backgroundColor: '#EBF5FB',
+        borderColor: '#3498DB',
         borderWidth: 2,
-        borderStyle: 'dashed',      // Borde punteado para indicar "zona para subir"
+        borderStyle: 'dashed',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -545,20 +729,14 @@ const styles = StyleSheet.create({
         backgroundColor: "#DCEEFF"
     },
     headerContainer: {
-        marginTop: 40,
-        marginBottom: 30,
+        marginTop: 30,
+        marginBottom: 24,
         alignItems: "center"
-        
     },
-    container_titles: {
-        alignItems: "flex-end",
-        backgroundColor: "#fedcba"
-    },
-
     title: {
         fontSize: 32,
         fontWeight: 'bold',
-         color: "#0F2C4F",
+        color: "#0F2C4F",
         padding: 0
     },
     subtitle: {
@@ -583,63 +761,17 @@ const styles = StyleSheet.create({
         fontSize: 15,
         flex: 1,
     },
-    successContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#EAFAF1',
-        padding: 20,
-        borderRadius: 12,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#D5F5E3',
-        alignItems: 'flex-start',
-    },
-    successTextContainer: {
-        marginLeft: 12,
-        flex: 1,
-    },
-    successTitle: {
-        color: '#27AE60',
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 4,
-    },
-    successTextUI: {
-        color: '#2E4053',
-        fontSize: 15,
-        marginBottom: 16,
-        lineHeight: 22,
-    },
-    successButton: {
-        backgroundColor: '#27AE60',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        alignSelf: 'flex-start',
-    },
-    successButtonText: {
-        color: '#FFF',
-        fontWeight: 'bold',
-        fontSize: 15,
-    },
     formContainer: {
         marginBottom: 20,
     },
-    input: {
-        backgroundColor: '#FFFFFF',
-        padding: 16,
-        borderRadius: 12,
+    fieldWrapper: {
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#DBDBDB',
-        fontSize: 16,
-        color: "#0F2C4F"
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
-        marginBottom: 16,
         borderWidth: 1,
         borderColor: '#DBDBDB',
     },
@@ -654,18 +786,48 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         justifyContent: 'center',
     },
+    fieldErrorRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 6,
+        paddingHorizontal: 4,
+    },
+    fieldErrorText: {
+        fontSize: 13,
+        marginLeft: 5,
+        flex: 1,
+    },
+    passwordChecklist: {
+        marginTop: 8,
+        padding: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
+    checklistTitle: {
+        fontSize: 13,
+        fontWeight: '600',
+        marginBottom: 6,
+    },
+    checkItemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 2,
+    },
+    checkItemText: {
+        fontSize: 12,
+        marginLeft: 6,
+    },
     roleLabel: {
         fontSize: 16,
         fontWeight: 'bold',
-         color: "#0F2C4F",
-        marginTop: 10,
-        marginBottom: 15,
+        color: "#0F2C4F",
+        marginTop: 6,
+        marginBottom: 12,
         textAlign: 'center',
     },
     roleContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 24,
     },
     roleCard: {
         flex: 1,
@@ -679,7 +841,7 @@ const styles = StyleSheet.create({
     },
     roleCardActive: {
         borderColor: '#3498DB',
-        backgroundColor: '#EBF5FB', // Un azul muy clarito de fondo
+        backgroundColor: '#EBF5FB',
     },
     roleText: {
         marginTop: 8,
@@ -695,6 +857,7 @@ const styles = StyleSheet.create({
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
+        marginTop: 8,
     },
     registerButtonDisabled: {
         opacity: 0.7,
@@ -709,7 +872,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginTop: 20,
         marginBottom: 40,
-        padding:10
+        padding: 10
     },
     footerText: {
         color: '#7F8C8D',
@@ -734,7 +897,7 @@ const styles = StyleSheet.create({
     },
     genderCardActive: {
         borderColor: '#3498DB',
-        backgroundColor: '#EBF5FB', // Un azul muy clarito de fondo
+        backgroundColor: '#EBF5FB',
     },
     genderText: {
         marginTop: 8,
@@ -749,6 +912,5 @@ const styles = StyleSheet.create({
     title_container: {
         marginTop: 20,
         alignItems: "center"
-
     }
 });

@@ -13,22 +13,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import ThemeToggleButton from '../components/ThemeToggleButton';
 import { API_BASE_URL } from '../config';
+import { validarEmailCliente } from '../utils/validation';
 
 export default function ForgotPasswordScreen({ navigation }: any) {
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [errorMessage, setErrorMessage] = useState('');
+    const [emailError, setEmailError] = useState('');
+    const [isFocused, setIsFocused] = useState(false);
 
     const { colors, isDark } = useTheme();
 
     const handleSendCode = async () => {
-        if (!email.trim()) {
-            setErrorMessage('Ingresa tu correo electrónico.');
+        const err = validarEmailCliente(email);
+        if (err) {
+            setEmailError(err);
             return;
         }
 
+        const cleanEmail = email.trim().toLowerCase();
         setIsLoading(true);
-        setErrorMessage('');
+        setEmailError('');
 
         try {
             const response = await fetch(`${API_BASE_URL}/auth/forgot-password-otp`, {
@@ -36,7 +40,7 @@ export default function ForgotPasswordScreen({ navigation }: any) {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email: email.trim() })
+                body: JSON.stringify({ email: cleanEmail })
             });
 
             const payload = await response.json().catch(() => ({}));
@@ -45,9 +49,9 @@ export default function ForgotPasswordScreen({ navigation }: any) {
                 throw new Error(payload?.error ?? 'Error al enviar el código de recuperación.');
             }
 
-            navigation.navigate('ResetPassword', { email: email.trim() });
+            navigation.navigate('ResetPassword', { email: cleanEmail });
         } catch (error: any) {
-            setErrorMessage(error?.message ?? 'Ocurrió un error de conexión.');
+            setEmailError(error?.message ?? 'Ocurrió un error de conexión.');
         } finally {
             setIsLoading(false);
         }
@@ -65,27 +69,59 @@ export default function ForgotPasswordScreen({ navigation }: any) {
                     </View>
                     <Text style={[styles.title, { color: colors.textPrimary }]}>Recuperar contraseña</Text>
                     <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                        Ingresa el correo electrónico asociado a tu cuenta para enviarte un código de recuperación.
+                        Ingresa el correo electrónico asociado a tu cuenta para enviarte un código de 6 dígitos.
                     </Text>
                 </View>
 
-                <TextInput
-                    style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.border, color: colors.textPrimary }]}
-                    placeholder="Correo electrónico"
-                    placeholderTextColor={colors.textSecondary}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={email}
-                    onChangeText={setEmail}
-                    editable={!isLoading}
-                />
-
-                {errorMessage ? (
-                    <View style={[styles.errorContainer, { backgroundColor: colors.errorBackground, borderColor: colors.error }]}>
-                        <Ionicons name="alert-circle" size={20} color={colors.error} />
-                        <Text style={[styles.errorText, { color: colors.error }]}>{errorMessage}</Text>
+                <View style={styles.fieldWrapper}>
+                    <View style={[
+                        styles.inputContainer,
+                        {
+                            backgroundColor: colors.cardBackground,
+                            borderColor: emailError
+                                ? colors.error
+                                : isFocused
+                                ? colors.buttonMain
+                                : colors.border,
+                            borderWidth: emailError || isFocused ? 1.5 : 1,
+                        }
+                    ]}>
+                        <TextInput
+                            style={[styles.inputField, { color: colors.textPrimary }]}
+                            placeholder="Correo electrónico"
+                            placeholderTextColor={colors.textSecondary}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            maxLength={254}
+                            value={email}
+                            onChangeText={(text) => {
+                                setEmail(text);
+                                if (emailError) setEmailError('');
+                            }}
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={() => {
+                                setIsFocused(false);
+                                if (email.trim()) {
+                                    const err = validarEmailCliente(email);
+                                    if (err) setEmailError(err);
+                                }
+                            }}
+                            editable={!isLoading}
+                        />
+                        {emailError ? (
+                            <View style={styles.iconRight}>
+                                <Ionicons name="alert-circle" size={20} color={colors.error} />
+                            </View>
+                        ) : null}
                     </View>
-                ) : null}
+                    {emailError ? (
+                        <View style={styles.fieldErrorRow}>
+                            <Ionicons name="information-circle-outline" size={15} color={colors.error} />
+                            <Text style={[styles.fieldErrorText, { color: colors.error }]}>{emailError}</Text>
+                        </View>
+                    ) : null}
+                </View>
 
                 <TouchableOpacity
                     style={[styles.sendButton, { backgroundColor: colors.buttonMain }]}
@@ -131,7 +167,7 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 36,
     },
     iconContainer: {
         width: 80,
@@ -152,24 +188,32 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 24,
     },
-    input: {
-        padding: 16,
-        borderRadius: 12,
+    fieldWrapper: {
         marginBottom: 16,
-        borderWidth: 1,
-        fontSize: 16,
     },
-    errorContainer: {
+    inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 14,
         borderRadius: 12,
-        marginBottom: 16,
         borderWidth: 1,
     },
-    errorText: {
-        marginLeft: 8,
-        fontSize: 15,
+    inputField: {
+        flex: 1,
+        padding: 16,
+        fontSize: 16,
+    },
+    iconRight: {
+        paddingHorizontal: 14,
+    },
+    fieldErrorRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 6,
+        paddingHorizontal: 4,
+    },
+    fieldErrorText: {
+        fontSize: 13,
+        marginLeft: 5,
         flex: 1,
     },
     sendButton: {

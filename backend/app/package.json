@@ -6,7 +6,11 @@
     "test:unit": "bun test tests/unit/",
     "test:integration": "bun test tests/integration/",
     "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "db:push": "bunx prisma db push",
+    "db:migrate:deploy": "bunx prisma migrate deploy",
+    "db:seed": "bun prisma/seed.ts",
+    "postinstall": "bunx prisma generate"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.2",
