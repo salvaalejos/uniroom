@@ -15,6 +15,16 @@ io.on("connection", (socket) => {
     console.log(`[WS] Usuario registrado: ${userId} -> ${socket.id}`);
   });
 
+  socket.on("enviar_mensaje", (data: any) => {
+    const targetId = data?.destinatario_id || data?.usuario_id;
+    if (data && targetId) {
+      emitToUser(targetId, "mensaje_nuevo", {
+        ...data,
+        fecha: data.fecha || new Date().toISOString(),
+      });
+    }
+  });
+
   socket.on("disconnect", () => {
     for (const [userId, socketId] of userSockets.entries()) {
       if (socketId === socket.id) {

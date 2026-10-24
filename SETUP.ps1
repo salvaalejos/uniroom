@@ -36,7 +36,7 @@ Set-Location "backend/app"
 # Verificar .env
 if (!(Test-Path ".env")) {
     Write-Host "Creando archivo .env básico..." -ForegroundColor Yellow
-    "DATABASE_URL=`"postgresql://postgres:postgres@localhost:5432/uniroom?schema=public`"`nJWT_SECRET=`"super_secret_elysia_key`"`nWS_URL=`"http://localhost:3001`"" | Out-File -FilePath ".env" -Encoding utf8
+    "DATABASE_URL=`"postgresql://uniroom_user:12345@127.0.0.1:5435/uniroom?schema=public&connect_timeout=30&sslmode=disable`"`nDIRECT_URL=`"postgresql://uniroom_user:12345@127.0.0.1:5435/uniroom?schema=public&connect_timeout=30&sslmode=disable`"`nJWT_SECRET=`"super_secret_elysia_key`"`nMP_ACCESS_TOKEN=`"TEST-0000000000000000-000000-00000000000000000000000000000000-000000000`"`nRESEND_API_KEY=`"`"" | Out-File -FilePath ".env" -Encoding utf8
 }
 
 Write-Host "Instalando dependencias del Backend..."
@@ -59,7 +59,7 @@ Set-Location "../../mobile/uniroom"
 
 
 Write-Host "Instalando dependencias del Móvil (esto puede tardar un poquito lol)..."
-npm install
+npm install --legacy-peer-deps
 npx expo install @react-native-async-storage/async-storage
 
 Write-Step "PROCESO COMPLETADO"

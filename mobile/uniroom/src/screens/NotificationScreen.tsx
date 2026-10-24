@@ -1,12 +1,10 @@
-// SI VEN TODO EL ARCHIVO MODIFICADO, SI, LE PEDÍ A GEMINI QUE REEPLAZARÁ TODO EL ARCHIVO. 
-// CON CORAJE, PERO LA IA SIEMPRE VA GANANDO 
-
 import React, { useState, useEffect, useRef } from "react";
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { 
   View, Text, FlatList, StyleSheet, TouchableOpacity, Modal, SafeAreaView, TextInput, Alert, ScrollView, RefreshControl, Image, Platform, ActivityIndicator
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { socketService } from '../services/websocketService';
 import { obtenerMisCitas, actualizarEstadoCita, marcarCitaRealizada, decisionRenta, crearCalificacionEstudiante, obtenerPerfil } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,6 +15,7 @@ import { Notificacion, ContactoType } from '../types/notifications';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function NotificationScreen() {
+  const navigation = useNavigation<any>();
   // --- ESTADOS ---
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<Notificacion | null>(null);
@@ -173,7 +172,7 @@ export default function NotificationScreen() {
       }
     });
 
-    // NUEVO: Listener para decisión de renta pendiente (anfitrión)
+    // Listener para decisión de renta pendiente (anfitrión)
     socketService.on('decision_renta_pendiente', (data) => {
       if (userRoleRef.current === 'anfitrion') {
         const d = new Date(data.fecha || new Date());
@@ -194,7 +193,7 @@ export default function NotificationScreen() {
       }
     });
 
-    // NUEVO: Listener para decisión de renta (estudiante)
+    // Listener para decisión de renta (estudiante)
     socketService.on('decision_renta', (data) => {
       if (userRoleRef.current === 'estudiante') {
         const d = new Date(data.fecha || new Date());
@@ -221,7 +220,7 @@ export default function NotificationScreen() {
       }
     });
 
-    // NUEVO: Listener para calificar estudiante (arrendador)
+    // Listener para calificar estudiante (arrendador)
     socketService.on('calificar_estudiante', (data) => {
       if (userRoleRef.current === 'anfitrion') {
         const nuevaNotif: Notificacion = {
@@ -276,6 +275,7 @@ export default function NotificationScreen() {
   const onRefresh = async () => {
     if (userId) {
       await cargarTodo();
+      await cargarContactosReales(userId);
       await refreshUnreadCount();
     }
   };
@@ -300,7 +300,7 @@ export default function NotificationScreen() {
     if (!item.leida) {
       setNotificaciones(prev => prev.map(n => n.id === item.id ? { ...n, leida: true } : n));
       
-      // Si es una cita, guardar estado de lectura localmente (por ahora)
+      // Si es una cita, guardar estado de lectura localmente
       if (item.datosExtra?.id_cita) {
         const listaLeidasActualizada = [...new Set([...citasLeidas, item.id])];
         setCitasLeidas(listaLeidasActualizada);
@@ -325,7 +325,6 @@ export default function NotificationScreen() {
         id: item.relacionado_a, 
         nombre: item.remitente 
       });
-      // Cargar rating actual
       cargarRatingEstudiante(item.relacionado_a);
     }
   };
@@ -375,7 +374,7 @@ export default function NotificationScreen() {
     }
   };
 
-  // NUEVO: Marcar cita como realizada
+  // Marcar cita como realizada
   const marcarRealizada = async (notif: Notificacion) => {
     const citaId = notif.relacionado_a || notif.datosExtra?.id_cita || notif.id;
     if (!citaId || procesandoAccion) return;
@@ -393,7 +392,7 @@ export default function NotificationScreen() {
     }
   };
 
-  // NUEVO: Decisión de renta (aprobar/rechazar)
+  // Decisión de renta (aprobar/rechazar)
   const responderDecisionRenta = async (notif: Notificacion, aprobar: boolean) => {
     const citaId = notif.relacionado_a || notif.datosExtra?.id_cita || notif.id;
     if (!citaId || procesandoAccion) return;
@@ -429,7 +428,6 @@ export default function NotificationScreen() {
     
     try {
       const token = await AsyncStorage.getItem('token');
-      // Obtener el nombre del usuario actual para el remitente
       const userName = await AsyncStorage.getItem('userName') || "Usuario";
 
       const respuesta = await fetch(`${BACKEND_URL}/api/notificaciones`, {
@@ -454,6 +452,7 @@ export default function NotificationScreen() {
         socketService.emit('enviar_mensaje', {
           id: notifCreada.id,
           usuario_id: destinatarioSeleccionado,
+          destinatario_id: destinatarioSeleccionado,
           titulo: nuevoTitulo,
           mensaje: nuevoMensaje,
           remitente_nombre: userName,
@@ -512,17 +511,12 @@ export default function NotificationScreen() {
       if (respuesta.ok) {
         const data = await respuesta.json().catch(() => ({}));
         
-        // 3. ACTUALIZACIÓN INMEDIATA DEL ESTADO LOCAL
         const estadosFinales = ['RENTA_APROBADA', 'RECHAZADA', 'RENTA_RECHAZADA'];
         
         setNotificaciones(prev => prev.filter(n => {
-          // Si es una cita...
           if (n.datosExtra?.id_cita) {
-            // Mantener solo si NO está en un estado final (las activas se quedan)
             return !estadosFinales.includes(n.datosExtra.estado);
           }
-          // Si es notificación normal, el delete del backend ya borró las leídas,
-          // así que aquí solo mantenemos las NO leídas que queden en el estado.
           return !n.leida;
         }));
 
@@ -564,11 +558,8 @@ export default function NotificationScreen() {
       const token = await AsyncStorage.getItem('token');
       
       if (!currentId && token) {
-        // Fallback: extraer de token si el estado no ha cargado
         const parts = token.split('.');
         if (parts.length === 3) {
-           // En React Native a veces atob no está disponible
-           // Intentamos usar el userId guardado en AsyncStorage si existe
            const savedUserId = await AsyncStorage.getItem('userId');
            if (savedUserId) {
              currentId = savedUserId;
@@ -592,10 +583,8 @@ export default function NotificationScreen() {
       if (respuesta.ok) {
         const data = await respuesta.json().catch(() => ({}));
 
-        // 1. Marcar como leídas las notificaciones normales en el estado
         setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })));
 
-        // 2. Persistir localmente que todas las citas actuales se marquen como leídas
         const idsCitasActuales = notificaciones
           .filter(n => n.datosExtra?.id_cita)
           .map(n => n.id);
@@ -609,8 +598,7 @@ export default function NotificationScreen() {
         refreshUnreadCount();
         const cantidad = data.count !== undefined ? data.count : '';
         mostrarTooltip(`¡Hecho! ${cantidad} marcados.`);
-      }
- else {
+      } else {
         let mensajeError = `Error (${respuesta.status})`;
         if (contentType && contentType.includes("application/json")) {
            const errorData = await respuesta.json();
@@ -633,7 +621,6 @@ export default function NotificationScreen() {
   );
 
   const renderNotificacion = ({ item }: { item: Notificacion }) => {
-    // Obtener ID del estudiante según el tipo de notificación
     const idEstudiante = 
       item.tipo === 'solicitud_cita' ? item.datosExtra?.estudianteId :
       item.tipo === 'decision_renta_pendiente' ? item.datosExtra?.estudianteId :
@@ -758,7 +745,7 @@ export default function NotificationScreen() {
                 <Text style={[styles.mensajeCompleto, { color: colors.textPrimary }]}>{notificacionSeleccionada.mensaje}</Text>
 
                 {/* BOTONES ANFITRIÓN — Aceptar/Rechazar cita */}
-                {userRole === 'anfitrion' && notificacionSeleccionada.tipo === 'solicitud_cita' && (
+                {userRole === 'anfitrion' && notificacionSeleccionada.tipo === 'solicitud_cita' && (!notificacionSeleccionada.datosExtra?.estado || notificacionSeleccionada.datosExtra?.estado === 'PENDIENTE') && (
                   <View style={styles.botonesRespuesta}>
                     <TouchableOpacity 
                       style={[styles.botonAceptar, procesandoAccion && { opacity: 0.7 }]} 
@@ -807,8 +794,8 @@ export default function NotificationScreen() {
                   </View>
                 )}
 
-                {/* BOTONES ANFITRIÓN — Decisión de renta (cuando es decision_renta_pendiente) */}
-                {userRole === 'anfitrion' && (notificacionSeleccionada.tipo === 'decision_renta' || notificacionSeleccionada.datosExtra?.estado === 'REALIZADA') && (
+                {/* BOTONES ANFITRIÓN — Decisión de renta (cuando es decision_renta_pendiente o estado REALIZADA) */}
+                {userRole === 'anfitrion' && (notificacionSeleccionada.tipo === 'decision_renta_pendiente' || notificacionSeleccionada.datosExtra?.estado === 'REALIZADA') && (
                   <View style={styles.botonesRespuesta}>
                     <TouchableOpacity 
                       style={[styles.botonAceptar, procesandoAccion && { opacity: 0.7 }]} 
@@ -828,33 +815,24 @@ export default function NotificationScreen() {
                 )}
 
                 {/* BOTONES ESTUDIANTE — Al ver notificación de renta aprobada, navegar al inmueble */}
-                {userRole === 'estudiante' && notificacionSeleccionada.tipo === 'decision_renta' && notificacionSeleccionada.datosExtra?.aceptada && (
+                {userRole === 'estudiante' && notificacionSeleccionada.tipo === 'decision_renta' && (notificacionSeleccionada.datosExtra?.aceptada || notificacionSeleccionada.datosExtra?.estado === 'RENTA_APROBADA') && (
                   <View style={styles.botonesRespuesta}>
                     <TouchableOpacity
                       style={[styles.botonRentar, { backgroundColor: colors.buttonMain }]}
-                      onPress={() => {
+                      onPress={async () => {
                         setModalVisible(false);
-                        // Navegar al inmueble directamente
-                        const inmuebleId = notificacionSeleccionada.datosExtra.propiedadId;
+                        const inmuebleId = notificacionSeleccionada.datosExtra?.propiedadId;
                         if (inmuebleId) {
-                          fetch(`${BACKEND_URL}/inmuebles/${inmuebleId}`, {
-                            headers: { 'Authorization': `Bearer ${AsyncStorage.getItem('token')}` }
-                          })
-                            .then(resp => resp.json())
-                            .then(inmueble => {
-                              // Navegar usando el stack de Inmuebles
-                              const nav = (globalThis as any).__navigationRef;
-                              if (nav) {
-                                nav.navigate("Navigator", {
-                                  screen: "Inmuebles",
-                                  params: {
-                                    screen: "InmuebleScreen",
-                                    params: { inmueble, token: AsyncStorage.getItem('token') }
-                                  }
-                                });
-                              }
-                            })
-                            .catch(() => Alert.alert("Info", "Ve al mapa y selecciona el inmueble para rentarlo."));
+                          try {
+                            const token = await AsyncStorage.getItem('token');
+                            const resp = await fetch(`${BACKEND_URL}/inmuebles/${inmuebleId}`, {
+                              headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            const inmueble = await resp.json();
+                            navigation.navigate("InmuebleScreen", { inmueble, token });
+                          } catch {
+                            Alert.alert("Info", "Ve al mapa y selecciona el inmueble para rentarlo.");
+                          }
                         }
                       }}
                     >

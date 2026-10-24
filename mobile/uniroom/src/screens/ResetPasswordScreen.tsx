@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 
-const OTP_LENGTH = 6;
+const OTP_LENGTH = 5;
 
 export default function ResetPasswordScreen({ navigation, route }: any) {
     const email = route.params?.email || '';
@@ -31,7 +31,7 @@ export default function ResetPasswordScreen({ navigation, route }: any) {
 
     const handleResetPassword = async () => {
         if (otp.length !== OTP_LENGTH) {
-            setErrorMessage('Ingresa el código de 6 dígitos completo.');
+            setErrorMessage('Ingresa el código de 5 dígitos completo (12345).');
             return;
         }
 
@@ -99,7 +99,7 @@ export default function ResetPasswordScreen({ navigation, route }: any) {
                     </View>
                     <Text style={[styles.title, { color: colors.textPrimary }]}>Nueva contraseña</Text>
                     <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                        Ingresa el código que enviamos a{' '}
+                        Ingresa el código (12345) para{' '}
                         <Text style={[styles.emailText, { color: colors.accent }]}>{email}</Text>
                     </Text>
                 </View>

@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 
-const OTP_LENGTH = 6;
+const OTP_LENGTH = 5;
 const RESEND_COOLDOWN = 60;
 
 export default function VerificarEmailScreen({ navigation, route }: any) {
@@ -33,27 +33,6 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
     const { colors, isDark } = useTheme();
     
     const inputRefs = useRef<(TextInput | null)[]>([]);
-
-    //CAMBIO EN LA OBTENCIÓN DE DATOS DEL SUSUARIO =====================================================================================
-    // useEffect(() => {
-    //     const loadPendingAuth = async () => {
-    //         try {
-    //             const stored = await AsyncStorage.getItem('pendingAuth');
-    //             if (stored) {
-    //                 const auth = JSON.parse(stored);
-    //                 setEmail(auth.email || routeEmail);
-    //                 setPassword(auth.password || routePassword);
-    //             } else {
-    //                 setEmail(routeEmail);
-    //                 setPassword(routePassword);
-    //             }
-    //         } catch {
-    //             setEmail(routeEmail);
-    //             setPassword(routePassword);
-    //         }
-    //     };
-    //     loadPendingAuth();
-    // }, []);
 
     useEffect(() => {
         if (countdown > 0) {
@@ -90,7 +69,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
         setErrorMessage('');
 
         try {
-            // 1. Verificar el código OTP
+            // 1. Verificar el código OTP (el backend ya devuelve token y user)
             const verifyResponse = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -104,30 +83,40 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                 throw new Error(apiError);
             }
 
-            // 2. Login Invisible (obtenemos el JWT)
-            const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
+            let userId = getUserId(verifyPayload);
+            let token = verifyPayload.token;
+            let userName = getUserName(verifyPayload);
+            let userRole = getUserRole(verifyPayload);
 
-            const loginPayload = await loginResponse.json().catch(() => ({}));
+            // 2. Fallback por si no viniera token en verify-otp y tenemos password
+            if ((!userId || !token) && password) {
+                const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
 
-            if (!loginResponse.ok) {
-                throw new Error('Correo verificado. Por favor, ve a la pantalla de Iniciar Sesión.');
+                const loginPayload = await loginResponse.json().catch(() => ({}));
+
+                if (!loginResponse.ok) {
+                    throw new Error('Correo verificado. Por favor, ve a la pantalla de Iniciar Sesión.');
+                }
+
+                userId = getUserId(loginPayload);
+                token = loginPayload.token;
+                userName = getUserName(loginPayload);
+                userRole = getUserRole(loginPayload);
             }
-
-            // 3. Extraer y guardar seguro
-            const userId = getUserId(loginPayload);
-            const token = loginPayload.token;
 
             if (!userId || !token) {
                 throw new Error('Error al obtener los datos de acceso.');
             }
 
-            // Guardamos el token y limpiamos basura (pausado por ahora xd)
+            // 3. Guardamos el token y datos de sesión
             await AsyncStorage.setItem('token', token);
             await AsyncStorage.setItem('userId', String(userId));
+            if (userName) await AsyncStorage.setItem('userName', String(userName));
+            if (userRole) await AsyncStorage.setItem('userRole', String(userRole));
             await AsyncStorage.removeItem('pendingAuth'); 
             
             setPassword(''); // Limpiamos RAM
@@ -166,7 +155,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
             }
 
             setCountdown(RESEND_COOLDOWN);
-            Alert.alert('Código enviado', 'Se ha enviado un nuevo código a tu correo');
+            Alert.alert('Código enviado', 'Usa el código simulado: 12345');
 
         } catch (error: any) {
             setErrorMessage(error?.message ?? 'Error al reenviar el código');
@@ -214,7 +203,7 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                     </View>
                     <Text style={[styles.title, { color: colors.textPrimary }]}>Verifica tu correo</Text>
                     <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                        Te hemos enviado un código de 6 dígitos a{' '}
+                        Ingresa el código de 5 dígitos (12345) para{' '}
                         <Text style={[styles.emailText, { color: colors.accent }]}>{email}</Text>
                     </Text>
                 </View>
@@ -241,7 +230,6 @@ export default function VerificarEmailScreen({ navigation, route }: any) {
                             }}
                             onFocus={() => {
                                 if (otp.length < index) {
-                                    const fillCount = index - otp.length;
                                     inputRefs.current[otp.length]?.focus();
                                 }
                             }}

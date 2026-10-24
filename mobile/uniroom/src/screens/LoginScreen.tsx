@@ -83,11 +83,12 @@ export default function LoginScreen({ navigation }: any) {
             console.log("[Login] Respuesta recibida con status:", response.status);
             const payload = await response.json().catch(() => ({}));
 
+            if (payload?.needsVerification) {
+                return { needsVerification: true, email: email.trim() };
+            }
+
             if (!response.ok) {
                 console.log("[Login] Error en respuesta:", payload);
-                if (payload?.needsVerification) {
-                    throw new Error('needsVerification');
-                }
                 const apiError = payload?.error ?? payload?.message ?? 'Credenciales incorrectas o problema para iniciar sesión.';
                 throw new Error(apiError);
             }
@@ -110,9 +111,17 @@ export default function LoginScreen({ navigation }: any) {
             await AsyncStorage.setItem('userRole', String(role));
             console.log("[Login] Guardado exitoso.");
 
-            return { name, role, userId, token };
+            return { needsVerification: false, name, role, userId, token };
         },
-        onSuccess: (data) => {
+        onSuccess: (data: any) => {
+            if (data?.needsVerification) {
+                navigation.navigate('VerificarEmail', {
+                    email: data.email,
+                    fromLogin: true,
+                    password: password
+                });
+                return;
+            }
             navigation.replace("Navigator", { userId: data.userId, token: data.token });
             setAuthenticatedUser({ name: data.name, role: data.role });
         },

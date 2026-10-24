@@ -5,7 +5,7 @@ import { sendOTPEmail } from "../lib/email";
 import { emitToUser } from "../ws-server";
 
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return "12345";
 }
 
 function generateExpiryMinutes(minutes: number): Date {
@@ -37,14 +37,23 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     });
     return users;
   })
-  // ── OAuth: Generar URL de vinculación de Mercado Pago ──
-  .get("/oauth/url", async ({ authenticatedUser }) => {
-    const clientId = process.env.MP_APP_ID || "";
-    const redirectUri = process.env.MP_REDIRECT_URI || "";
-    const url = `https://auth.mercadopago.com/authorization?client_id=${clientId}&response_type=code&platform_id=mp&state=${authenticatedUser.id_usuario}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    return { url };
+  // ── OAuth: Generar URL de vinculación de Mercado Pago (Simulado localmente) ──
+  .get("/oauth/url", async ({ authenticatedUser, headers }) => {
+    const simVendedorId = `SIM_MP_${authenticatedUser.id_usuario.slice(0, 8).toUpperCase()}`;
+    await db.usuario.update({
+      where: { id_usuario: authenticatedUser.id_usuario },
+      data: {
+        mp_access_token: `SIM_APP_USR_${authenticatedUser.id_usuario}`,
+        mp_refresh_token: `SIM_TG_${authenticatedUser.id_usuario}`,
+        mp_public_key: `SIM_PUB_${authenticatedUser.id_usuario}`,
+        mp_vendedor_id: simVendedorId,
+      },
+    });
+    const host = headers.host || "192.168.100.97:3000";
+    const url = `http://${host}/users/oauth/callback?code=SIMULATED_CODE&state=${authenticatedUser.id_usuario}`;
+    return { url, simulated: true, mp_vendedor_id: simVendedorId };
   })
-  // ── OAuth: Callback de Mercado Pago ──
+  // ── OAuth: Callback de Mercado Pago (Simulado localmente) ──
   .get("/oauth/callback", async ({ query, set }) => {
     const { code, state } = query as { code?: string; state?: string };
     if (!code || !state) {
@@ -52,37 +61,15 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       return "Faltan parámetros de autorización.";
     }
 
-    const clientId = process.env.MP_APP_ID || "";
-    const clientSecret = process.env.MP_CLIENT_SECRET || "";
-    const redirectUri = process.env.MP_REDIRECT_URI || "";
-
     try {
-      const response = await fetch("https://api.mercadopago.com/oauth/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          grant_type: "authorization_code",
-          code,
-          redirect_uri: redirectUri,
-        }).toString(),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        console.error("Error OAuth MP:", data);
-        set.status = 400;
-        return "Error al vincular cuenta de Mercado Pago.";
-      }
-
+      const simVendedorId = `SIM_MP_${state.slice(0, 8).toUpperCase()}`;
       await db.usuario.update({
         where: { id_usuario: state },
         data: {
-          mp_access_token: data.access_token,
-          mp_refresh_token: data.refresh_token,
-          mp_public_key: data.public_key,
-          mp_vendedor_id: String(data.user_id),
+          mp_access_token: `SIM_APP_USR_${state}`,
+          mp_refresh_token: `SIM_TG_${state}`,
+          mp_public_key: `SIM_PUB_${state}`,
+          mp_vendedor_id: simVendedorId,
         },
       });
 
@@ -90,8 +77,8 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       return new Response(
         `<html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#DCEEFF">
           <div style="text-align:center;padding:40px;background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1)">
-            <h1 style="color:#205EA6">✅ ¡Cuenta vinculada!</h1>
-            <p style="color:#0F2C4F">Ya puedes cerrar esta ventana y regresar a UniRoom.</p>
+            <h1 style="color:#205EA6">✅ ¡Cuenta vinculada (Modo Local)!</h1>
+            <p style="color:#0F2C4F">Tu cuenta simulada de Mercado Pago (${simVendedorId}) ha sido vinculada. Ya puedes cerrar esta ventana y regresar a UniRoom.</p>
           </div>
         </body></html>`,
         { headers: { "Content-Type": "text/html; charset=utf-8" } }
@@ -132,17 +119,17 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       },
     });
 
-     if (!user) {
-       set.status = 404;
-       return { error: "Usuario no encontrado" };
-     }
+    if (!user) {
+      set.status = 404;
+      return { error: "Usuario no encontrado" };
+    }
 
     // Calcular rating promedio para estudiantes
     let rating = 0;
     if (user.rol === "ESTUDIANTE") {
       const calificaciones = await db.calificacionEstudiante.findMany({
         where: { id_estudiante: id },
-        select: { calificacion: true }
+        select: { calificacion: true },
       });
       if (calificaciones.length > 0) {
         rating = calificaciones.reduce((acc, c) => acc + c.calificacion, 0) / calificaciones.length;
@@ -162,7 +149,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
 
     const transactions = await db.transaccion.findMany({
       where: { id_usuario: id },
-      orderBy: { fecha_creacion: 'desc' }
+      orderBy: { fecha_creacion: "desc" },
     });
 
     return transactions;
@@ -192,7 +179,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         return { error: "No se recibió ninguna imagen" };
       }
 
-      const fileName = `${Date.now()}-${id}${body.foto.name.match(/\.[a-zA-Z]+$/)?.[0] || '.jpg'}`;
+      const fileName = `${Date.now()}-${id}${body.foto.name.match(/\.[a-zA-Z]+$/)?.[0] || ".jpg"}`;
       const destination = `./uploads/${fileName}`;
 
       await Bun.write(destination, body.foto);
@@ -209,8 +196,8 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
     {
       body: t.Object({
         foto: t.File({
-          type: ['image/jpeg', 'image/png', 'image/jpg'],
-          maxSize: '5m',
+          type: ["image/jpeg", "image/png", "image/jpg"],
+          maxSize: "5m",
         }),
       }),
     }
@@ -244,7 +231,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       }
 
       const updateData: any = {
-        ...body
+        ...body,
       };
 
       let emailChanged = false;
@@ -252,7 +239,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       // Si el email viene en el body y es distinto al actual
       if (body.email && body.email !== existingUser.email) {
         const emailInUse = await db.usuario.findUnique({
-          where: { email: body.email }
+          where: { email: body.email },
         });
         if (emailInUse) {
           set.status = 400;
@@ -262,8 +249,8 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         updateData.email_verificado = false;
         emailChanged = true;
 
-        // Invalidar códigos anteriores y generar nuevo
-        const otpCode = generateOTP();
+        // Invalidar códigos anteriores y generar nuevo (simulado localmente: 12345)
+        const otpCode = "12345";
         await db.verificacionEmail.updateMany({
           where: { email: body.email, used: false },
           data: { used: true },
@@ -277,8 +264,7 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           },
         });
 
-        // Enviar correo con código
-        await sendOTPEmail(body.email, otpCode);
+        console.log(`[SIMULACIÓN OTP CAMBIO EMAIL] Email: ${body.email} | Código: ${otpCode}`);
       }
 
       if (updateData.password) {
@@ -292,12 +278,12 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
 
       // Validación de número de contacto
       if (updateData.numero_contacto) {
-          const cleanPhone = updateData.numero_contacto.trim();
-          if (cleanPhone.length === 0) {
-              set.status = 400;
-              return { error: "El número de contacto es obligatorio" };
-          }
-          updateData.numero_contacto = cleanPhone;
+        const cleanPhone = updateData.numero_contacto.trim();
+        if (cleanPhone.length === 0) {
+          set.status = 400;
+          return { error: "El número de contacto es obligatorio" };
+        }
+        updateData.numero_contacto = cleanPhone;
       }
 
       if (body.foto) {
@@ -307,10 +293,8 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
       }
 
       if (updateData.edad) updateData.edad = parseInt(updateData.edad as string, 10);
-      if (updateData.visibilidad === 'true') updateData.visibilidad = true;
-      if (updateData.visibilidad === 'false') updateData.visibilidad = false;
-
-
+      if (updateData.visibilidad === "true") updateData.visibilidad = true;
+      if (updateData.visibilidad === "false") updateData.visibilidad = false;
 
       const updatedUser = await db.usuario.update({
         where: { id_usuario: id },
@@ -346,13 +330,15 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
           numero_contacto: t.String(),
           genero: t.Union([t.Literal("MASCULINO"), t.Literal("FEMENINO"), t.Literal("OTRO")]),
           edad: t.Optional(t.Any()),
-          foto: t.Optional(t.File({
-            type: ['image/jpeg', 'image/png', 'image/jpg'],
-            maxSize: '5m'
-          })),
+          foto: t.Optional(
+            t.File({
+              type: ["image/jpeg", "image/png", "image/jpg"],
+              maxSize: "5m",
+            })
+          ),
           visibilidad: t.Optional(t.Any()),
           email: t.Optional(t.String()),
-          password: t.Optional(t.String())
+          password: t.Optional(t.String()),
         })
       ),
     }
@@ -434,11 +420,13 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
         titulo: inmuebleRentado.titulo,
         precio_mensual: Number(inmuebleRentado.precio_mensual),
         descripcion: inmuebleRentado.descripcion,
-        arrendador: inmuebleRentado.arrendador ? {
-          nombre: `${inmuebleRentado.arrendador.nombre} ${inmuebleRentado.arrendador.apellidos}`,
-          numero_contacto: inmuebleRentado.arrendador.numero_contacto,
-          foto: inmuebleRentado.arrendador.foto,
-        } : null,
+        arrendador: inmuebleRentado.arrendador
+          ? {
+              nombre: `${inmuebleRentado.arrendador.nombre} ${inmuebleRentado.arrendador.apellidos}`,
+              numero_contacto: inmuebleRentado.arrendador.numero_contacto,
+              foto: inmuebleRentado.arrendador.foto,
+            }
+          : null,
         servicios: inmuebleRentado.servicios,
         restricciones: inmuebleRentado.restricciones,
         media,

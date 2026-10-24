@@ -106,7 +106,16 @@ export const notificacionRoutes = new Elysia({ prefix: '/api/notificaciones' })
           const cita = await db.cita.findUnique({
             where: { id_cita: n.relacionado_a }
           });
-          return { ...n, estado_cita: cita?.estado };
+          return {
+            ...n,
+            estado_cita: cita?.estado,
+            id_cita: cita?.id_cita,
+            propiedadId: cita?.id_inmueble,
+            estudianteId: cita?.id_estudiante,
+            aceptada: n.tipo === 'decision_renta'
+              ? cita?.estado === 'RENTA_APROBADA'
+              : cita?.estado === 'ACEPTADA',
+          };
         }
         return n;
       }));

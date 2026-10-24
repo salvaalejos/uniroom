@@ -5,17 +5,16 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../config';
 import { SavedCard } from '../types/payments';
-
-const MP_PUBLIC_KEY = process.env.EXPO_PUBLIC_MP_PUBLIC_KEY || "TEST-PUBLIC-KEY-REEMPLAZAR";
 
 export default function PaymentScreen({ navigation, route }: any) {
     const insets = useSafeAreaInsets();
     const { colors, isDark } = useTheme();
     
-    const token = route.params?.token;
+    const routeToken = route.params?.token;
     const tipoPago = route.params?.tipo || 'renta';
     const id_inmueble = route.params?.id_inmueble;
     const precio_mensual = route.params?.precio_mensual || route.params?.monto || 0;
@@ -39,16 +38,20 @@ export default function PaymentScreen({ navigation, route }: any) {
     const [loadingCards, setLoadingCards] = useState(true);
     const [useNewCard, setUseNewCard] = useState(false);
 
-    // Cargar tarjetas guardadas al montar
     useEffect(() => {
         loadSavedCards();
     }, []);
 
+    const getAuthToken = async () => {
+        return routeToken || (await AsyncStorage.getItem('token')) || '';
+    };
+
     const loadSavedCards = async () => {
         try {
             setLoadingCards(true);
+            const authToken = await getAuthToken();
             const response = await fetch(`${API_BASE_URL}/payments/cards`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${authToken}` }
             });
             const data = await response.json();
             if (data.cards && data.cards.length > 0) {
@@ -77,9 +80,10 @@ export default function PaymentScreen({ navigation, route }: any) {
                     style: "destructive",
                     onPress: async () => {
                         try {
+                            const authToken = await getAuthToken();
                             await fetch(`${API_BASE_URL}/payments/cards/${cardId}`, {
                                 method: 'DELETE',
-                                headers: { 'Authorization': `Bearer ${token}` }
+                                headers: { 'Authorization': `Bearer ${authToken}` }
                             });
                             setSavedCards(prev => prev.filter(c => c.id !== cardId));
                             if (selectedCard?.id === cardId) {
@@ -118,7 +122,7 @@ export default function PaymentScreen({ navigation, route }: any) {
         if (/^4/.test(cleanNumber)) return "visa";
         if (/^5[1-5]/.test(cleanNumber)) return "master";
         if (/^3[47]/.test(cleanNumber)) return "amex";
-        return "master";
+        return "visa";
     };
 
     const getCardTypeForUI = () => {
@@ -168,73 +172,57 @@ export default function PaymentScreen({ navigation, route }: any) {
             let cardToken: string;
             let paymentMethodId: string;
             let issuerId: string | undefined;
+            let lastFourDigits: string | undefined;
+            let expMonth: number | undefined;
+            let expYear: number | undefined;
 
             if (useNewCard) {
-                // 1. Obtener Token de la tarjeta nueva desde Mercado Pago
-                const expirationMonth = expiration.split('/')[0];
-                const expirationYear = "20" + expiration.split('/')[1];
-                
-                const tokenResponse = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${MP_PUBLIC_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        card_number: cardNumber.replace(/\s/g, ''),
-                        expiration_month: parseInt(expirationMonth),
-                        expiration_year: parseInt(expirationYear),
-                        security_code: cvc,
-                        cardholder: { name: cardholderName }
-                    })
-                });
-
-                const tokenData = await tokenResponse.json();
-                if (!tokenResponse.ok) {
-                    throw new Error("Error validando la tarjeta. Revisa los datos.");
+                // Simulación local de token de tarjeta sin llamar a api.mercadopago.com
+                const cleanDigits = cardNumber.replace(/\D/g, '');
+                if (cleanDigits.length < 13) {
+                    throw new Error("El número de tarjeta debe tener al menos 13 dígitos.");
                 }
-
-                cardToken = tokenData.id;
+                const parts = expiration.split('/');
+                expMonth = parseInt(parts[0] || '12', 10) || 12;
+                expYear = parseInt("20" + (parts[1] || '29'), 10) || 2029;
+                lastFourDigits = cleanDigits.slice(-4);
+                cardToken = `sim_tok_new_${Date.now()}`;
                 paymentMethodId = getPaymentMethodId(cardNumber);
-                issuerId = tokenData.issuer_id || undefined;
+                issuerId = "sim_issuer";
             } else {
-                // Usar tarjeta guardada: generar token desde la tarjeta guardada
                 if (!cvc) {
                     setIsLoading(false);
                     setErrorMessage("Ingresa el código de seguridad (CVC) de tu tarjeta.");
                     return;
                 }
-
-                const tokenResponse = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${MP_PUBLIC_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        card_id: selectedCard!.id,
-                        security_code: cvc
-                    })
-                });
-
-                const tokenData = await tokenResponse.json();
-                if (!tokenResponse.ok) {
-                    throw new Error("Error al procesar la tarjeta guardada.");
-                }
-
-                cardToken = tokenData.id;
+                cardToken = `sim_tok_saved_${selectedCard!.id}_${Date.now()}`;
                 paymentMethodId = selectedCard!.payment_method.id;
-                issuerId = selectedCard!.issuer?.id?.toString() || undefined;
+                issuerId = selectedCard!.issuer?.id?.toString() || "sim_issuer";
+                lastFourDigits = selectedCard!.last_four_digits;
+                expMonth = selectedCard!.expiration_month;
+                expYear = selectedCard!.expiration_year;
             }
 
-            // 2. Enviar Token a nuestro Backend para cobrar
+            const authToken = await getAuthToken();
+
+            // Enviar Token Simulado a nuestro Backend Local
             const backendResponse = await fetch(`${API_BASE_URL}/payments/process`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${authToken}`
                 },
                 body: JSON.stringify({
                     token: cardToken,
                     payment_method_id: paymentMethodId,
-                    id_inmueble: id_inmueble,
+                    id_inmueble: Number(id_inmueble),
                     installments: 1,
                     saveCard: useNewCard ? saveCard : false,
-                    issuer_id: issuerId
+                    issuer_id: issuerId,
+                    last_four_digits: lastFourDigits,
+                    cardholder_name: useNewCard ? cardholderName : selectedCard?.cardholder?.name,
+                    expiration_month: expMonth,
+                    expiration_year: expYear
                 })
             });
 
@@ -249,7 +237,7 @@ export default function PaymentScreen({ navigation, route }: any) {
             
             setTimeout(() => {
                 navigation.goBack();
-            }, 2500);
+            }, 2000);
 
         } catch (error: any) {
             setErrorMessage(error.message || "Ocurrió un error");
@@ -304,7 +292,7 @@ export default function PaymentScreen({ navigation, route }: any) {
 
                 <View style={[styles.amountContainer, { backgroundColor: isDark ? colors.backgroundSecondary : '#DCEEFF' }]}>
                     <Text style={[styles.amountLabel, { color: colors.textPrimary }]}>{esRenta ? 'Renta mensual' : 'Total a pagar'}</Text>
-                    <Text style={[styles.amountValue, { color: colors.buttonMain }]}>${precio_mensual.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</Text>
+                    <Text style={[styles.amountValue, { color: colors.buttonMain }]}>${Number(precio_mensual).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</Text>
                 </View>
 
                 {/* Tarjetas Guardadas */}
@@ -503,7 +491,7 @@ export default function PaymentScreen({ navigation, route }: any) {
                 </TouchableOpacity>
                 <View style={styles.secureBadge}>
                     <MaterialCommunityIcons name="lock" size={14} color={colors.textSecondary} />
-                    <Text style={[styles.secureText, { color: colors.textSecondary }]}>Pagos protegidos por Mercado Pago</Text>
+                    <Text style={[styles.secureText, { color: colors.textSecondary }]}>Pagos protegidos (Modo Simulación Local)</Text>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>

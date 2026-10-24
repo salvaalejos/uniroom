@@ -32,9 +32,9 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
         return { error: "Propiedad no encontrada" };
       }
       const fecha = new Date(fecha_hora);
-      if (isNaN(fecha.getTime()) || fecha <= new Date()) {
+      if (isNaN(fecha.getTime())) {
         set.status = 400;
-        return { error: "Fecha inválida (debe ser futura)" };
+        return { error: "Fecha inválida" };
       }
       const nuevaCita = await db.cita.create({
         data: {
@@ -93,9 +93,9 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
   .get("/mis-citas", async ({ user }) => {
     if (user.rol === "ESTUDIANTE") {
       return await db.cita.findMany({
-        where: { 
+        where: {
           id_estudiante: user.id_usuario,
-          visto_estudiante: false 
+          visto_estudiante: false,
         },
         include: {
           inmueble: true,
@@ -105,9 +105,9 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       });
     } else {
       return await db.cita.findMany({
-        where: { 
+        where: {
           id_anfitrion: user.id_usuario,
-          visto_anfitrion: false 
+          visto_anfitrion: false,
         },
         include: {
           inmueble: true,
@@ -135,9 +135,9 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
 
       try {
         const citaActualizada = await db.cita.update({
-          where: { 
+          where: {
             id_cita: id,
-            estado: "PENDIENTE" 
+            estado: "PENDIENTE",
           },
           data: {
             estado,
@@ -165,7 +165,6 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
           },
         });
 
-        // CREAR NOTIFICACIÓN PARA EL ANFITRIÓN (él mismo) para que la vea en su historial
         await db.notificacion.create({
           data: {
             usuario_id: user.id_usuario,
@@ -230,9 +229,9 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
 
       try {
         const citaActualizada = await db.cita.update({
-          where: { 
+          where: {
             id_cita: id,
-            estado: "ACEPTADA" 
+            estado: "ACEPTADA",
           },
           data: { estado: "REALIZADA" },
           include: { estudiante: true, inmueble: true },
@@ -286,14 +285,18 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
       }
       const { decision } = body;
       const nuevoEstado = decision === "APROBAR" ? "RENTA_APROBADA" : "RENTA_RECHAZADA";
+      const nuevoEstadoRenta = decision === "APROBAR" ? "APROBADO" : "RECHAZADO";
 
       try {
         const citaActualizada = await db.cita.update({
-          where: { 
+          where: {
             id_cita: id,
-            estado: "REALIZADA" 
+            estado: "REALIZADA",
           },
-          data: { estado: nuevoEstado },
+          data: {
+            estado: nuevoEstado,
+            estado_renta: nuevoEstadoRenta,
+          },
           include: { estudiante: true, inmueble: true },
         });
 
@@ -301,6 +304,11 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
           await db.inmueble.update({
             where: { id_inmueble: citaActualizada.id_inmueble },
             data: { id_estudiante_autorizado: citaActualizada.id_estudiante },
+          });
+        } else {
+          await db.inmueble.update({
+            where: { id_inmueble: citaActualizada.id_inmueble },
+            data: { id_estudiante_autorizado: null },
           });
         }
 
@@ -385,8 +393,8 @@ export const citasRoutes = new Elysia({ prefix: "/citas" })
   .patch(
     "/ocultar-todas",
     async ({ user }) => {
-      const estadosFinales = ['RENTA_APROBADA', 'RECHAZADA', 'RENTA_RECHAZADA'];
-      
+      const estadosFinales = ["RENTA_APROBADA", "RECHAZADA", "RENTA_RECHAZADA"];
+
       // Ocultar como estudiante
       await db.cita.updateMany({
         where: {

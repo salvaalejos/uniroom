@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useState, useRef, useEffect } from "react"
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons"
 import { useNavigation } from "@react-navigation/native"
+import { useVideoPlayer, VideoView } from "expo-video"
 import { useTheme } from "../context/ThemeContext"
 import AgendarCita from "./AgendarCita"
 import AsyncStorage from "@react-native-async-storage/async-storage"
@@ -20,6 +21,7 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 
 // Foto del anfitrion provisional
 const ANFITRION = require("../default_images/anfi.jpg")
+const DEFAULT_HOUSE = require("../default_images/fachada.jpg")
 
 // ─ Componente ─
 const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: propInmueble, token: propToken, route }: any) => {
@@ -45,14 +47,29 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
     const { data: permisoData } = useQuery({
         queryKey: ['permisoRenta', inmueble?.id_inmueble],
         queryFn: () => obtenerInmueble(inmueble!.id_inmueble),
-        enabled: !!inmueble?.id_inmueble && !!token,
+        enabled: !!inmueble?.id_inmueble,
     })
 
-    const puedeRentar = permisoData?.puede_rentar || false
-    const yaEstáRentando = permisoData?.usuario_actualmente_rentando || false
+    const puedeRentar = permisoData?.puede_rentar ?? inmueble?.puede_rentar ?? false
+    const yaEstáRentando = permisoData?.usuario_actualmente_rentando ?? inmueble?.usuario_actualmente_rentando ?? false
 
-    const esVideo = inmueble?.media?.[imagenActual]?.tipo === "video"
-    const videoSource = esVideo ? inmueble?.media?.[imagenActual]?.src : null
+    // Normalizar media (soporta tanto formato de MapScreen como objeto crudo del backend)
+    const mediaList: any[] = inmueble?.media
+        ? inmueble.media
+        : inmueble?.imagenes && inmueble.imagenes.length > 0
+            ? inmueble.imagenes.map((img: any) => {
+                  const srcStr = typeof img === "string" ? img : img.imagen
+                  const isVid = /\.(mp4|mov|avi|wmv)$/i.test(srcStr || "")
+                  const fullUri = srcStr?.startsWith("http") ? srcStr : `${API_BASE_URL}${srcStr}`
+                  return {
+                      tipo: isVid ? "video" : "imagen",
+                      src: isVid ? fullUri : { uri: fullUri }
+                  }
+              })
+            : [{ tipo: "imagen", src: DEFAULT_HOUSE }]
+
+    const esVideo = mediaList?.[imagenActual]?.tipo === "video"
+    const videoSource = esVideo ? mediaList?.[imagenActual]?.src : null
 
     const player = useVideoPlayer(videoSource, player => {
         if (player && videoSource && visible) {
@@ -100,12 +117,16 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
     if (!inmueble) return null
 
-    const calificaciones = inmueble.calificaciones || []
+    const calificaciones = inmueble.calificaciones || permisoData?.calificaciones || []
     const ratingPromedio = calificaciones.length > 0
-        ? (calificaciones.reduce((sum, c) => sum + c.calificacion, 0) / calificaciones.length)
+        ? (calificaciones.reduce((sum: number, c: any) => sum + c.calificacion, 0) / calificaciones.length)
         : 0
     const totalOpiniones = calificaciones.length
-    const reseñasConComentario = calificaciones.filter(c => c.descripcion && c.descripcion.trim().length > 0)
+    const reseñasConComentario = calificaciones.filter((c: any) => c.descripcion && c.descripcion.trim().length > 0)
+
+    const anfitrionNombre = inmueble.anfitrion || (inmueble.arrendador ? `${inmueble.arrendador.nombre} ${inmueble.arrendador.apellidos}` : "Arrendador UniRoom")
+    const anfitrionFoto = inmueble.fotoAnfitrion || (inmueble.arrendador?.foto ? getMediaUri(inmueble.arrendador.foto) : ANFITRION)
+    const ubicacionTexto = inmueble.ubicacion || "Morelia, Michoacán"
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -130,7 +151,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                             setImagenActual(index)
                         }}
                     >
-                        {inmueble.media.map((item: any, i: number) => (
+                        {mediaList.map((item: any, i: number) => (
                             item.tipo === "imagen" ? (
                                 <Image key={i} source={item.src} style={styles.imagenPrincipal}/>
                             ) : (
@@ -147,7 +168,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
                     {/* Miniaturas */}
                     <View style={[styles.miniaturas, { backgroundColor: colors.backgroundSecondary }]}>
-                        {inmueble.media.map((item: any, i: number) => (
+                        {mediaList.map((item: any, i: number) => (
                             <TouchableOpacity key={i} onPress={() => {
                                 setImagenActual(i)
                                 scrollRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true })
@@ -193,10 +214,10 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
 
                     {/* Anfitrion */}
                     <View style={styles.anfitrionRow}>
-                        <Image source={inmueble.fotoAnfitrion || ANFITRION} style={styles.avatarImagen}/>
+                        <Image source={anfitrionFoto} style={styles.avatarImagen}/>
                         <View>
                             <Text style={[styles.anfitrionLabel, { color: colors.textSecondary }]}>Anfitrión</Text>
-                            <Text style={[styles.anfitrionNombre, { color: colors.textPrimary }]}>{inmueble.anfitrion}</Text>
+                            <Text style={[styles.anfitrionNombre, { color: colors.textPrimary }]}>{anfitrionNombre}</Text>
                         </View>
                     </View>
 
@@ -205,7 +226,7 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                     {/* Ubicacion */}
                     <View style={styles.seccion}>
                         <MaterialCommunityIcons name="map-marker" size={18} color={colors.buttonMain} />
-                        <Text style={[styles.seccionTexto, { color: colors.textPrimary }]}>{inmueble.ubicacion}</Text>
+                        <Text style={[styles.seccionTexto, { color: colors.textPrimary }]}>{ubicacionTexto}</Text>
                     </View>
 
                     <View style={[styles.divider, { backgroundColor: colors.border }]}/>
@@ -334,13 +355,14 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                 ) : (
                     <TouchableOpacity
                         style={[styles.btnContacto, { backgroundColor: colors.buttonMain }]}
-                        onPress={() => {
+                        onPress={async () => {
+                            const authToken = token || (await AsyncStorage.getItem("token"))
                             onClose()
                             navigation.navigate("Navigator", {
                                 screen: "Inmuebles",
                                 params: {
                                     screen: "AgendarCita",
-                                    params: { inmueble, token }
+                                    params: { inmueble, token: authToken }
                                 }
                             })
                         }}
@@ -349,29 +371,20 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                         <Text style={styles.btnContactoTexto}>Agendar Cita</Text>
                     </TouchableOpacity>
                 )}
-
-                {/* 
-                <TouchableOpacity
-                    style={[styles.btnContacto, { backgroundColor: colors.buttonMain }]}
-                    onPress={() => setModalTarifaVisible(true)}
-                >
-                    <MaterialCommunityIcons name="phone" size={18} color="#fff"/>
-                    <Text style={styles.btnContactoTexto}>Contactar</Text>
-                </TouchableOpacity>
-                */}
             </View>
 
             <ConfirmModal
                 visible={modalRentarVisible}
                 title="Confirmar Renta"
-                description={`Estás a punto de rentar ${inmueble?.titulo} por $${(Number(inmueble?.precio_mensual) || 0).toLocaleString('es-MX')} MXN al mes. ¿Deseas proceder al pago?`}
+                description={`Estás a punto de rentar ${inmueble?.titulo} por $${(Number(inmueble?.precio_mensual) || Number(inmueble?.precio) || 0).toLocaleString('es-MX')} MXN al mes. ¿Deseas proceder al pago?`}
                 icon="key-variant"
                 primaryButtonText="Proceder al Pago"
-                onPrimaryPress={() => {
+                onPrimaryPress={async () => {
+                    const authToken = token || (await AsyncStorage.getItem("token"))
                     setModalRentarVisible(false)
                     navigation.navigate("PaymentScreen", {
-                        token: token,
-                        monto: Number(inmueble?.precio_mensual) || 0,
+                        token: authToken,
+                        monto: Number(inmueble?.precio_mensual) || Number(inmueble?.precio) || 0,
                         tipo: "renta",
                         id_inmueble: inmueble?.id_inmueble,
                         titulo_inmueble: inmueble?.titulo,
@@ -387,9 +400,10 @@ const InmuebleScreen = ({ visible: propVisible, onClose: propOnClose, inmueble: 
                 description="Para proteger a nuestra comunidad y garantizar un servicio de calidad, cobramos una pequeña tarifa de $50 MXN para contactar a este arrendador."
                 icon="shield-check"
                 primaryButtonText="Entendido, proceder al pago"
-                onPrimaryPress={() => {
+                onPrimaryPress={async () => {
+                    const authToken = token || (await AsyncStorage.getItem("token"))
                     setModalTarifaVisible(false)
-                    navigation.navigate("PaymentScreen", { token: token })
+                    navigation.navigate("PaymentScreen", { token: authToken })
                 }}
                 secondaryButtonText="Cancelar"
                 onSecondaryPress={() => setModalTarifaVisible(false)}

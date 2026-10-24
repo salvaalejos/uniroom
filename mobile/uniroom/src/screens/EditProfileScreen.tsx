@@ -36,11 +36,16 @@ export default function EditProfileScreen({ navigation, route }: any) {
     const handleLinkMercadoPago = async () => {
         setLinkingMP(true);
         try {
+            const authToken = token || (await AsyncStorage.getItem('token'));
             const response = await fetch(`${API_BASE_URL}/users/oauth/url`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${authToken}` }
             });
             const data = await response.json();
-            if (data.url) {
+            if (data.simulated) {
+                setMpLinked(true);
+                queryClient.invalidateQueries({ queryKey: ['profile', userToEdit?.id_usuario] });
+                Alert.alert('¡Cuenta Vinculada!', `Tu cuenta simulada de Mercado Pago (${data.mp_vendedor_id}) se ha vinculado exitosamente.`);
+            } else if (data.url) {
                 await Linking.openURL(data.url);
             } else {
                 Alert.alert('Error', 'No se pudo obtener la URL de vinculación.');
@@ -140,8 +145,6 @@ export default function EditProfileScreen({ navigation, route }: any) {
             return;
         }
 
-        setIsLoading(true);
-
         const nombre = fullNameParts[0];
         const apellidos = fullNameParts.slice(1).join(' ');
 
@@ -181,10 +184,11 @@ export default function EditProfileScreen({ navigation, route }: any) {
 
     const updateProfileMutation = useMutation({
         mutationFn: async (formData: FormData) => {
+            const authToken = token || (await AsyncStorage.getItem('token'));
             const response = await fetch(`${API_BASE_URL}/users/${userToEdit.id_usuario}`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${authToken}`
                 },
                 body: formData
             });

@@ -24,6 +24,9 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
   return response.json();
 }
 
+export const obtenerPerfil = (userId: string) =>
+  apiRequest(`/users/${userId}`);
+
 export const solicitarCita = (id_inmueble: number, fecha_hora: string) =>
   apiRequest('/citas/solicitar', {
     method: 'POST',
@@ -43,6 +46,9 @@ export const decisionRenta = (id: string, decision: 'APROBAR' | 'RECHAZAR') =>
     method: 'PUT',
     body: JSON.stringify({ decision }),
   });
+
+export const decidirRenta = (id: string, decision: 'APROBAR' | 'RECHAZAR' | 'APROBADO' | 'RECHAZADO') =>
+  decisionRenta(id, decision === 'APROBADO' ? 'APROBAR' : decision === 'RECHAZADO' ? 'RECHAZAR' : decision);
 
 export const marcarCitaRealizada = (id: string) =>
   apiRequest(`/citas/${id}/realizada`, {
@@ -84,16 +90,16 @@ export const obtenerInmueble = (id: number) =>
   apiRequest(`/inmuebles/${id}`);
 
 export const obtenerInmueblesMapa = (filtrosActivos: any) => {
-    let url = '/inmuebles';
-    if (filtrosActivos) {
-        const params = new URLSearchParams();
-        if (filtrosActivos.precioMax && filtrosActivos.precioMax < 99999) params.append('precioMax', filtrosActivos.precioMax.toString());
-        if (filtrosActivos.distanciaMax) params.append('distanciaMax', filtrosActivos.distanciaMax.toString());
-        if (filtrosActivos.servicios?.length > 0) params.append('servicios', filtrosActivos.servicios.join(','));
-        if (filtrosActivos.restricciones?.length > 0) params.append('restricciones', filtrosActivos.restricciones.join(','));
-        if (filtrosActivos.calificacionMin > 0) params.append('calificacionMin', filtrosActivos.calificacionMin.toString());
-        const queryString = params.toString();
-        if (queryString) url += `?${queryString}`;
-    }
-    return apiRequest(url);
+  let url = '/inmuebles';
+  if (filtrosActivos) {
+    const params = new URLSearchParams();
+    if (filtrosActivos.precioMax && filtrosActivos.precioMax < 99999) params.append('precioMax', filtrosActivos.precioMax.toString());
+    if (filtrosActivos.distanciaMax) params.append('distanciaMax', filtrosActivos.distanciaMax.toString());
+    if (filtrosActivos.servicios?.length > 0) params.append('servicios', filtrosActivos.servicios.join(','));
+    if (filtrosActivos.restricciones?.length > 0) params.append('restricciones', filtrosActivos.restricciones.join(','));
+    if (filtrosActivos.calificacionMin > 0) params.append('calificacionMin', filtrosActivos.calificacionMin.toString());
+    const queryString = params.toString();
+    if (queryString) url += `?${queryString}`;
+  }
+  return apiRequest(url);
 };

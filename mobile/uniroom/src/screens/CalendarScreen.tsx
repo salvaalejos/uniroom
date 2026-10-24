@@ -35,7 +35,7 @@ export default function CalendarScreen() {
     try {
       setLoading(true);
       await decidirRenta(id_cita, decision);
-      Alert.alert('Éxito', \`Se ha \${decision.toLowerCase()} al estudiante para rentar.\`);
+      Alert.alert('Éxito', `Se ha ${decision.toLowerCase()} al estudiante para rentar.`);
       await cargarCitas();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'No se pudo registrar la decisión');
@@ -98,9 +98,9 @@ const styles = StyleSheet.create({
   status: { fontSize: 14, fontWeight: '500' },
   statusRenta: { fontSize: 14, fontWeight: 'bold', marginTop: 4 },
   empty: { textAlign: 'center', marginTop: 40, color: '#888' },
-  actionsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
-  btnAction: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center', marginHorizontal: 4 },
-  btnApprove: { backgroundColor: '#205EA6' },
-  btnReject: { backgroundColor: '#E74C3C' },
-  btnActionText: { color: '#fff', fontWeight: 'bold' },
+  actionsContainer: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  btnAction: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  btnApprove: { backgroundColor: '#2B9348' },
+  btnReject: { backgroundColor: '#DC2F02' },
+  btnActionText: { color: '#fff', fontWeight: '600', fontSize: 14 }
 });

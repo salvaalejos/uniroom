@@ -5,7 +5,7 @@ import { sendOTPEmail, sendForgotPasswordEmail } from "../lib/email";
 import { esEmailValido } from "../utils/validation";
 
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return "12345";
 }
 
 function generateExpiryMinutes(minutes: number): Date {
@@ -72,7 +72,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         },
       });
 
-      // Generar y guardar código OTP
+      // Generar y guardar código OTP simulado (12345)
       const otpCode = generateOTP();
       await db.verificacionEmail.create({
         data: {
@@ -82,8 +82,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         },
       });
 
-      // Enviar correo con código
-      await sendOTPEmail(body.email, otpCode);
+      console.log(`[Auth Local] Código OTP simulado para ${body.email}: ${otpCode}`);
 
       const { password_hash: _, ...userWithoutPassword } = newUser;
 
@@ -137,7 +136,6 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
 
       // Verificar si el email está verificado
       if (!user.email_verificado) {
-        set.status = 403;
         return { needsVerification: true, email: user.email };
       }
 
@@ -192,7 +190,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         data: { used: true },
       });
 
-      // Generar nuevo código
+      // Generar nuevo código simulado (12345)
       const otpCode = generateOTP();
       await db.verificacionEmail.create({
         data: {
@@ -202,8 +200,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         },
       });
 
-      // Enviar correo
-      await sendOTPEmail(email, otpCode);
+      console.log(`[Auth Local] Código OTP simulado para ${email}: ${otpCode}`);
 
       return { message: "Código enviado a tu correo" };
     },
@@ -218,27 +215,34 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     async ({ body, set, jwt }) => {
       const { email, codigo } = body;
 
-      // Buscar código válido
-      const verificacion = await db.verificacionEmail.findFirst({
-        where: {
-          email,
-          codigo,
-          used: false,
-          expiresAt: { gt: new Date() },
-        },
-        orderBy: { createdAt: "desc" },
-      });
+      if (codigo !== "12345") {
+        // Buscar código válido
+        const verificacion = await db.verificacionEmail.findFirst({
+          where: {
+            email,
+            codigo,
+            used: false,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { createdAt: "desc" },
+        });
 
-      if (!verificacion) {
-        set.status = 400;
-        return { error: "Código inválido o expirado" };
+        if (!verificacion) {
+          set.status = 400;
+          return { error: "Código inválido o expirado" };
+        }
+
+        // Marcar código como usado
+        await db.verificacionEmail.update({
+          where: { id: verificacion.id },
+          data: { used: true },
+        });
+      } else {
+        await db.verificacionEmail.updateMany({
+          where: { email, used: false },
+          data: { used: true },
+        });
       }
-
-      // Marcar código como usado
-      await db.verificacionEmail.update({
-        where: { id: verificacion.id },
-        data: { used: true },
-      });
 
       // Verificar usuario
       const user = await db.usuario.update({
@@ -267,7 +271,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     {
       body: t.Object({
         email: t.String({ format: "email" }),
-        codigo: t.String({ minLength: 6, maxLength: 6 }),
+        codigo: t.String({ minLength: 5, maxLength: 6 }),
       }),
     }
   )
@@ -297,7 +301,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         data: { used: true },
       });
 
-      // Generar nuevo código
+      // Generar nuevo código simulado (12345)
       const otpCode = generateOTP();
       await db.verificacionEmail.create({
         data: {
@@ -307,8 +311,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         },
       });
 
-      // Enviar correo
-      await sendOTPEmail(email, otpCode);
+      console.log(`[Auth Local] Nuevo código OTP simulado para ${email}: ${otpCode}`);
 
       return { message: "Nuevo código enviado" };
     },
@@ -339,7 +342,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         data: { used: true },
       });
 
-      // Generar nuevo código
+      // Generar nuevo código simulado (12345)
       const otpCode = generateOTP();
       await db.verificacionEmail.create({
         data: {
@@ -349,8 +352,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         },
       });
 
-      // Enviar correo
-      await sendForgotPasswordEmail(email, otpCode);
+      console.log(`[Auth Local] Código de recuperación simulado para ${email}: ${otpCode}`);
 
       return { message: "Código de recuperación enviado a tu correo" };
     },
@@ -365,27 +367,34 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     async ({ body, set }) => {
       const { email, codigo, newPassword } = body;
 
-      // Buscar código válido
-      const verificacion = await db.verificacionEmail.findFirst({
-        where: {
-          email,
-          codigo,
-          used: false,
-          expiresAt: { gt: new Date() },
-        },
-        orderBy: { createdAt: "desc" },
-      });
+      if (codigo !== "12345") {
+        // Buscar código válido
+        const verificacion = await db.verificacionEmail.findFirst({
+          where: {
+            email,
+            codigo,
+            used: false,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { createdAt: "desc" },
+        });
 
-      if (!verificacion) {
-        set.status = 400;
-        return { error: "Código inválido o expirado" };
+        if (!verificacion) {
+          set.status = 400;
+          return { error: "Código inválido o expirado" };
+        }
+
+        // Marcar código como usado
+        await db.verificacionEmail.update({
+          where: { id: verificacion.id },
+          data: { used: true },
+        });
+      } else {
+        await db.verificacionEmail.updateMany({
+          where: { email, used: false },
+          data: { used: true },
+        });
       }
-
-      // Marcar código como usado
-      await db.verificacionEmail.update({
-        where: { id: verificacion.id },
-        data: { used: true },
-      });
 
       // Encriptar nueva contraseña
       const password_hash = await Bun.password.hash(newPassword, {
@@ -404,7 +413,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
     {
       body: t.Object({
         email: t.String({ format: "email" }),
-        codigo: t.String({ minLength: 6, maxLength: 6 }),
+        codigo: t.String({ minLength: 5, maxLength: 6 }),
         newPassword: t.String({ minLength: 6 }),
       }),
     }
